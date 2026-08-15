@@ -1,5 +1,7 @@
 package org.alexmond.uniauth.autoconfigure;
 
+import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
+import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
 import org.alexmond.uniauth.web.UniAuthLoginController;
@@ -43,7 +45,8 @@ import java.util.List;
 @ConditionalOnClass(SecurityFilterChain.class)
 @ConditionalOnProperty(prefix = "uniauth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(UniAuthProperties.class)
-@Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class, Oauth2AdaptersConfiguration.class })
+@Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class, Oauth2AdaptersConfiguration.class,
+		ApprovalConfiguration.class })
 public class UniAuthAutoConfiguration {
 
 	@Bean
@@ -71,16 +74,36 @@ public class UniAuthAutoConfiguration {
 	public SecurityFilterChain uniAuthSecurityFilterChain(HttpSecurity http, UniAuthProperties properties,
 			AuthProviderRegistry registry, ObjectProvider<AuthenticationProvider> authenticationProviders,
 			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties) throws Exception {
+			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties,
+			ObjectProvider<ApprovalAuthorizationManager> approvalManager) throws Exception {
 
 		List<String> permitted = new ArrayList<>(
 				List.of(properties.getLoginPage(), properties.getProvidersEndpoint(), "/error"));
 		permitted.addAll(properties.getPublicPaths());
 
-		http.authorizeHttpRequests((requests) -> requests.requestMatchers(permitted.toArray(String[]::new))
-			.permitAll()
-			.anyRequest()
-			.authenticated());
+		ApprovalAuthorizationManager approval = approvalManager.getIfAvailable();
+		if (approval != null) {
+			// The waiting page has to be reachable by the very people the gate is keeping
+			// out, or the redirect loops.
+			permitted.add(properties.getApproval().getPendingPage());
+		}
+
+		http.authorizeHttpRequests((requests) -> {
+			requests.requestMatchers(permitted.toArray(String[]::new)).permitAll();
+			if (approval != null) {
+				// Replaces .authenticated(): the manager refuses anonymous requests too,
+				// so the entry point still redirects to the chooser as before.
+				requests.anyRequest().access(approval);
+			}
+			else {
+				requests.anyRequest().authenticated();
+			}
+		});
+
+		if (approval != null) {
+			http.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(
+					new PendingApprovalAccessDeniedHandler(properties.getApproval().getPendingPage())));
+		}
 
 		// Internal and LDAP both land here; order of the provider beans decides who is
 		// asked first.

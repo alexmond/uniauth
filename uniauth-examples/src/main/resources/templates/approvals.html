@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Approvals')}">
+	<title>UniAuth</title>
+</head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail('approvals')}"></header>
+
+	<main>
+		<p class="eyebrow">Protected page · administrators</p>
+		<h1 class="display">Who is<br/><em>waiting.</em></h1>
+		<p class="lede">
+			Everyone here authenticated successfully and is being held at the door. Approving
+			admits them on their next request; denying refuses them outright.
+		</p>
+
+		<section>
+			<p class="note" th:if="${#lists.isEmpty(waiting)}" style="margin-top: 0">
+				Nobody is waiting. Sign in as a directory account in another browser to put
+				someone in this queue.
+			</p>
+
+			<div class="scroll-x" th:unless="${#lists.isEmpty(waiting)}">
+				<table class="rows rows--grid">
+					<caption>Pending principals</caption>
+					<thead>
+					<tr>
+						<th scope="col">Principal</th>
+						<th scope="col">Provider</th>
+						<th scope="col">First seen</th>
+						<th scope="col">Decision</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr th:each="record : ${waiting}">
+						<td th:text="${record.principal()}">name</td>
+						<td th:text="${record.mechanism()} + ' · ' + ${record.provider()}">LDAP</td>
+						<td th:text="${record.firstSeen()}">when</td>
+						<td>
+							<form th:action="@{/approvals}" method="post" style="display: flex; gap: .5rem">
+								<input type="hidden" name="provider" th:value="${record.provider()}"/>
+								<input type="hidden" name="principal" th:value="${record.principal()}"/>
+								<button class="button" type="submit" name="outcome" value="APPROVED">Approve</button>
+								<button class="button button--ghost" type="submit" name="outcome" value="DENIED">
+									Deny
+								</button>
+							</form>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<p class="note">
+			This queue lives in memory, so it empties on restart — and every approval goes with
+			it. A real deployment supplies its own <code>ApprovalStore</code>.
+		</p>
+	</main>
+</div>
+</body>
+</html>

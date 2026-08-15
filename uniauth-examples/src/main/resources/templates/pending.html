@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Waiting for approval')}">
+	<title>UniAuth</title>
+</head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail('pending')}"></header>
+
+	<main>
+		<p class="eyebrow">Signed in · not yet admitted</p>
+		<h1 class="display">Patched in.<br/><em>Not connected.</em></h1>
+		<p class="lede">
+			Your credentials were accepted — the provider vouched for you. Access to this
+			application is a separate decision, and an administrator has not made it yet.
+		</p>
+
+		<section>
+			<div class="facts">
+				<div class="fact">
+					<p class="fact__key">Signed in as</p>
+					<p class="fact__value" th:text="${name}">name</p>
+				</div>
+				<div class="fact">
+					<p class="fact__key">Status</p>
+					<p class="fact__value fact__value--brass">Waiting for approval</p>
+				</div>
+			</div>
+		</section>
+
+		<p class="note">
+			Nothing to do here but wait. Once someone approves you, the dashboard opens on your
+			next request — no need to sign in again.
+		</p>
+
+		<div class="actions">
+			<form th:action="@{/logout}" method="post">
+				<button class="button button--ghost" type="submit">Sign out</button>
+			</form>
+		</div>
+	</main>
+</div>
+</body>
+</html>

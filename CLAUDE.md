@@ -88,6 +88,32 @@ cannot be listed; that limitation is documented on the class.
 **Conditionals.** Every bean is `@ConditionalOnMissingBean`, so an app overrides by declaring its
 own rather than excluding the auto-configuration. `uniauth.enabled=false` backs off entirely.
 
+### Approval gate
+
+`uniauth.approval.enabled` inserts a gate between authenticating and being let in. It is the
+**only stateful thing in the library**, and that state lives behind the `ApprovalStore` SPI on
+purpose — owning a table would force Spring Data, a schema and migrations onto every consumer.
+`InMemoryApprovalStore` is the default and is not production-fit; say so rather than quietly
+letting someone ship it.
+
+Three decisions worth not re-litigating:
+
+- **It sits in authorization, not authentication.** `ApprovalAuthorizationManager` replaces
+  `.authenticated()` in the chain. Failing the login instead would report "pending" as a
+  credentials failure — misleading, and it confirms a correct guess to an attacker.
+- **First sighting is recorded in the manager, not a success handler.** Four mechanisms means
+  four success handlers; every request passes authorization exactly once.
+- **Keys are `(provider, principal)`.** Approving "alice" from the internal store must not admit
+  "alice" from Google.
+
+Two things that will bite if changed carelessly: the pending page is added to the permitted
+matchers, without which the redirect loops; and `PendingApprovalAccessDeniedHandler` only
+redirects requests flagged by the manager, so a genuine 403 still looks like one — a *denied*
+principal gets 403, not the waiting page.
+
+`MechanismResolver` moved from the sample into the starter here, since approval needs to know
+which provider answered. That is the rule: promote when something depends on it, not before.
+
 ### Brand is not a mechanism
 
 `AuthProviderType` is the *mechanism* axis — how a provider talks, and therefore which filter

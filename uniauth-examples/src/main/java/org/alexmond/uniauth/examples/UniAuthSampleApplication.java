@@ -2,6 +2,7 @@ package org.alexmond.uniauth.examples;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 /**
  * Runnable demonstration of the UniAuth starter.
@@ -22,6 +23,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * {@code spring-boot:run} against the parent as well.
  */
 @SpringBootApplication
+@EnableMethodSecurity
 public class UniAuthSampleApplication {
 
 	public static void main(String[] args) {

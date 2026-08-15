@@ -369,11 +369,17 @@ a.port:focus-visible {
 	vertical-align: top;
 }
 
+/* Two-column key/value listings: the key column is fixed so values line up. */
 .rows th {
 	color: var(--muted);
 	font-weight: 400;
 	white-space: nowrap;
 	width: 34%;
+}
+
+/* Genuine multi-column tables, where a fixed first column would overflow the rest. */
+.rows--grid th {
+	width: auto;
 }
 
 .rows td {
@@ -420,6 +426,9 @@ a.port:focus-visible {
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	text-decoration: none;
+	/* As a flex item in a narrow table cell a button will otherwise shrink to one
+	   character per line. */
+	white-space: nowrap;
 	padding: 0.6875rem 1.25rem;
 	border-radius: 2px;
 	border: 1px solid var(--brass);

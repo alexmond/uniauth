@@ -126,6 +126,58 @@ one button per OAuth2/SAML registration.
 `GET /uniauth/providers`:: The same information as JSON, for a single-page or mobile front end that
 wants to render its own chooser.
 
+== Approval: authenticating is not the same as being let in
+
+"Anyone with a Google account" and "anyone in the corporate directory" are both much larger sets
+than "people who should use this application". Turn approval on and a principal nobody has
+approved yet lands on a waiting page instead of the app.
+
+[source,yaml]
+----
+uniauth:
+  approval:
+    enabled: true
+    require-for: [ LDAP, OAUTH2, SAML ]   # default
+    pending-page: /pending
+----
+
+Internal accounts are ungated by default, on the grounds that writing one into configuration is
+already a deliberate act of approval.
+
+The gate sits in *authorization*, not authentication. Failing the login instead would report
+"waiting for approval" as a credentials failure — misleading, and a small information leak, since
+it tells an attacker their guess was right.
+
+=== The store is yours to provide
+
+UniAuth ships `InMemoryApprovalStore` so the flow works out of the box, and it is deliberately
+unfit for production: state is lost on restart, so every approved user goes back to pending, and
+nothing is shared between instances, so behind a load balancer a user's standing depends on which
+node they hit.
+
+Supply your own `ApprovalStore` bean backed by whatever database you already have. Keeping
+persistence behind that interface is what stops this starter from dragging Spring Data, a schema
+and a migration story onto an application that only wanted a login page.
+
+[source,java]
+----
+public interface ApprovalStore {
+    ApprovalStatus statusOf(ApprovalKey key);
+    ApprovalRecord recordPending(ApprovalKey key, AuthProviderType mechanism);
+    List<ApprovalRecord> pending();
+    Optional<ApprovalRecord> find(ApprovalKey key);
+    void decide(ApprovalKey key, ApprovalStatus outcome, String approver);
+    void remove(ApprovalKey key);   // revoking: back to the waiting room, not locked out
+}
+----
+
+Keys are `(provider, principal)`, never the principal alone: "alice" in the internal store and
+"alice" at some OIDC provider are different people who happen to share a string.
+
+*Who may approve is your decision, not UniAuth's.* The library answers "is this principal
+approved"; it has no opinion on who gets to say so. The sample restricts its queue to
+`ROLE_ADMIN` with method security — see `ApprovalController`.
+
 == Provider notes
 
 Spring Boot fills in well-known providers from `CommonOAuth2Provider`, matched on the
@@ -221,6 +273,9 @@ yours. Authorize on the `tid` claim if that is not what you want.
 |`uniauth.default-success-url` |`/` |Where to land after signing in.
 |`uniauth.logout-success-url` |`/login?logout` |
 |`uniauth.providers-endpoint` |`/uniauth/providers` |
+|`uniauth.approval.enabled` |`false` |Hold unapproved principals at a waiting page.
+|`uniauth.approval.require-for` |`OAUTH2, SAML, LDAP` |Which mechanisms are gated.
+|`uniauth.approval.pending-page` |`/pending` |Permitted automatically when approval is on.
 |`uniauth.public-paths` |empty |Extra ant-style paths served without a session. Use this for
 public pages and static assets instead of declaring your own `SecurityFilterChain`, which would
 make the starter back off entirely.

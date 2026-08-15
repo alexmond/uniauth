@@ -1,6 +1,10 @@
 package org.alexmond.uniauth.examples;
 
 import jakarta.servlet.http.HttpSession;
+import org.alexmond.uniauth.approval.ApprovalKey;
+import org.alexmond.uniauth.approval.ApprovalStatus;
+import org.alexmond.uniauth.approval.ApprovalStore;
+import org.alexmond.uniauth.provider.AuthProviderType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +36,9 @@ class SamplePagesTest {
 
 	@Autowired
 	MockMvc mockMvc;
+
+	@Autowired
+	ApprovalStore store;
 
 	@Test
 	void landingPageIsPublic() throws Exception {
@@ -80,7 +87,7 @@ class SamplePagesTest {
 
 	@Test
 	void directoryAccountIsReportedAsLdap() throws Exception {
-		HttpSession session = signIn("bob", "bobspassword", "DEVELOPERS");
+		HttpSession session = signInApproved("bob", "bobspassword", "DEVELOPERS");
 
 		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) session))
 			.andExpect(status().isOk())
@@ -89,11 +96,24 @@ class SamplePagesTest {
 
 	@Test
 	void sessionPageShowsTheDirectoryEntryDistinguishedName() throws Exception {
-		HttpSession session = signIn("bob", "bobspassword", "DEVELOPERS");
+		HttpSession session = signInApproved("bob", "bobspassword", "DEVELOPERS");
 
 		this.mockMvc.perform(get("/session").session((MockHttpSession) session))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("uid=bob")));
+	}
+
+	/**
+	 * The sample gates LDAP behind approval, so a directory account reaches the app only
+	 * once someone has let it in. {@link ApprovalFlowTest} covers the gate itself; here
+	 * it is just a precondition to get at the pages under test.
+	 */
+	private HttpSession signInApproved(String username, String password, String... roles) throws Exception {
+		HttpSession session = signIn(username, password, roles);
+		ApprovalKey key = new ApprovalKey("ldap", username);
+		this.store.recordPending(key, AuthProviderType.LDAP);
+		this.store.decide(key, ApprovalStatus.APPROVED, "test");
+		return session;
 	}
 
 	private HttpSession signIn(String username, String password, String... roles) throws Exception {

@@ -1,6 +1,7 @@
 package org.alexmond.uniauth.config;
 
 import lombok.Data;
+import org.alexmond.uniauth.provider.AuthProviderType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ public class UniAuthProperties {
 	 */
 	private List<String> publicPaths = new ArrayList<>();
 
+	private Approval approval = new Approval();
+
 	private Internal internal = new Internal();
 
 	private Ldap ldap = new Ldap();
@@ -52,6 +55,32 @@ public class UniAuthProperties {
 	private Oauth2 oauth2 = new Oauth2();
 
 	private Saml saml = new Saml();
+
+	/**
+	 * An optional gate between authenticating successfully and being let in.
+	 *
+	 * <p>
+	 * "Anyone with a Google account" and "anyone in the corporate directory" are both
+	 * much larger sets than "people who should use this application". With this on, a
+	 * principal nobody has approved yet lands on a waiting page instead of the app.
+	 */
+	@Data
+	public static class Approval {
+
+		private boolean enabled;
+
+		/**
+		 * Which mechanisms are gated. Defaults to the three where the identity comes from
+		 * somewhere else; internal accounts are left out because writing one into
+		 * configuration is already a deliberate act of approval.
+		 */
+		private List<AuthProviderType> requireFor = new ArrayList<>(
+				List.of(AuthProviderType.OAUTH2, AuthProviderType.SAML, AuthProviderType.LDAP));
+
+		/** Where an unapproved principal is sent. Served without approval, naturally. */
+		private String pendingPage = "/pending";
+
+	}
 
 	/**
 	 * Local user store — credentials declared in configuration. Intended for demos and
