@@ -1,0 +1,85 @@
+name: Maven Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: 'Release version'
+        required: true
+      nextVersion:
+        description: 'Next development version (with -SNAPSHOT suffix)'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push the release commit + tag, create the GitHub release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+          server-id: central
+          server-username: OSSRH_USERNAME
+          server-password: OSSRH_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Set Release Version
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.releaseVersion }}
+        run: |
+          ./mvnw versions:set -DnewVersion="$RELEASE_VERSION" -Pdefault --no-transfer-progress
+          # Keep the README install snippet in sync with the release (versions:set only
+          # touches the POMs). README.adoc carries the version in the :uniauth-version:
+          # attribute, so one substitution covers the whole document.
+          sed -i -E "s#^:uniauth-version:.*#:uniauth-version: $RELEASE_VERSION#" README.adoc
+
+      - name: Verify Build
+        run: ./mvnw --batch-mode verify -Pdefault --no-transfer-progress
+
+      - name: Commit and Tag Release
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.releaseVersion }}
+        run: |
+          git commit -am "Prepare release $RELEASE_VERSION"
+          git tag -a "$RELEASE_VERSION" -m "Release $RELEASE_VERSION"
+
+      - name: Deploy to Maven Central
+        run: ./mvnw --batch-mode clean deploy -Prelease -Dgpg.passphrase="${GPG_PASSPHRASE}" --no-transfer-progress
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Set Next Development Version
+        env:
+          NEXT_VERSION: ${{ github.event.inputs.nextVersion }}
+        run: |
+          ./mvnw versions:set -DnewVersion="$NEXT_VERSION" -Pdefault --no-transfer-progress
+          git commit -am "Prepare for next development iteration: $NEXT_VERSION"
+
+      - name: Push Changes
+        run: git push && git push --tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.event.inputs.releaseVersion }}
+          name: Release ${{ github.event.inputs.releaseVersion }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

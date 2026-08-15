@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Sign in</title>
+    <style>
+        :root {
+            --bg: #f4f5f7;
+            --card: #ffffff;
+            --text: #1c1e21;
+            --muted: #6b7280;
+            --border: #d9dce1;
+            --accent: #2f5fd0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #16181d;
+                --card: #1f2229;
+                --text: #e8eaed;
+                --muted: #9aa0a6;
+                --border: #333842;
+                --accent: #6f9bff;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            color: var(--text);
+            font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 22rem;
+            padding: 2rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        h1 { margin: 0 0 1.25rem; font-size: 1.25rem; }
+
+        label { display: block; margin-bottom: .75rem; font-size: .875rem; color: var(--muted); }
+
+        input[type=text], input[type=password] {
+            width: 100%;
+            margin-top: .25rem;
+            padding: .55rem .7rem;
+            font-size: 1rem;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: .6rem;
+            font-size: 1rem;
+            color: #fff;
+            background: var(--accent);
+            border: 0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .provider {
+            display: block;
+            margin-top: .5rem;
+            padding: .6rem;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .provider:hover { border-color: var(--accent); }
+
+        .divider {
+            margin: 1.25rem 0 .75rem;
+            font-size: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .notice { margin-bottom: 1rem; padding: .6rem .75rem; border-radius: 6px; font-size: .875rem; }
+        .notice.error { background: #fdecea; color: #8a1c12; }
+        .notice.info { background: #e8f1fd; color: #1c3f80; }
+        .hint { margin-top: .75rem; font-size: .8125rem; color: var(--muted); }
+    </style>
+</head>
+<body>
+<main class="card">
+    <h1>Sign in</h1>
+
+    <div class="notice error" th:if="${error}">Those credentials were not accepted.</div>
+    <div class="notice info" th:if="${logout}">You have been signed out.</div>
+
+    <p class="hint" th:if="${noProviders}">
+        No authentication provider is enabled. Turn one on under <code>uniauth.*</code> —
+        see the starter's configuration reference.
+    </p>
+
+    <form th:if="${showForm}" th:action="@{${loginPage}}" method="post">
+        <label>
+            Username
+            <input type="text" name="username" autocomplete="username" autofocus required/>
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" autocomplete="current-password" required/>
+        </label>
+        <button type="submit">Sign in</button>
+        <p class="hint" th:if="${#lists.size(formProviders) > 1}">
+            Checked against:
+            <span th:each="provider, iter : ${formProviders}">
+                <span th:text="${provider.displayName()}">Provider</span><span
+                    th:if="${!iter.last}">, </span>
+            </span>
+        </p>
+    </form>
+
+    <div th:if="${!#lists.isEmpty(redirectProviders)}">
+        <div class="divider" th:if="${showForm}">or continue with</div>
+        <a class="provider" th:each="provider : ${redirectProviders}"
+           th:href="@{${provider.loginUrl()}}"
+           th:text="${provider.displayName()}">Provider</a>
+    </div>
+</main>
+</body>
+</html>

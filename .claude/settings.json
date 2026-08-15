@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/dev-verify.sh:*)",
+      "Bash(scripts/dev-test.sh:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "roles@alexmskills": true,
+    "brainstorm-panel@alexmskills": true,
+    "research-sweep@alexmskills": true,
+    "evolving-claude-md@alexmskills": true
+  }
+}

@@ -1,0 +1,140 @@
+= UniAuth
+:toc: preamble
+:icons: font
+:uniauth-version: 4.1.0.1-SNAPSHOT
+
+A universal Spring Boot / Spring Security authentication client. It puts an *internal* user store,
+*OAuth2 / OIDC*, *SAML 2.0* and *LDAP* behind a single `SecurityFilterChain`, with a login page
+that lets the user pick between whichever of them you have turned on.
+
+WARNING: Pre-1.0 and moving. Treat the configuration surface as unstable.
+
+== Why one filter chain
+
+The obvious way to support four mechanisms is four `SecurityFilterChain` beans. That does not work:
+chains are matched in order and the first match wins, so the rest never run. UniAuth instead builds
+*one* chain carrying form login, OAuth2 login and SAML login together.
+
+* *Internal and LDAP are form-based.* They share one username/password form and are told apart by
+  the `AuthenticationProvider` chain — each contributes a provider, and Spring Security tries them
+  in turn. That is what lets you keep a couple of local break-glass accounts next to a directory.
+* *OAuth2 and SAML are redirect-based.* Each registration keeps its own entry-point URL, so the
+  chooser page only has to render a link per registration.
+
+== Quick start
+
+Add the starter:
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>uniauth-spring-boot-starter</artifactId>
+    <version>{uniauth-version}</version>
+</dependency>
+----
+
+IMPORTANT: OpenSAML — pulled in transitively by `spring-security-saml2-service-provider` — is *not
+published to Maven Central*. Your build needs the Shibboleth repository or dependency resolution
+will fail:
++
+[source,xml]
+----
+<repositories>
+    <repository>
+        <id>shibboleth-releases</id>
+        <url>https://build.shibboleth.net/maven/releases/</url>
+        <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+</repositories>
+----
+
+Then enable whichever mechanisms you want. Nothing is on by default except the two that need no
+configuration of their own:
+
+[source,yaml]
+----
+uniauth:
+  internal:
+    enabled: true
+    users:
+      - username: alice
+        password: "{noop}s3cret"   # delegating encoder — prefix the algorithm
+        roles: [ USER, ADMIN ]
+  ldap:
+    enabled: true
+    url: ldap://directory.example.com:389/dc=example,dc=com
+    user-dn-patterns: [ "uid={0},ou=people" ]
+    group-search-base: ou=groups
+
+# OAuth2 and SAML reuse Spring Boot's own binding — UniAuth consumes the repositories
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ...
+            client-secret: ...
+    saml2:
+      relyingparty:
+        registration:
+          okta:
+            ...
+----
+
+That last part is deliberate: UniAuth does *not* re-declare registration properties for OAuth2 and
+SAML. It reads the `ClientRegistrationRepository` and `RelyingPartyRegistrationRepository` that Boot
+already builds, so the whole upstream configuration surface stays available and stays documented by
+Spring Boot.
+
+== What you get
+
+`GET /login`:: A chooser page — the shared credentials form when any form-based provider is on, plus
+one button per OAuth2/SAML registration.
+`GET /uniauth/providers`:: The same information as JSON, for a single-page or mobile front end that
+wants to render its own chooser.
+
+== Configuration reference
+
+[cols="2,1,3"]
+|===
+|Property |Default |Notes
+
+|`uniauth.enabled` |`true` |Master switch. When false UniAuth backs off entirely.
+|`uniauth.login-page` |`/login` |Path of the chooser page.
+|`uniauth.default-success-url` |`/` |Where to land after signing in.
+|`uniauth.logout-success-url` |`/login?logout` |
+|`uniauth.providers-endpoint` |`/uniauth/providers` |
+|`uniauth.internal.enabled` |`false` |
+|`uniauth.internal.users[].password` |— |Carries an algorithm prefix, e.g. `{noop}` or `{bcrypt}`.
+|`uniauth.ldap.enabled` |`false` |
+|`uniauth.ldap.url` |— |Full provider URL including the base DN.
+|`uniauth.ldap.user-dn-patterns` |`uid={0},ou=people` |
+|`uniauth.ldap.group-search-base` |`ou=groups` |
+|`uniauth.ldap.manager-dn` / `.manager-password` |— |Omit for an anonymous bind.
+|`uniauth.oauth2.enabled` |`true` |Only takes effect if a `ClientRegistrationRepository` exists.
+|`uniauth.saml.enabled` |`true` |Only takes effect if a `RelyingPartyRegistrationRepository` exists.
+|===
+
+== Overriding
+
+Every bean is `@ConditionalOnMissingBean`, so declaring your own `SecurityFilterChain`,
+`AuthProviderRegistry` or login controller replaces the starter's without excluding the
+auto-configuration.
+
+== Building
+
+[source,bash]
+----
+scripts/dev-verify.sh                     # format + full verify (what CI runs)
+scripts/dev-test.sh UniAuthLdapLoginTest  # one test class
+./mvnw spring-javaformat:apply            # auto-format before committing
+----
+
+Java 21, Spring Boot 4.1.x. Every `verify` runs four gates, all of which fail the build:
+spring-javaformat (tabs, Spring conventions), Checkstyle, PMD, and JaCoCo at ≥80% line coverage.
+
+== Licence
+
+Apache License 2.0.

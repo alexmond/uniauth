@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<ruleset name="uniauth PMD Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>PMD ruleset for the uniauth project</description>
+
+    <!-- Best Practices -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="UnitTestContainsTooManyAsserts"/> <!-- was JUnitTestContainsTooManyAsserts before PMD 7.7 -->
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/> <!-- was JUnitAssertionsShouldIncludeMessage before PMD 7.7 -->
+        <exclude name="LooseCoupling"/>
+        <exclude name="UseVarargs"/> <!-- Changing method signatures could break API -->
+        <exclude name="LiteralsFirstInComparisons"/> <!-- Project prefers subject.equals(literal) readability -->
+        <exclude name="GuardLogStatement"/> <!-- SLF4J parameterized logging avoids the cost this rule guards against -->
+        <exclude name="UnnecessaryWarningSuppression"/> <!-- Meta-rule cascades failures across environments -->
+    </rule>
+
+    <!-- Code Style -->
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="LongVariable"/>
+        <exclude name="ShortMethodName"/>
+        <exclude name="ShortClassName"/>
+        <exclude name="CommentDefaultAccessModifier"/> <!-- Auto-configuration classes are intentionally package-private -->
+        <exclude name="CallSuperInConstructor"/>
+        <exclude name="ConfusingTernary"/>
+        <exclude name="TooManyStaticImports"/> <!-- MockMvc/AssertJ tests static-import heavily -->
+        <exclude name="UseExplicitTypes"/>
+        <exclude name="UselessParentheses"/> <!-- Spring formatter controls parentheses style -->
+    </rule>
+    <rule ref="category/java/codestyle.xml/ClassNamingConventions">
+        <properties>
+            <property name="utilityClassPattern" value="[A-Z][a-zA-Z0-9]*"/>
+        </properties>
+    </rule>
+
+    <!-- Design -->
+    <rule ref="category/java/design.xml">
+        <exclude name="ImmutableField"/> <!-- Spring injects values into annotated fields -->
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+        <exclude name="DataClass"/>
+        <exclude name="TooManyMethods"/>
+        <exclude name="ExcessiveImports"/> <!-- Security configuration wires many collaborators -->
+        <exclude name="CouplingBetweenObjects"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="ExcessiveParameterList"/> <!-- @Bean methods take their dependencies as parameters -->
+        <exclude name="CyclomaticComplexity"/>
+        <exclude name="NcssCount"/>
+        <exclude name="NPathComplexity"/>
+        <exclude name="GodClass"/>
+        <exclude name="TooManyFields"/>
+        <exclude name="AvoidThrowingRawExceptionTypes"/>
+        <exclude name="SignatureDeclareThrowsException"/> <!-- HttpSecurity builder methods declare Exception -->
+        <exclude name="UseObjectForClearerAPI"/>
+        <exclude name="CognitiveComplexity"/>
+        <exclude name="SimplifyBooleanReturns"/> <!-- Sometimes explicit if/return reads more clearly -->
+        <exclude name="CollapsibleIfStatements"/> <!-- Separate conditions often read more clearly -->
+    </rule>
+
+    <!-- Error Prone -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="NonSerializableClass"/> <!-- was BeanMembersShouldSerialize before PMD 6.52 -->
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="AvoidDuplicateLiterals"/>
+        <exclude name="MissingSerialVersionUID"/>
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="AvoidFieldNameMatchingTypeName"/> <!-- Config property classes have fields matching type names -->
+        <exclude name="NullAssignment"/>
+        <exclude name="ReturnEmptyCollectionRatherThanNull"/> <!-- Null signals "not found" in lookup methods -->
+        <exclude name="TestClassWithoutTestCases"/> <!-- The test host application is not a test case -->
+    </rule>
+
+    <!-- Multithreading -->
+    <rule ref="category/java/multithreading.xml">
+        <exclude name="UseConcurrentHashMap"/>
+        <exclude name="DoNotUseThreads"/>
+    </rule>
+
+    <!-- Performance -->
+    <rule ref="category/java/performance.xml">
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+        <exclude name="ConsecutiveAppendsShouldReuse"/> <!-- Chaining style is a preference -->
+        <exclude name="InsufficientStringBufferDeclaration"/> <!-- Premature optimization -->
+    </rule>
+
+</ruleset>

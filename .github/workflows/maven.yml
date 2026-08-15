@@ -1,0 +1,70 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    permissions:
+      contents: write        # for the dependency-graph snapshot submission
+      checks: write          # for the unit-test-result check run
+      pull-requests: write   # to comment test results on PRs
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Build with Maven
+        run: ./mvnw -B verify -Pdefault --no-transfer-progress
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: |
+            **/surefire-reports/TEST-*.xml
+
+      # Upload only when CODECOV_TOKEN is armed (infra/scripts/gh-release-secrets.sh).
+      # When present we enforce (fail_ci_if_error); when absent the step is skipped so
+      # CI stays green until the token lands. (Tokenless upload isn't allowed on this org.)
+      - name: Add coverage to PR
+        if: ${{ !cancelled() && env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: ${{ github.workspace }}/*/target/site/jacoco/jacoco.xml
+          fail_ci_if_error: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && env.CODECOV_TOKEN != '' }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: ${{ github.workspace }}/**/surefire-reports/TEST-*.xml
+
+      - name: Report tests + coverage to UniTrack
+        if: always()
+        uses: alexmond/unitrack/action@v0
+        with:
+          url: ${{ vars.UNITRACK_URL }}
+          token: ${{ secrets.UNITRACK_TOKEN }}
+          junit: '**/surefire-reports/TEST-*.xml'
+          jacoco: '**/jacoco.xml'
+          soft-fail: "true"
+          split-by-module: "true"
+
+      # Best-effort supply-chain snapshot; needs the repo's Dependency graph feature
+      # enabled (Settings -> Code security). Never fail CI on it.
+      - name: Submit Dependency Snapshot
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: advanced-security/maven-dependency-submission-action@v5

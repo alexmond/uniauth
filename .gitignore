@@ -1,0 +1,23 @@
+target/
+!.mvn/wrapper/maven-wrapper.properties
+.mvn/wrapper/*.jar
+
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+.DS_Store
+*.log
+
+# Never commit real IdP material — see CLAUDE.md
+*.jks
+*.p12
+*.pfx
+*.key
+*.pem
+**/src/main/resources/**/idp-metadata.xml
+application-local.yaml
+application-local.yml
+application-local.properties
