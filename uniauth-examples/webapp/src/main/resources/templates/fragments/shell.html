@@ -36,11 +36,23 @@
 	</nav>
 </header>
 
+<!-- The inner markup of a port, shared by the clickable and the static rendering. -->
+<span th:fragment="portBody(port)" th:remove="tag">
+	<span class="port__jack"></span>
+	<span class="port__name" th:text="${port.displayName()}">Provider</span>
+	<span class="port__kind" th:text="${port.type()}">TYPE</span>
+</span>
+
 <!--
-  ports : List<AuthProvider> from the starter's registry
-  live  : AuthProviderType that answered this session, or null when signed out
+  ports  : List<AuthProvider> from the starter's registry
+  live   : AuthProviderType that answered this session, or null when signed out
+  linked : whether a port should start that sign-in when clicked
+
+  Signed out the panel is a menu — seeing a provider and not being able to click it is
+  just annoying. Signed in it is a status display of the session you already have, so the
+  ports go inert rather than inviting you to authenticate again.
 -->
-<section th:fragment="panel(ports, live)" class="panel">
+<section th:fragment="panel(ports, live, linked)" class="panel">
 	<p class="panel__caption">
 		<span>Provider panel</span>
 		<span th:text="${#lists.size(ports)} + ' enabled'">0 enabled</span>
@@ -52,11 +64,16 @@
 
 	<ul class="ports" th:unless="${#lists.isEmpty(ports)}">
 		<li th:each="port : ${ports}">
-			<span class="port"
+			<!-- Redirect providers go straight to their own flow; the form-based ones share
+			     the chooser, which is where their username and password box lives. -->
+			<a th:if="${linked}" class="port"
+			   th:classappend="${live != null and live.name() == port.type().name()} ? 'port--live'"
+			   th:href="@{${port.loginUrl() != null ? port.loginUrl() : '/login'}}">
+				<span th:replace="~{fragments/shell :: portBody(${port})}"></span>
+			</a>
+			<span th:unless="${linked}" class="port"
 			      th:classappend="${live != null and live.name() == port.type().name()} ? 'port--live'">
-				<span class="port__jack"></span>
-				<span class="port__name" th:text="${port.displayName()}">Provider</span>
-				<span class="port__kind" th:text="${port.type()}">TYPE</span>
+				<span th:replace="~{fragments/shell :: portBody(${port})}"></span>
 			</span>
 		</li>
 	</ul>

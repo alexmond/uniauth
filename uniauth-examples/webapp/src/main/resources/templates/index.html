@@ -16,7 +16,7 @@
 			this deployment has switched on.
 		</p>
 
-		<section th:replace="~{fragments/shell :: panel(${ports}, ${live})}"></section>
+		<section th:replace="~{fragments/shell :: panel(${ports}, ${live}, true)}"></section>
 
 		<div class="actions">
 			<a class="button" th:href="@{/dashboard}">Open the dashboard</a>

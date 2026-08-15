@@ -266,9 +266,17 @@ body {
 	background: linear-gradient(180deg, var(--brass), rgba(200, 150, 62, 0.15));
 }
 
-/* A redirect-based port is clickable from the chooser; give it a hover cue. */
+/* A clickable port needs to look clickable — hover cue and a pointer. */
+a.port {
+	cursor: pointer;
+}
+
 a.port:hover,
 a.port:focus-visible {
+	border-color: var(--patina);
+}
+
+a.port:hover .port__jack {
 	border-color: var(--patina);
 }
 
