@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: uniauth-headless-example
+
+  # An in-process directory so the LDAP path works with nothing else running.
+  ldap:
+    embedded:
+      base-dn: dc=example,dc=com
+      ldif: classpath:sample-directory.ldif
+      port: 18390
+
+uniauth:
+  # No public pages here — the only thing served without a session is the providers
+  # endpoint, which the starter permits already. A real front end is static files
+  # hosted elsewhere, so there is nothing else to open up.
+  internal:
+    enabled: true
+    display-name: Local account
+    users:
+      - username: alice
+        password: "{noop}s3cret"
+        roles: [ USER, ADMIN ]
+
+  ldap:
+    enabled: true
+    display-name: Directory account
+    url: ldap://localhost:18390/dc=example,dc=com
+    user-dn-patterns:
+      - uid={0},ou=people
+    group-search-base: ou=groups
+
+# The form login still exists — a JSON client can POST to /login with username and
+# password. It is the redirect-based providers that need the front end to send the
+# browser to their loginUrl from /uniauth/providers.
+
+logging:
+  level:
+    org.alexmond.uniauth: DEBUG

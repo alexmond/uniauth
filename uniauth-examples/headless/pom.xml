@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.alexmond</groupId>
+        <artifactId>uniauth-examples</artifactId>
+        <version>4.1.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>uniauth-example-headless</artifactId>
+    <name>UniAuth Example — Headless / API-first</name>
+    <description>The other way to consume the starter: no server-rendered pages at all. A
+        single-page or mobile front end reads the enabled providers as JSON, renders its own
+        chooser, and gets 401 rather than a redirect when a session is missing.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>uniauth-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Runs an in-process directory so the LDAP path works with no external server. -->
+        <dependency>
+            <groupId>com.unboundid</groupId>
+            <artifactId>unboundid-ldapsdk</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

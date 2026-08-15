@@ -15,7 +15,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
  *
  * <pre>
  * ./mvnw -Pdefault -DskipTests install                    # once — publishes the starter
- * ./mvnw -Pdefault -pl uniauth-examples spring-boot:run
+ * ./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run
  * </pre>
  *
  * The install step is not optional: {@code -pl} resolves the starter from the repository

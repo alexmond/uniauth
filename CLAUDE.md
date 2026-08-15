@@ -8,12 +8,24 @@ A Spring Boot **starter** (`org.alexmond:uniauth-spring-boot-starter`) that puts
 store, OAuth2/OIDC, SAML 2.0 and LDAP behind a **single `SecurityFilterChain`**, with a login page
 that lets the user choose among whichever mechanisms are enabled.
 
-Two modules: the starter, and `uniauth-examples` — a runnable sample app that only joins the
-reactor under `-Pdefault`.
+Layout: the starter, plus `uniauth-examples` — an **aggregator** (`packaging: pom`) whose
+submodules only join the reactor under `-Pdefault`.
+
+```
+uniauth-spring-boot-starter/   the library
+uniauth-examples/              aggregator, skipPublishing=true
+  webapp/                      uniauth-example-webapp   — server-rendered, start here
+  headless/                    uniauth-example-headless — API-first, 401 not redirect
+```
+
+New examples go under `uniauth-examples/` as short directory names with
+`uniauth-example-<name>` artifact ids, matching `gotmpl4j-samples`. **`skipPublishing` is set on
+the aggregator and must stay there** — without it a release pushes demo applications to Maven
+Central.
 
 ```bash
-./mvnw -Pdefault -DskipTests install                    # once — publishes the starter
-./mvnw -Pdefault -pl uniauth-examples spring-boot:run   # http://localhost:8080
+./mvnw -Pdefault -DskipTests install                              # once — publishes the starter
+./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run      # http://localhost:8080
 ```
 
 The `install` is not optional (`-pl` resolves the starter from the repository, not the reactor)
@@ -141,7 +153,18 @@ check intact, then adds the tenant-template issuer rule itself. It also checks t
 **Apple is unsupported** and should stay that way until Spring supports a non-static client
 secret: Apple requires a generated ES256 JWT and `ClientRegistration.Builder` takes only a string.
 
-### The sample app (`uniauth-examples`)
+### Two extension points, before you replace the chain
+
+Declaring your own `SecurityFilterChain` makes the whole starter back off, so these exist to
+avoid that — and each was added because an example needed it, never speculatively:
+
+- `uniauth.public-paths` — open up routes (the webapp example needed public pages).
+- An `AuthenticationEntryPoint` bean — the starter uses it instead of redirecting to the
+  chooser (the headless example needed 401).
+
+That is the pattern to keep following: build the example first, and let it prove the gap.
+
+### The sample app (`uniauth-examples/webapp`)
 
 Design direction is a **patch panel**: providers are labelled ports, and the one that
 authenticated you shows a lit brass jack with a cable dropping to the bus. It is driven by real

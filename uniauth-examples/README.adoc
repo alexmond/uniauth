@@ -1,0 +1,56 @@
+= UniAuth Examples
+
+Each example is a whole runnable application rather than a snippet, and each shows a different
+way of consuming the starter. None are published to Maven Central — they are documentation.
+
+[cols="1,3"]
+|===
+|Module |What it shows
+
+|`webapp`
+|*Start here.* Server-rendered: the provider-chooser login page, public and protected pages, a
+live view of which mechanism authenticated the session, and the approval queue. Re-skins the
+starter's login template to show how that is done.
+
+|`headless`
+|The API-first alternative. No templates at all — a front end reads `GET /uniauth/providers`
+and renders its own chooser, and a missing session returns 401 instead of a redirect. One bean
+(`AuthenticationEntryPoint`) is the entire difference.
+|===
+
+Both boot the internal store and an in-process LDAP directory, so they run with no external
+services. OAuth2 and SAML need a real identity provider; see the commented blocks in
+`webapp/src/main/resources/application.yaml`.
+
+== Running
+
+The starter has to be in the local repository first, because `-pl` resolves it from there
+rather than from the reactor. `-am` cannot substitute — it would run `spring-boot:run` against
+the parent too, which has no main class.
+
+[source,bash]
+----
+./mvnw -Pdefault -DskipTests install                       # once
+
+./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run
+./mvnw -Pdefault -pl uniauth-examples/headless spring-boot:run
+----
+
+Then, for `webapp`, open http://localhost:8080. For `headless`:
+
+[source,bash]
+----
+curl localhost:8080/uniauth/providers     # what you can sign in with
+curl -i localhost:8080/api/me             # 401 — no session, no redirect
+----
+
+== Accounts
+
+[cols="2,3"]
+|===
+|Sign in as |What it shows
+
+|`alice` / `s3cret` |Internal store, `ROLE_USER` + `ROLE_ADMIN`. Approves others in `webapp`.
+|`breakglass` / `local-only` |A local account beside the directory (`webapp` only).
+|`bob` / `bobspassword` |LDAP, `ROLE_DEVELOPERS` from a group. Held for approval in `webapp`.
+|===

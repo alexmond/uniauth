@@ -35,12 +35,6 @@ class ApprovalConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	MechanismResolver uniAuthMechanismResolver() {
-		return new MechanismResolver();
-	}
-
-	@Bean
-	@ConditionalOnMissingBean
 	ApprovalAuthorizationManager uniAuthApprovalAuthorizationManager(ApprovalStore store, MechanismResolver resolver,
 			UniAuthProperties properties) {
 		return new ApprovalAuthorizationManager(store, resolver, properties);

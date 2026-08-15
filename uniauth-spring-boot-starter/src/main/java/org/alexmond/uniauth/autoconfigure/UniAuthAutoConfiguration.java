@@ -4,6 +4,7 @@ import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
+import org.alexmond.uniauth.provider.MechanismResolver;
 import org.alexmond.uniauth.web.UniAuthLoginController;
 import org.alexmond.uniauth.web.UniAuthProvidersController;
 import org.springframework.beans.factory.ObjectProvider;
@@ -19,6 +20,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.ArrayList;
@@ -69,13 +71,24 @@ public class UniAuthAutoConfiguration {
 		return new UniAuthProvidersController(registry);
 	}
 
+	/**
+	 * Available whether or not the approval gate is on: knowing which provider answered
+	 * is useful to any application, not just to an approval decision.
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public MechanismResolver uniAuthMechanismResolver() {
+		return new MechanismResolver();
+	}
+
 	@Bean
 	@ConditionalOnMissingBean(SecurityFilterChain.class)
 	public SecurityFilterChain uniAuthSecurityFilterChain(HttpSecurity http, UniAuthProperties properties,
 			AuthProviderRegistry registry, ObjectProvider<AuthenticationProvider> authenticationProviders,
 			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
 			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties,
-			ObjectProvider<ApprovalAuthorizationManager> approvalManager) throws Exception {
+			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
+			ObjectProvider<AuthenticationEntryPoint> entryPoint) throws Exception {
 
 		List<String> permitted = new ArrayList<>(
 				List.of(properties.getLoginPage(), properties.getProvidersEndpoint(), "/error"));
@@ -100,9 +113,19 @@ public class UniAuthAutoConfiguration {
 			}
 		});
 
-		if (approval != null) {
-			http.exceptionHandling((exceptions) -> exceptions.accessDeniedHandler(
-					new PendingApprovalAccessDeniedHandler(properties.getApproval().getPendingPage())));
+		AuthenticationEntryPoint customEntryPoint = entryPoint.getIfAvailable();
+		if (approval != null || customEntryPoint != null) {
+			http.exceptionHandling((exceptions) -> {
+				if (approval != null) {
+					exceptions.accessDeniedHandler(
+							new PendingApprovalAccessDeniedHandler(properties.getApproval().getPendingPage()));
+				}
+				// An API-first application declares one of these to get 401 instead of a
+				// redirect to a page its front end has no use for.
+				if (customEntryPoint != null) {
+					exceptions.authenticationEntryPoint(customEntryPoint);
+				}
+			});
 		}
 
 		// Internal and LDAP both land here; order of the provider beans decides who is

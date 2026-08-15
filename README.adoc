@@ -90,17 +90,25 @@ Spring Boot.
 
 == Try it
 
-The `uniauth-examples` module is a runnable app with public and protected pages. It boots the
-internal store and an in-process LDAP directory, so sign-in works with nothing else running.
+`uniauth-examples` holds runnable applications, one per way of consuming the starter. Both boot
+the internal store and an in-process LDAP directory, so sign-in works with nothing else running.
+
+[cols="1,3"]
+|===
+|Module |What it shows
+
+|`webapp` |*Start here.* Server-rendered pages, the provider chooser, and the approval queue.
+|`headless` |API-first: no templates, providers as JSON, 401 instead of a redirect.
+|===
 
 [source,bash]
 ----
-./mvnw -Pdefault -DskipTests install                    # once — publishes the starter
-./mvnw -Pdefault -pl uniauth-examples spring-boot:run
+./mvnw -Pdefault -DskipTests install                            # once — publishes the starter
+./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run
 ----
 
 Then open http://localhost:8080. The `install` step is required: `-pl` resolves the starter
-from the local repository, not the reactor.
+from the local repository, not the reactor. See `uniauth-examples/README.adoc` for the rest.
 
 [cols="2,3"]
 |===
@@ -300,6 +308,13 @@ validation.
 Every bean is `@ConditionalOnMissingBean`, so declaring your own `SecurityFilterChain`,
 `AuthProviderRegistry` or login controller replaces the starter's without excluding the
 auto-configuration.
+
+Two hooks are worth knowing before you reach for a whole filter chain, because replacing it
+means giving up all the wiring:
+
+`uniauth.public-paths`:: Opens up routes without touching the chain.
+`AuthenticationEntryPoint` bean:: Declare one and the starter uses it instead of redirecting to
+the chooser. An API-first application returns 401 this way — see the `headless` example.
 
 == Building
 

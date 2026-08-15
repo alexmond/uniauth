@@ -9,53 +9,34 @@
     </parent>
 
     <artifactId>uniauth-examples</artifactId>
+    <packaging>pom</packaging>
+
     <name>UniAuth Examples</name>
-    <description>Runnable sample application demonstrating the UniAuth starter: public pages, protected
-        pages, and a live view of which mechanism authenticated the current session.
+    <description>Runnable examples for the UniAuth starter. Each one is a whole application rather
+        than a snippet, and each shows a different way of consuming the library. Not published to
+        Maven Central — these are documentation, not artifacts.
     </description>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.alexmond</groupId>
-            <artifactId>uniauth-spring-boot-starter</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <!-- sec:authorize in the templates, so the nav reflects the session. -->
-        <dependency>
-            <groupId>org.thymeleaf.extras</groupId>
-            <artifactId>thymeleaf-extras-springsecurity6</artifactId>
-        </dependency>
-
-        <!-- Runs an in-process directory so the LDAP path works with no external server. -->
-        <dependency>
-            <groupId>com.unboundid</groupId>
-            <artifactId>unboundid-ldapsdk</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-webmvc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>webapp</module>
+        <module>headless</module>
+    </modules>
 
     <build>
         <plugins>
+            <!--
+              Examples are documentation, never artifacts. The central-publishing plugin is active
+              in the release profile, so its skip is set here for every example module to inherit;
+              without it a release would push a demo application to Maven Central.
+            -->
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <configuration>
+                    <skipPublishing>true</skipPublishing>
+                </configuration>
             </plugin>
         </plugins>
     </build>
+
 </project>
