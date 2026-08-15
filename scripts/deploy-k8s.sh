@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Build & publish the UniAuth example web app image, then install/upgrade its Helm chart on
-# a Kubernetes cluster and health-check the rollout.
+# Build & publish a UniAuth example image, then install/upgrade its Helm chart on a
+# Kubernetes cluster and health-check the rollout.
 #
 # This script is deliberately GENERIC and arg-driven — it carries no cluster defaults, no
 # registry, no hostname. The homelab driver supplies those from a private overlay:
@@ -9,6 +9,8 @@
 #
 # Usage:
 #   scripts/deploy-k8s.sh [options]
+#     --example NAME          which example to deploy       (default: webapp)
+#                             one of the directories under uniauth-examples/
 #     --registry HOST[:PORT]  image registry                (required to push)
 #     --tag TAG               image tag                     (default: project version)
 #     --release NAME          Helm release name             (default: uniauth)
@@ -41,11 +43,11 @@ BUILD=1
 PUBLISH=1
 DRY_RUN=0
 
-MODULE=uniauth-examples/webapp
-IMAGE_NAME=uniauth-example-webapp
+EXAMPLE=webapp
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --example)     EXAMPLE="$2"; shift 2 ;;
     --registry)    REGISTRY="$2"; shift 2 ;;
     --tag)         TAG="$2"; shift 2 ;;
     --release)     RELEASE="$2"; shift 2 ;;
@@ -56,10 +58,14 @@ while [[ $# -gt 0 ]]; do
     --no-build)    BUILD=0; shift ;;
     --no-push)     PUBLISH=0; shift ;;
     --dry-run)     DRY_RUN=1; shift ;;
-    -h|--help)     sed -n '2,27p' "$0"; exit 0 ;;
+    -h|--help)     sed -n '2,30p' "$0"; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+MODULE="uniauth-examples/$EXAMPLE"
+IMAGE_NAME="uniauth-example-$EXAMPLE"
+[[ -d "$MODULE" ]] || { echo "no such example: $MODULE" >&2; exit 2; }
 
 if [[ -z "$TAG" ]]; then
   TAG=$(./mvnw -q -Dexec.executable=echo -Dexec.args='${project.version}' \

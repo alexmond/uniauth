@@ -36,7 +36,7 @@ the parent too, which has no main class.
 ./mvnw -Pdefault -DskipTests install                       # once
 
 ./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run
-./mvnw -Pdefault -pl uniauth-examples/headless spring-boot:run
+./mvnw -Pdefault -pl uniauth-examples/headless spring-boot:run    # use --server.port to run both
 ----
 
 Then, for `webapp`, open http://localhost:8080. For `headless`:
@@ -87,3 +87,18 @@ operations underneath: a map entry, an LDAP `bind` that puts a real `inetOrgPers
 `ou=people`, and an account at a different service. The page says which is which — including that
 a new directory user signs in with no authorities, because roles come from group membership the
 form does not touch.
+
+== Deploying
+
+Both examples deploy from the same chart, picked with `--example`:
+
+[source,bash]
+----
+scripts/deploy-k8s.sh --example webapp   --values ...        # release: uniauth
+scripts/deploy-k8s.sh --example headless --release uniauth-api --values ...
+----
+
+They are two Helm releases in one namespace, so each needs its own release name — a shared
+one would have the second clobber the first. Each example needs
+`spring-boot-starter-actuator` and the `k8s` profile, or no management port opens and the pod
+never goes Ready.

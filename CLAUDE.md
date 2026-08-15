@@ -28,6 +28,11 @@ Central.
 ./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run      # http://localhost:8080
 ```
 
+Both examples deploy from the same chart via `scripts/deploy-k8s.sh --example <name>`, as two
+Helm releases in one namespace (`uniauth` and `uniauth-api`) — a shared release name would have
+the second clobber the first. **Every example needs `spring-boot-starter-actuator` and the `k8s`
+profile**, or no management port opens and the pod never goes Ready; both examples hit this.
+
 The `install` is not optional (`-pl` resolves the starter from the repository, not the reactor)
 and `-am` cannot replace it — that runs `spring-boot:run` against the parent too and fails on a
 missing main class.

@@ -22,6 +22,16 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!--
+          Health endpoints for the container probes. The webapp example learned this the
+          hard way: without actuator the app starts cleanly, no management port opens, and
+          the pod never goes Ready.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Runs an in-process directory so the LDAP path works with no external server. -->
         <dependency>
             <groupId>com.unboundid</groupId>

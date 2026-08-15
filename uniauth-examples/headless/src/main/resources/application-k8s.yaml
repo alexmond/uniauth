@@ -1,0 +1,36 @@
+# Profile for running the headless example on a cluster. Activated by the chart.
+#
+# Same shape as the webapp's k8s profile: the chart injects MANAGEMENT_SERVER_PORT, which
+# moves actuator onto its own container port, never routed through the ingress.
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+    env:
+      show-values: never
+  info:
+    env:
+      enabled: true
+
+info:
+  tags:
+    environment: ${INFO_ENV_TAG:lab}
+
+uniauth:
+  # This example has no public pages at all — the front end is served from somewhere else.
+  # /actuator/** is permitted for the same reason as in the webapp: probes and Prometheus
+  # send no credentials, and this application answers everything else with 401 rather than
+  # a redirect, which a probe would report as a failure.
+  public-paths:
+    - /actuator/**
+
+logging:
+  level:
+    org.alexmond.uniauth: INFO
