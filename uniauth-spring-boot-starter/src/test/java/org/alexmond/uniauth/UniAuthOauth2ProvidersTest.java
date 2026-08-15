@@ -1,6 +1,7 @@
 package org.alexmond.uniauth;
 
 import org.alexmond.uniauth.provider.AuthProvider;
+import org.alexmond.uniauth.provider.AuthProviderBrand;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.alexmond.uniauth.testapp.TestApplication;
@@ -64,6 +65,29 @@ class UniAuthOauth2ProvidersTest {
 			assertThat(p.displayName()).isEqualTo("GitHub");
 			assertThat(p.loginUrl()).isEqualTo("/oauth2/authorization/github");
 		});
+	}
+
+	@Test
+	void theOidcFlagCarriesTheDifferenceThatMatters() {
+		List<AuthProvider> redirect = this.registry.redirectProviders();
+
+		// Same mechanism, same filter wiring, different capability — which is exactly why
+		// brand does not belong in AuthProviderType.
+		assertThat(redirect).filteredOn((p) -> "google".equals(p.id())).singleElement().satisfies((p) -> {
+			assertThat(p.brand()).isEqualTo(AuthProviderBrand.GOOGLE);
+			assertThat(p.oidc()).isTrue();
+		});
+		assertThat(redirect).filteredOn((p) -> "github".equals(p.id())).singleElement().satisfies((p) -> {
+			assertThat(p.brand()).isEqualTo(AuthProviderBrand.GITHUB);
+			assertThat(p.oidc()).isFalse();
+		});
+	}
+
+	@Test
+	void formBasedProvidersAreNeverBrandedOrOidc() {
+		assertThat(this.registry.formProviders())
+			.allSatisfy((p) -> assertThat(p.brand()).isEqualTo(AuthProviderBrand.GENERIC));
+		assertThat(this.registry.formProviders()).allSatisfy((p) -> assertThat(p.oidc()).isFalse());
 	}
 
 	@Test

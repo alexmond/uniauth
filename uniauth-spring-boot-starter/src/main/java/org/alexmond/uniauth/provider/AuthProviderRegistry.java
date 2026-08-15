@@ -53,11 +53,12 @@ public class AuthProviderRegistry {
 	public List<AuthProvider> formProviders() {
 		List<AuthProvider> form = new ArrayList<>();
 		if (properties.getInternal().isEnabled()) {
-			form.add(new AuthProvider("internal", AuthProviderType.INTERNAL, properties.getInternal().getDisplayName(),
-					null));
+			form.add(new AuthProvider("internal", AuthProviderType.INTERNAL, AuthProviderBrand.GENERIC,
+					properties.getInternal().getDisplayName(), null, false));
 		}
 		if (properties.getLdap().isEnabled()) {
-			form.add(new AuthProvider("ldap", AuthProviderType.LDAP, properties.getLdap().getDisplayName(), null));
+			form.add(new AuthProvider("ldap", AuthProviderType.LDAP, AuthProviderBrand.GENERIC,
+					properties.getLdap().getDisplayName(), null, false));
 		}
 		return List.copyOf(form);
 	}
@@ -71,7 +72,8 @@ public class AuthProviderRegistry {
 				for (Object candidate : iterable) {
 					ClientRegistration registration = (ClientRegistration) candidate;
 					redirect.add(new AuthProvider(registration.getRegistrationId(), AuthProviderType.OAUTH2,
-							displayNameOf(registration), "/oauth2/authorization/" + registration.getRegistrationId()));
+							AuthProviderBrand.detect(registration), displayNameOf(registration),
+							"/oauth2/authorization/" + registration.getRegistrationId(), isOidc(registration)));
 				}
 			}
 		}
@@ -81,8 +83,8 @@ public class AuthProviderRegistry {
 				for (Object candidate : iterable) {
 					RelyingPartyRegistration registration = (RelyingPartyRegistration) candidate;
 					redirect.add(new AuthProvider(registration.getRegistrationId(), AuthProviderType.SAML,
-							capitalize(registration.getRegistrationId()),
-							"/saml2/authenticate/" + registration.getRegistrationId()));
+							AuthProviderBrand.GENERIC, capitalize(registration.getRegistrationId()),
+							"/saml2/authenticate/" + registration.getRegistrationId(), false));
 				}
 			}
 		}
@@ -100,6 +102,17 @@ public class AuthProviderRegistry {
 	 */
 	public boolean isEmpty() {
 		return providers().isEmpty();
+	}
+
+	/**
+	 * Whether the provider issues an id_token, which decides whether the principal
+	 * arrives as an {@code OidcUser} carrying claims or as a bare {@code OAuth2User}
+	 * assembled from a userinfo call. The {@code openid} scope is the request for one,
+	 * and its absence is why GitHub logins carry no claims and have nothing to support
+	 * RP-initiated logout.
+	 */
+	private static boolean isOidc(ClientRegistration registration) {
+		return registration.getScopes() != null && registration.getScopes().contains("openid");
 	}
 
 	/**

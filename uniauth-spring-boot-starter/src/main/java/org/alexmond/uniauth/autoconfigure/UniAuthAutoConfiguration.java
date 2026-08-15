@@ -43,7 +43,7 @@ import java.util.List;
 @ConditionalOnClass(SecurityFilterChain.class)
 @ConditionalOnProperty(prefix = "uniauth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(UniAuthProperties.class)
-@Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class })
+@Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class, Oauth2AdaptersConfiguration.class })
 public class UniAuthAutoConfiguration {
 
 	@Bean

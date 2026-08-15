@@ -136,6 +136,49 @@ public class UniAuthProperties {
 
 		private boolean enabled = true;
 
+		private Github github = new Github();
+
+		private Microsoft microsoft = new Microsoft();
+
+		/** GitHub is OAuth2 without OpenID Connect, which costs it two things. */
+		@Data
+		public static class Github {
+
+			/**
+			 * Fetch the primary verified address from {@code /user/emails} when the
+			 * userinfo response has no email. GitHub omits it for anyone whose address is
+			 * private, which is the default. Requires the {@code user:email} scope on the
+			 * registration — without it the extra call is refused and the email stays
+			 * absent.
+			 */
+			private boolean fetchEmail;
+
+			/** Where to read addresses from. Override only for GitHub Enterprise. */
+			private String emailsUri = "https://api.github.com/user/emails";
+
+		}
+
+		/** Microsoft Entra ID is absent from Spring's {@code CommonOAuth2Provider}. */
+		@Data
+		public static class Microsoft {
+
+			/**
+			 * Accept id_tokens from any tenant rather than one fixed issuer.
+			 * <p>
+			 * Needed when the registration points at the {@code common} or
+			 * {@code organizations} endpoint: the discovery document advertises an issuer
+			 * containing a literal {@code {tenantid}} placeholder, while each id_token
+			 * carries the real tenant, so the default exact-match issuer check always
+			 * fails. Enabling this substitutes a check that the issuer matches the tenant
+			 * template.
+			 * <p>
+			 * It is a genuine loosening: any Entra tenant can then sign in, so authorize
+			 * on the {@code tid} claim if only some should.
+			 */
+			private boolean multiTenant;
+
+		}
+
 	}
 
 	/**

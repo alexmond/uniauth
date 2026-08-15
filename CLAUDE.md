@@ -88,6 +88,33 @@ cannot be listed; that limitation is documented on the class.
 **Conditionals.** Every bean is `@ConditionalOnMissingBean`, so an app overrides by declaring its
 own rather than excluding the auto-configuration. `uniauth.enabled=false` backs off entirely.
 
+### Brand is not a mechanism
+
+`AuthProviderType` is the *mechanism* axis — how a provider talks, and therefore which filter
+installs it. Brand (`AuthProviderBrand`) is a separate attribute, and the two must not be merged:
+adding GOOGLE/MICROSOFT as peers of OAUTH2 would break the form/redirect dichotomy the filter
+chain depends on, and grow without bound.
+
+The distinction that actually changes behaviour is **OIDC vs plain OAuth2**, carried by
+`AuthProvider.oidc()` (derived from the `openid` scope). Google yields an `OidcUser` with claims;
+GitHub yields a bare `OAuth2User`. Brand is for icons and vendor-mandated button treatment only —
+reach for `oidc()` whenever you mean capability.
+
+Provider quirks ship as **opt-in adapters** in `Oauth2AdaptersConfiguration`, never as new types:
+
+- `uniauth.oauth2.github.fetch-email` → `GithubEmailOAuth2UserService`, adding the `/user/emails`
+  call GitHub requires before any email exists.
+- `uniauth.oauth2.microsoft.multi-tenant` → `MicrosoftMultiTenantIdTokenValidator`.
+
+That validator is security-sensitive; read its javadoc before touching it. It does **not**
+reimplement id_token validation — it hands Spring's `OidcIdTokenValidator` a registration copy
+with the issuer removed (Spring skips its issuer check when that is null), keeping every other
+check intact, then adds the tenant-template issuer rule itself. It also checks the issuer
+*before* delegating, because reading an unparseable `iss` throws and the delegate reads it first.
+
+**Apple is unsupported** and should stay that way until Spring supports a non-static client
+secret: Apple requires a generated ES256 JWT and `ClientRegistration.Builder` takes only a string.
+
 ### The sample app (`uniauth-examples`)
 
 Design direction is a **patch panel**: providers are labelled ports, and the one that
