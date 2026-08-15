@@ -1,0 +1,94 @@
+# Default values for the uniauth chart.
+#
+# These are portable defaults with nothing cluster-specific in them. For a real cluster
+# (private registry, ingress host, pull secret) supply an overrides file:
+#   helm upgrade --install uniauth deploy/helm/uniauth -f my-values.yaml
+#
+# WARNING — what this chart deploys is a DEMO. The example app ships well-known
+# credentials in its configuration on purpose, so anyone who can reach it can sign in.
+# Keep it on a trusted network; do not put it behind a public ingress or tunnel.
+
+replicaCount: 1
+
+image:
+  # Built from uniauth-examples/webapp. See deploy/helm/uniauth/README.md for the publish
+  # command, or use scripts/deploy-k8s.sh which builds and pushes for you.
+  repository: ghcr.io/alexmond/uniauth-example-webapp
+  # Defaults to .Chart.appVersion when left empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Pull secrets for a private registry, e.g. [{ name: regcred }].
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+# The buildpack image already runs as a non-root user; keep the pod locked down.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Actuator listens on this container port. The Service exposes only service.port, so health
+# and metrics are never reachable through the ingress. Set to the same value as
+# service.port to fold actuator back onto the app port (simpler for a local run).
+# 9090 matches the lab-services Spring Boot Admin convention.
+managementPort: 9090
+
+# When true, also publish the management port on the Service with the `bootapp` label and
+# `management.*` annotations that Spring Boot Admin discovers on. Off by default: actuator
+# is reachable in-cluster via the pod either way, and this only adds the metadata a
+# monitoring server needs to find the app.
+managementDiscoverable: false
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # No default host. A chart that shipped one would either be wrong everywhere or name
+  # somebody's DNS; the overrides file must supply it when ingress is enabled.
+  host: ""
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+# Spring profiles activated in the container. `k8s` moves actuator to the management port.
+profiles: "k8s"
+
+# Extra environment variables, e.g. to point at a real directory or identity provider:
+#   env:
+#     UNIAUTH_LDAP_URL: ldap://directory.example.com:389/dc=example,dc=com
+env: {}
+
+# Name of an existing Secret whose keys are injected as environment variables. The chart
+# does NOT manage it — create it out of band so values never pass through Helm:
+#   kubectl -n <ns> create secret generic uniauth-secrets --from-env-file=./secrets.env
+existingSecret: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

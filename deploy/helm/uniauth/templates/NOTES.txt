@@ -1,0 +1,28 @@
+{{ .Chart.Name }} {{ .Chart.AppVersion }} — the UniAuth example web app.
+
+This is a DEMO. It ships well-known credentials on purpose, so treat anything that can
+reach it as able to sign in:
+
+  alice / s3cret            internal store, ROLE_USER + ROLE_ADMIN
+  breakglass / local-only   a local account beside the directory
+  bob / bobspassword        LDAP, held for approval until alice approves
+
+Reach it:
+{{- if .Values.ingress.enabled }}
+  http://{{ include "uniauth.ingressHost" . }}/
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "uniauth.fullname" . }} 8080:{{ .Values.service.port }}
+  open http://localhost:8080/
+{{- end }}
+
+Check it came up:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "uniauth.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "uniauth.fullname" . }} -- \
+    curl -s localhost:{{ .Values.managementPort }}/actuator/health
+
+{{- if not .Values.managementDiscoverable }}
+
+Spring Boot Admin will not find this release: managementDiscoverable is false, so the
+Service carries neither the `bootapp` label nor the management port. Set it true in your
+values file if you want it discovered.
+{{- end }}

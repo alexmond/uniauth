@@ -1,0 +1,46 @@
+# Profile for running the demo on a cluster. Activated by the chart (SPRING_PROFILES_ACTIVE).
+#
+# The chart injects MANAGEMENT_SERVER_PORT, which moves actuator onto its own container port.
+# That port is never routed through the ingress, so health and env are reachable by probes,
+# Prometheus and Spring Boot Admin but not from outside the cluster.
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+    health:
+      # Probes give the chart /actuator/health/{readiness,liveness} to point at.
+      probes:
+        enabled: true
+      show-details: never
+    env:
+      # The env endpoint is genuinely useful for confirming what config landed; the values
+      # are not. Mask them rather than leave credentials readable to anything in-cluster.
+      show-values: never
+  info:
+    env:
+      enabled: true
+
+info:
+  tags:
+    # Spring Boot Admin groups instances on info.tags.*, not on top-level info.*.
+    environment: ${INFO_ENV_TAG:lab}
+
+uniauth:
+  # Repeats the base list rather than extending it: a list in a profile document replaces
+  # the one in application.yaml outright, so omitting the public pages here would lock them.
+  #
+  # /actuator/** is permitted because probes, Prometheus and SBA send no credentials, and
+  # requiring this app's own auth would 401 exactly the callers the endpoint exists for.
+  # Safe because the management port is cluster-internal and never on the ingress.
+  public-paths:
+    - /
+    - /how-it-works
+    - /css/**
+    - /actuator/**
+
+logging:
+  level:
+    org.alexmond.uniauth: INFO

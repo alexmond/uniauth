@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "uniauth.fullname" . }}
+  labels:
+    {{- include "uniauth.labels" . | nindent 4 }}
+    {{- if .Values.managementDiscoverable }}
+    # Spring Boot Admin filters its discovery on this label.
+    bootapp: "true"
+    {{- end }}
+  {{- if .Values.managementDiscoverable }}
+  annotations:
+    management.port: {{ .Values.managementPort | quote }}
+    management.context-path: "/actuator"
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+    {{- if and .Values.managementDiscoverable (ne (int .Values.managementPort) (int .Values.service.port)) }}
+    - name: management
+      port: {{ .Values.managementPort }}
+      targetPort: management
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "uniauth.selectorLabels" . | nindent 4 }}

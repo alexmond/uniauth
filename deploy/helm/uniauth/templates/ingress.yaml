@@ -1,0 +1,33 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "uniauth.fullname" . }}
+  labels:
+    {{- include "uniauth.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    # Only the app port is routed. The management port stays off the ingress, which is what
+    # lets actuator be permitted in-cluster without exposing it.
+    - host: {{ include "uniauth.ingressHost" . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "uniauth.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: uniauth
+description: |
+  The UniAuth example web app — a runnable demonstration of the starter: a provider-chooser
+  login page, public and protected pages, and the approval queue. This chart deploys the
+  demo, not the library; the library itself is a jar and deploys nothing.
+type: application
+version: 0.1.0
+appVersion: "4.1.0.1-SNAPSHOT"
+home: https://github.com/alexmond/uniauth
+sources:
+  - https://github.com/alexmond/uniauth
+maintainers:
+  - name: Alex Mondshain

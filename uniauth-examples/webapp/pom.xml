@@ -28,6 +28,16 @@
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>
         </dependency>
 
+        <!--
+          Health endpoints for the container probes. Without this there is no actuator at
+          all, no management port opens, and the pod never goes Ready — which is exactly
+          how this was found: the app started fine and the probes had nothing to talk to.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Runs an in-process directory so the LDAP path works with no external server. -->
         <dependency>
             <groupId>com.unboundid</groupId>
