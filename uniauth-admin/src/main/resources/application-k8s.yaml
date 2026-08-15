@@ -1,0 +1,44 @@
+# Profile for running the console on a cluster. Activated by the chart.
+
+server:
+  # 8090 locally so the console and the demo can run side by side; on a cluster each has its
+  # own pod, and the chart's Service and containerPort expect 8080. Getting this wrong is
+  # quiet rather than loud: the probes target the management port, so the pod goes Ready and
+  # only the ingress notices, with a 502.
+  port: 8080
+
+management:
+  health:
+    # The starter brings spring-boot-starter-ldap along, and Boot then health-checks a
+    # directory at localhost:389 that this application has no business talking to.
+    ldap:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+    env:
+      # This application holds a token that creates accounts elsewhere. Masking is not
+      # optional here.
+      show-values: never
+  info:
+    env:
+      enabled: true
+
+info:
+  tags:
+    environment: ${INFO_ENV_TAG:lab}
+
+uniauth:
+  public-paths:
+    - /css/**
+    - /actuator/**
+
+logging:
+  level:
+    org.alexmond.uniauth: INFO

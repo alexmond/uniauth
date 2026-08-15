@@ -27,8 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = { "uniauth-admin.targets[0].id=demo", "uniauth-admin.targets[0].name=Demo application",
-		"uniauth-admin.targets[0].base-url=http://localhost:1", "uniauth-admin.targets[0].token=t" })
+@TestPropertySource(properties = { "console.targets[0].id=demo", "console.targets[0].name=Demo application",
+		"console.targets[0].base-url=http://localhost:1", "console.targets[0].token=t" })
 class ConsoleAccessTest {
 
 	@Autowired

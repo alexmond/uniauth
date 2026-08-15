@@ -29,12 +29,12 @@ UniAuth itself, which is also a useful shakedown of the starter.
 
 [source,yaml]
 ----
-uniauth-admin:
+console:
   targets:
     - id: webapp
       name: UniAuth demo web app
       base-url: http://localhost:8080
-      token: ${UNIAUTH_ADMIN_TARGET_WEBAPP_TOKEN}
+      token: ${CONSOLE_TARGETS_0_TOKEN}
 ----
 
 The token must match that application's `uniauth.admin-api.token`. Keep it out of files — it

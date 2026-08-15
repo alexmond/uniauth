@@ -9,8 +9,10 @@
 #
 # Usage:
 #   scripts/deploy-k8s.sh [options]
-#     --example NAME          which example to deploy       (default: webapp)
-#                             one of the directories under uniauth-examples/
+#     --example NAME          deploy an example: a directory under uniauth-examples/
+#                             (default: webapp)
+#     --module PATH           deploy any module by path, for things that are not examples
+#     --image-name NAME       image name; defaults from --example/--module
 #     --registry HOST[:PORT]  image registry                (required to push)
 #     --tag TAG               image tag                     (default: project version)
 #     --release NAME          Helm release name             (default: uniauth)
@@ -44,10 +46,14 @@ PUBLISH=1
 DRY_RUN=0
 
 EXAMPLE=webapp
+MODULE_ARG=""
+IMAGE_NAME_ARG=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --example)     EXAMPLE="$2"; shift 2 ;;
+    --module)      MODULE_ARG="$2"; shift 2 ;;
+    --image-name)  IMAGE_NAME_ARG="$2"; shift 2 ;;
     --registry)    REGISTRY="$2"; shift 2 ;;
     --tag)         TAG="$2"; shift 2 ;;
     --release)     RELEASE="$2"; shift 2 ;;
@@ -63,9 +69,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-MODULE="uniauth-examples/$EXAMPLE"
-IMAGE_NAME="uniauth-example-$EXAMPLE"
-[[ -d "$MODULE" ]] || { echo "no such example: $MODULE" >&2; exit 2; }
+if [[ -n "$MODULE_ARG" ]]; then
+  MODULE="$MODULE_ARG"
+  IMAGE_NAME="${IMAGE_NAME_ARG:-$(basename "$MODULE")}"
+else
+  MODULE="uniauth-examples/$EXAMPLE"
+  IMAGE_NAME="${IMAGE_NAME_ARG:-uniauth-example-$EXAMPLE}"
+fi
+[[ -d "$MODULE" ]] || { echo "no such module: $MODULE" >&2; exit 2; }
 
 if [[ -z "$TAG" ]]; then
   TAG=$(./mvnw -q -Dexec.executable=echo -Dexec.args='${project.version}' \

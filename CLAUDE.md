@@ -159,6 +159,20 @@ check intact, then adds the tenant-template issuer rule itself. It also checks t
 **Apple is unsupported** and should stay that way until Spring supports a non-static client
 secret: Apple requires a generated ES256 JWT and `ClientRegistration.Builder` takes only a string.
 
+### Environment variables REPLACE a list, they do not merge into it
+
+Bit twice in one deploy, so it is written down. Binding `console.targets[0].token` from a
+Secret discards every other field of `targets[0]` that came from `application.yaml` — the
+higher-priority source wins the whole collection. Same for `uniauth.internal.users[0]`.
+
+**When any field of a list entry comes from the environment, supply all of them.**
+`ManagedApplication.validate()` now fails at startup rather than letting it surface as an NPE
+on the first request.
+
+Related: an app whose `server.port` differs from the chart's 8080 goes **Ready and
+unreachable** — the probes target the management port, so only the ingress notices, with a
+502. The console had this at 8090.
+
 ### The admin console is a separate process, and that is the hard part
 
 `uniauth-admin` administers users across running UniAuth applications. It **owns no user

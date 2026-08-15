@@ -11,12 +11,12 @@ spring:
 # The applications this console administers. Each entry is a separate running application
 # reached over its admin API; the token must match that application's
 # uniauth.admin-api.token. Inject the real ones from the environment.
-uniauth-admin:
+console:
   targets:
     - id: webapp
       name: UniAuth demo web app
-      base-url: ${UNIAUTH_ADMIN_TARGET_WEBAPP_URL:http://localhost:8080}
-      token: ${UNIAUTH_ADMIN_TARGET_WEBAPP_TOKEN:demo-admin-token}
+      base-url: ${CONSOLE_TARGETS_0_BASE_URL:http://localhost:8080}
+      token: ${CONSOLE_TARGETS_0_TOKEN:demo-admin-token}
 
 uniauth:
   # The console signs its own administrators in with UniAuth. These are a separate
