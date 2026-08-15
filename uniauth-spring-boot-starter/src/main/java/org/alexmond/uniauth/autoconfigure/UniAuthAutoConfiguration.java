@@ -81,8 +81,24 @@ public class UniAuthAutoConfiguration {
 		return new MechanismResolver();
 	}
 
+	/**
+	 * The catch-all chain, deliberately conditional on its own bean <em>name</em> rather
+	 * than on {@code SecurityFilterChain} as a type.
+	 *
+	 * <p>
+	 * Backing off whenever the application declared any chain at all was too blunt:
+	 * adding a second, more specific chain — for an authorization server's endpoints, or
+	 * an API path — is ordinary Spring Security, and it should not cost you every
+	 * mechanism this starter wires. Chains are matched in order and this one has the
+	 * default lowest precedence, so a more specific chain declared by the application
+	 * runs first and this one catches the rest.
+	 *
+	 * <p>
+	 * To replace it outright rather than add to it, name your bean
+	 * {@code uniAuthSecurityFilterChain}.
+	 */
 	@Bean
-	@ConditionalOnMissingBean(SecurityFilterChain.class)
+	@ConditionalOnMissingBean(name = "uniAuthSecurityFilterChain")
 	public SecurityFilterChain uniAuthSecurityFilterChain(HttpSecurity http, UniAuthProperties properties,
 			AuthProviderRegistry registry, ObjectProvider<AuthenticationProvider> authenticationProviders,
 			ObjectProvider<ClientRegistrationRepository> clientRegistrations,

@@ -9,8 +9,10 @@ way of consuming the starter. None are published to Maven Central — they are d
 
 |`webapp`
 |*Start here.* Server-rendered: the provider-chooser login page, public and protected pages, a
-live view of which mechanism authenticated the session, and the approval queue. Re-skins the
-starter's login template to show how that is done.
+live view of which mechanism authenticated the session, the approval queue, and an admin page
+that creates users in all three stores. Hosts its own OAuth2 provider, so the OAUTH2 path works
+with no external identity provider. Re-skins the starter's login template to show how that is
+done.
 
 |`headless`
 |The API-first alternative. No templates at all — a front end reads `GET /uniauth/providers`
@@ -19,7 +21,8 @@ and renders its own chooser, and a missing session returns 401 instead of a redi
 |===
 
 Both boot the internal store and an in-process LDAP directory, so they run with no external
-services. OAuth2 and SAML need a real identity provider; see the commented blocks in
+services. `webapp` additionally hosts its own OAuth2 provider, so three of the four mechanisms
+work out of the box. Only SAML still needs a real identity provider — see the commented block in
 `webapp/src/main/resources/application.yaml`.
 
 == Running
@@ -53,4 +56,34 @@ curl -i localhost:8080/api/me             # 401 — no session, no redirect
 |`alice` / `s3cret` |Internal store, `ROLE_USER` + `ROLE_ADMIN`. Approves others in `webapp`.
 |`breakglass` / `local-only` |A local account beside the directory (`webapp` only).
 |`bob` / `bobspassword` |LDAP, `ROLE_DEVELOPERS` from a group. Held for approval in `webapp`.
+|`olivia` / `oauth-pass` |An account at the *local OAuth provider*, not at the application.
 |===
+
+== The local OAuth provider
+
+`webapp` is both an authorization server and one of its clients, so the OAUTH2 mechanism is
+demonstrable without a Google project or an Entra tenant. Click *Local OAuth* on the chooser and
+you are handed to a provider with its own login page and its own accounts; it vouches for you,
+and the application then decides separately whether to let you in — which, with the approval gate
+on for OAUTH2, means the queue.
+
+Co-hosting the two would normally be dishonest: a shared session would let each side see the
+other's login, so signing in to the app would silently authorize OAuth flows. The provider's
+chains use their own `SecurityContextRepository` key, which keeps the two logins independent —
+the way they are between real, separate servers.
+
+Two things this needed from the starter, both driven by building it:
+
+* the catch-all chain now backs off on its own bean *name* rather than on any `SecurityFilterChain`,
+  so an application can add a second chain without losing every mechanism;
+* a second `UserDetailsService` bean would have silently disabled the internal store, so the
+  provider's accounts are wrapped in `OAuthUserStore` rather than published as one.
+
+== Administering users
+
+`/admin/users` (ROLE_ADMIN) creates accounts in all three stores from one page. It is worth
+looking at because "add a user" is one sentence to an administrator and three unrelated
+operations underneath: a map entry, an LDAP `bind` that puts a real `inetOrgPerson` under
+`ou=people`, and an account at a different service. The page says which is which — including that
+a new directory user signs in with no authorities, because roles come from group membership the
+form does not touch.

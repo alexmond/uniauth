@@ -153,6 +153,24 @@ check intact, then adds the tenant-template issuer rule itself. It also checks t
 **Apple is unsupported** and should stay that way until Spring supports a non-static client
 secret: Apple requires a generated ES256 JWT and `ClientRegistration.Builder` takes only a string.
 
+### The example hosts its own OAuth2 provider
+
+`uniauth-examples/webapp` is both an authorization server and one of its clients, so OAUTH2 is
+demonstrable with no external IdP. Two things make that honest rather than a fudge, and both are
+load-bearing:
+
+- **The provider's chains use their own `SecurityContextRepository` key.** With the default one,
+  a single session entry is shared, and each side sees the other's login — signing in to the app
+  would silently authorize OAuth flows. Do not "simplify" this away.
+- **`OAuthUserStore` wraps its `InMemoryUserDetailsManager` rather than publishing it.** A second
+  `UserDetailsService` bean satisfies the starter's
+  `@ConditionalOnMissingBean(UserDetailsService.class)` and silently disables the internal store.
+
+Gotchas met while building it: **PKCE is mandatory** in Authorization Server 7, so a hand-rolled
+authorize request without `code_challenge` fails (the client filter sends it, browsers work); an
+unregistered `redirect_uri` 400s rather than redirecting; and the registered redirect URI is
+browser-facing, so on the cluster it must be the ingress URL while token/JWKS stay on loopback.
+
 ### Two extension points, before you replace the chain
 
 Declaring your own `SecurityFilterChain` makes the whole starter back off, so these exist to
@@ -161,6 +179,9 @@ avoid that — and each was added because an example needed it, never speculativ
 - `uniauth.public-paths` — open up routes (the webapp example needed public pages).
 - An `AuthenticationEntryPoint` bean — the starter uses it instead of redirecting to the
   chooser (the headless example needed 401).
+- **A second `SecurityFilterChain`** — the catch-all now backs off on its own bean *name*
+  (`uniAuthSecurityFilterChain`), not on the type, so adding a chain no longer costs you every
+  mechanism. The local OAuth provider needed this.
 
 That is the pattern to keep following: build the example first, and let it prove the gap.
 

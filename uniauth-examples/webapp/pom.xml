@@ -29,6 +29,22 @@
         </dependency>
 
         <!--
+          A local OAuth2/OIDC provider, so the OAUTH2 mechanism is demonstrable without a
+          Google or Entra tenant. The demo is both the authorization server and its own
+          client; see AuthorizationServerConfiguration for why that is safe here.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-authorization-server</artifactId>
+        </dependency>
+
+        <!-- Creating and reading directory entries from the admin UI. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-ldap</artifactId>
+        </dependency>
+
+        <!--
           Health endpoints for the container probes. Without this there is no actuator at
           all, no management port opens, and the pod never goes Ready — which is exactly
           how this was found: the app started fine and the probes had nothing to talk to.

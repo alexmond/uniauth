@@ -94,8 +94,11 @@ if [[ "$BUILD" == 1 ]]; then
   # built and installed first (-am) — but `spring-boot:build-image` named on the command
   # line runs against every module in the reactor, and the parent and the aggregator have
   # no main class to image. So: install the siblings, then image only this module.
+  # jacoco.skip as well as skipTests: the coverage gate is bound to verify, and running it
+  # with no test data either fails outright or silently passes on a stale jacoco.exec left
+  # by an earlier run. Gates belong in the build, not in a deploy.
   echo "==> building modules"
-  ./mvnw -q -Pdefault -DskipTests -pl "$MODULE" -am install
+  ./mvnw -q -Pdefault -DskipTests -Djacoco.skip=true -pl "$MODULE" -am install
 
   # The build stays local (your .m2, your user); only the daemon is remote.
   echo "==> building image with buildpacks"
