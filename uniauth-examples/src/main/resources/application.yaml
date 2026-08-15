@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: uniauth-sample
+
+  # An in-process directory, so the LDAP path works with nothing else running.
+  # A real deployment points uniauth.ldap.url at its own server and deletes this block.
+  ldap:
+    embedded:
+      base-dn: dc=example,dc=com
+      ldif: classpath:sample-directory.ldif
+      port: 18389
+
+uniauth:
+  # Anything not listed here needs a session. The starter permits its own login page,
+  # the providers endpoint and /error already.
+  public-paths:
+    - /
+    - /how-it-works
+    - /css/**
+
+  internal:
+    enabled: true
+    display-name: Local account
+    users:
+      - username: alice
+        password: "{noop}s3cret"
+        roles: [ USER, ADMIN ]
+      - username: breakglass
+        password: "{noop}local-only"
+        roles: [ ADMIN ]
+
+  ldap:
+    enabled: true
+    display-name: Directory account
+    url: ldap://localhost:18389/dc=example,dc=com
+    user-dn-patterns:
+      - uid={0},ou=people
+    group-search-base: ou=groups
+
+# ---------------------------------------------------------------------------
+# OAuth2 and SAML need a real identity provider, so they are left off here.
+# UniAuth reads Spring Boot's own registration binding — it does not re-declare
+# these properties — so enabling either is just a matter of filling this in.
+#
+# spring:
+#   security:
+#     oauth2:
+#       client:
+#         registration:
+#           google:
+#             client-id: <id>
+#             client-secret: <secret>
+#             scope: [ openid, profile, email ]
+#     saml2:
+#       relyingparty:
+#         registration:
+#           okta:
+#             assertingparty:
+#               metadata-uri: https://<tenant>/app/<id>/sso/saml/metadata
+# ---------------------------------------------------------------------------
+
+logging:
+  level:
+    org.alexmond.uniauth: DEBUG

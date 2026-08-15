@@ -83,10 +83,38 @@
                         <argLine>@{argLine} -Xmx512m</argLine>
                     </configuration>
                 </plugin>
+                <!--
+                  prepare-agent and report are inherited by EVERY module, because surefire's
+                  argLine above interpolates @{argLine} and that property only exists once
+                  prepare-agent has run. A module without it fails to fork at all.
+                  The coverage gate itself (the `check` execution) is declared per-module, so
+                  it lands on the library and not on the sample.
+                -->
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <formats>
+                                    <format>XML</format>
+                                    <format>HTML</format>
+                                </formats>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>io.spring.javaformat</groupId>
@@ -184,7 +212,7 @@
         <profile>
             <id>default</id>
             <modules>
-                <module>uniauth-spring-boot-starter</module>
+                <module>uniauth-examples</module>
             </modules>
         </profile>
 

@@ -1,0 +1,31 @@
+dn: dc=example,dc=com
+objectclass: top
+objectclass: domain
+dc: example
+
+dn: ou=people,dc=example,dc=com
+objectclass: top
+objectclass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=example,dc=com
+objectclass: top
+objectclass: organizationalUnit
+ou: groups
+
+dn: uid=bob,ou=people,dc=example,dc=com
+objectclass: top
+objectclass: person
+objectclass: organizationalPerson
+objectclass: inetOrgPerson
+cn: Bob Builder
+sn: Builder
+uid: bob
+mail: bob@example.com
+userPassword: bobspassword
+
+dn: cn=developers,ou=groups,dc=example,dc=com
+objectclass: top
+objectclass: groupOfNames
+cn: developers
+member: uid=bob,ou=people,dc=example,dc=com

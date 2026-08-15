@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Overview')}">
+	<title>UniAuth</title>
+</head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail('index')}"></header>
+
+	<main>
+		<p class="eyebrow">Public page · no session required</p>
+		<h1 class="display">Four ways in.<br/><em>One chain.</em></h1>
+		<p class="lede">
+			A password, a directory bind, an OAuth2 redirect, a SAML assertion — four different
+			conversations that all have to end in the same place. This panel shows which ones
+			this deployment has switched on.
+		</p>
+
+		<section th:replace="~{fragments/shell :: panel(${ports}, ${live})}"></section>
+
+		<div class="actions">
+			<a class="button" th:href="@{/dashboard}">Open the dashboard</a>
+			<a class="button button--ghost" th:href="@{/how-it-works}">How it works</a>
+		</div>
+
+		<p class="note">
+			The dashboard is protected. Following that link while signed out sends you to the
+			provider chooser first, then brings you back.
+		</p>
+	</main>
+</div>
+</body>
+</html>

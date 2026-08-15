@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!--
+  Overrides the starter's bundled uniauth/login.html.
+
+  An application's own src/main/resources/templates comes before the starter jar on the
+  classpath, so dropping a file at this exact path re-skins the chooser with no code and
+  no configuration. The model attributes below are the ones the starter's controller
+  supplies — keep the names, change everything else.
+-->
+<head th:replace="~{fragments/shell :: head('Sign in')}">
+	<title>Sign in</title>
+</head>
+<body>
+<div class="centred">
+	<main class="card">
+		<p class="eyebrow">Choose a door</p>
+		<h1 class="display" style="font-size: clamp(1.75rem, 5vw, 2.5rem)">Sign in.</h1>
+
+		<div class="alert alert--error" th:if="${error}">Those credentials were not accepted.</div>
+		<div class="alert alert--info" th:if="${logout}">You have been signed out.</div>
+
+		<p class="note" th:if="${noProviders}" style="margin-top: 0">
+			No authentication provider is enabled. Turn one on under <code>uniauth.*</code>.
+		</p>
+
+		<form th:if="${showForm}" th:action="@{${loginPage}}" method="post">
+			<label class="field">
+				<span class="field__label">Username</span>
+				<input class="field__input" type="text" name="username"
+				       autocomplete="username" autofocus required/>
+			</label>
+			<label class="field">
+				<span class="field__label">Password</span>
+				<input class="field__input" type="password" name="password"
+				       autocomplete="current-password" required/>
+			</label>
+			<button class="button" type="submit" style="width: 100%">Sign in</button>
+		</form>
+
+		<p class="note" th:if="${showForm and #lists.size(formProviders) > 1}">
+			Checked against
+			<span th:each="provider, iter : ${formProviders}"><span
+					th:text="${provider.displayName()}">Provider</span><span
+					th:if="${!iter.last}">, then </span></span>.
+		</p>
+
+		<div th:if="${!#lists.isEmpty(redirectProviders)}" class="stack" style="margin-top: 2rem">
+			<h2 class="section-title" th:if="${showForm}">Or continue with</h2>
+			<ul class="ports" style="grid-template-columns: 1fr">
+				<li th:each="provider : ${redirectProviders}">
+					<a class="port" th:href="@{${provider.loginUrl()}}">
+						<span class="port__jack"></span>
+						<span class="port__name" th:text="${provider.displayName()}">Provider</span>
+						<span class="port__kind" th:text="${provider.type()}">TYPE</span>
+					</a>
+				</li>
+			</ul>
+		</div>
+
+		<p style="margin-top: 2rem">
+			<a class="rail__link" th:href="@{/}">← Back to the public page</a>
+		</p>
+	</main>
+</div>
+</body>
+</html>

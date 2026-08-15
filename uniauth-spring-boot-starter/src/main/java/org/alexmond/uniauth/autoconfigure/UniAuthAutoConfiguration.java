@@ -19,6 +19,9 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Wires every enabled mechanism into a <em>single</em> {@link SecurityFilterChain}.
  *
@@ -70,8 +73,11 @@ public class UniAuthAutoConfiguration {
 			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
 			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties) throws Exception {
 
-		http.authorizeHttpRequests((requests) -> requests
-			.requestMatchers(properties.getLoginPage(), properties.getProvidersEndpoint(), "/error")
+		List<String> permitted = new ArrayList<>(
+				List.of(properties.getLoginPage(), properties.getProvidersEndpoint(), "/error"));
+		permitted.addAll(properties.getPublicPaths());
+
+		http.authorizeHttpRequests((requests) -> requests.requestMatchers(permitted.toArray(String[]::new))
 			.permitAll()
 			.anyRequest()
 			.authenticated());

@@ -1,0 +1,107 @@
+package org.alexmond.uniauth.examples;
+
+import jakarta.servlet.http.HttpSession;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * The split this sample exists to demonstrate: the public pages render with no session,
+ * the protected ones bounce to the chooser, and once signed in the dashboard names the
+ * provider that actually answered.
+ *
+ * <p>
+ * The signed-in cases carry the real session from the form post rather than a mock user,
+ * so they exercise the provider resolution end to end — a mock principal would always
+ * look like the internal store and the LDAP case would prove nothing.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+class SamplePagesTest {
+
+	@Autowired
+	MockMvc mockMvc;
+
+	@Test
+	void landingPageIsPublic() throws Exception {
+		this.mockMvc.perform(get("/"))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Four ways in")));
+	}
+
+	@Test
+	void explainerPageIsPublic() throws Exception {
+		this.mockMvc.perform(get("/how-it-works"))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("two kinds of door")));
+	}
+
+	@Test
+	void stylesheetIsPublic() throws Exception {
+		this.mockMvc.perform(get("/css/uniauth.css")).andExpect(status().isOk());
+	}
+
+	@Test
+	void loginPageUsesTheSampleReskin() throws Exception {
+		this.mockMvc.perform(get("/login"))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Choose a door")));
+	}
+
+	@Test
+	void dashboardRedirectsWhenSignedOut() throws Exception {
+		this.mockMvc.perform(get("/dashboard")).andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void sessionPageRedirectsWhenSignedOut() throws Exception {
+		this.mockMvc.perform(get("/session")).andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void internalAccountIsReportedAsInternal() throws Exception {
+		HttpSession session = signIn("alice", "s3cret", "USER", "ADMIN");
+
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) session))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("INTERNAL")));
+	}
+
+	@Test
+	void directoryAccountIsReportedAsLdap() throws Exception {
+		HttpSession session = signIn("bob", "bobspassword", "DEVELOPERS");
+
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) session))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("LDAP")));
+	}
+
+	@Test
+	void sessionPageShowsTheDirectoryEntryDistinguishedName() throws Exception {
+		HttpSession session = signIn("bob", "bobspassword", "DEVELOPERS");
+
+		this.mockMvc.perform(get("/session").session((MockHttpSession) session))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("uid=bob")));
+	}
+
+	private HttpSession signIn(String username, String password, String... roles) throws Exception {
+		return this.mockMvc.perform(formLogin("/login").user(username).password(password))
+			.andExpect(authenticated().withUsername(username).withRoles(roles))
+			.andReturn()
+			.getRequest()
+			.getSession();
+	}
+
+}

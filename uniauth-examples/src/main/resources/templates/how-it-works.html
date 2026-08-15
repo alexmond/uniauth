@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('How it works')}">
+	<title>UniAuth</title>
+</head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail('how')}"></header>
+
+	<main>
+		<p class="eyebrow">Public page · no session required</p>
+		<h1 class="display">One chain,<br/>two kinds of door.</h1>
+
+		<div class="prose">
+			<p>
+				The obvious way to support four mechanisms is four filter chains. It does not
+				work: Spring Security matches chains in order and stops at the first one, so
+				three of them would never run. UniAuth builds a single chain and installs form
+				login, OAuth2 login and SAML login onto it together.
+			</p>
+
+			<h2>Form-based: internal and LDAP</h2>
+			<p>
+				These two share one username and password form. They are told apart after the
+				fact, by the <code>AuthenticationProvider</code> chain: each contributes a
+				provider, and Spring Security tries them in order until one accepts the
+				credentials. That is what lets a deployment keep a couple of local break-glass
+				accounts next to a corporate directory.
+			</p>
+
+			<h2>Redirect-based: OAuth2 and SAML</h2>
+			<p>
+				These keep their own entry points — <code>/oauth2/authorization/{id}</code> and
+				<code>/saml2/authenticate/{id}</code> — so each registration is just a link. The
+				chooser reads them from the repositories Spring Boot already built from
+				<code>spring.security.oauth2.client.*</code> and
+				<code>spring.security.saml2.relyingparty.*</code>; UniAuth does not re-declare
+				that configuration.
+			</p>
+
+			<h2>What this sample runs</h2>
+			<p>
+				The internal store and an in-process LDAP directory, both enabled out of the box
+				so sign-in works with no external services. OAuth2 and SAML need a real identity
+				provider — <code>application.yaml</code> carries commented blocks showing where
+				their configuration goes.
+			</p>
+		</div>
+
+		<section class="stack">
+			<h2 class="section-title">Try it</h2>
+			<div class="scroll-x">
+				<table class="rows">
+					<caption>Accounts in this sample</caption>
+					<tbody>
+					<tr>
+						<th scope="row">alice / s3cret</th>
+						<td>Internal store · ROLE_USER, ROLE_ADMIN</td>
+					</tr>
+					<tr>
+						<th scope="row">breakglass / local-only</th>
+						<td>Internal store · ROLE_ADMIN</td>
+					</tr>
+					<tr>
+						<th scope="row">bob / bobspassword</th>
+						<td>LDAP directory · ROLE_DEVELOPERS, resolved from a group</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="note">
+				Sign in as one from each column and compare the dashboard. Same form, same
+				chain, different provider answering.
+			</p>
+		</section>
+	</main>
+</div>
+</body>
+</html>

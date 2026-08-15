@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Dashboard')}">
+	<title>UniAuth</title>
+</head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail('dashboard')}"></header>
+
+	<main>
+		<p class="eyebrow">Protected page · signed in</p>
+		<h1 class="display">You came in<br/>through <em th:text="${facts.answeredBy()}">LDAP</em>.</h1>
+		<p class="lede">
+			Every port below was available. The lit one is the provider that actually accepted
+			your credentials and put this session on the chain.
+		</p>
+
+		<section th:replace="~{fragments/shell :: panel(${ports}, ${live})}"></section>
+
+		<section class="stack">
+			<h2 class="section-title">This session</h2>
+			<div class="facts">
+				<div class="fact">
+					<p class="fact__key">Principal</p>
+					<p class="fact__value" th:text="${facts.name()}">name</p>
+				</div>
+				<div class="fact">
+					<p class="fact__key">Answered by</p>
+					<p class="fact__value fact__value--brass" th:text="${facts.answeredBy()}">TYPE</p>
+				</div>
+				<div class="fact" th:if="${facts.registrationId() != null}">
+					<p class="fact__key">Registration</p>
+					<p class="fact__value" th:text="${facts.registrationId()}">id</p>
+				</div>
+				<div class="fact fact--wide">
+					<p class="fact__key">Token</p>
+					<p class="fact__value" th:text="${facts.tokenType()}">Token</p>
+				</div>
+			</div>
+		</section>
+
+		<section class="stack">
+			<h2 class="section-title">Granted authorities</h2>
+			<ul class="chips">
+				<li class="chip" th:each="authority : ${facts.authorities()}" th:text="${authority}">ROLE_USER</li>
+			</ul>
+			<p class="note" th:if="${#lists.isEmpty(facts.authorities())}">
+				This principal carries no authorities.
+			</p>
+		</section>
+
+		<div class="actions">
+			<a class="button" th:href="@{/session}">Inspect the raw session</a>
+			<a class="button button--ghost" th:href="@{/}">Back to the public page</a>
+		</div>
+	</main>
+</div>
+</body>
+</html>

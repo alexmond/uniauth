@@ -13,8 +13,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "==> spring-javaformat:apply"
-./mvnw -q spring-javaformat:apply
+# Arguments go to BOTH commands: a module that only joins the reactor under a profile
+# (uniauth-examples via -Pdefault) is invisible to the formatter otherwise, and then fails
+# the very validate gate this script exists to pre-empt.
+echo "==> spring-javaformat:apply ${*:-(full reactor)}"
+./mvnw -q spring-javaformat:apply "$@"
 
 echo "==> verify ${*:-(full reactor)}"
 ./mvnw -B verify "$@"

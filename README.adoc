@@ -88,6 +88,37 @@ SAML. It reads the `ClientRegistrationRepository` and `RelyingPartyRegistrationR
 already builds, so the whole upstream configuration surface stays available and stays documented by
 Spring Boot.
 
+== Try it
+
+The `uniauth-examples` module is a runnable app with public and protected pages. It boots the
+internal store and an in-process LDAP directory, so sign-in works with nothing else running.
+
+[source,bash]
+----
+./mvnw -Pdefault -DskipTests install                    # once — publishes the starter
+./mvnw -Pdefault -pl uniauth-examples spring-boot:run
+----
+
+Then open http://localhost:8080. The `install` step is required: `-pl` resolves the starter
+from the local repository, not the reactor.
+
+[cols="2,3"]
+|===
+|Sign in as |What it shows
+
+|`alice` / `s3cret` |Internal store, `ROLE_USER` + `ROLE_ADMIN`
+|`breakglass` / `local-only` |Internal store, a local account beside the directory
+|`bob` / `bobspassword` |LDAP, with `ROLE_DEVELOPERS` resolved from a group
+|===
+
+`/` and `/how-it-works` are public; `/dashboard` and `/session` are not. The dashboard names
+the mechanism that actually authenticated you and lights it on the provider panel — sign in
+as `alice` and then as `bob` to watch the same form resolve through different providers.
+
+The sample also re-skins the chooser by dropping its own `templates/uniauth/login.html`,
+which is the supported way to restyle it: an application's templates come before the
+starter's on the classpath.
+
 == What you get
 
 `GET /login`:: A chooser page — the shared credentials form when any form-based provider is on, plus
@@ -106,6 +137,9 @@ wants to render its own chooser.
 |`uniauth.default-success-url` |`/` |Where to land after signing in.
 |`uniauth.logout-success-url` |`/login?logout` |
 |`uniauth.providers-endpoint` |`/uniauth/providers` |
+|`uniauth.public-paths` |empty |Extra ant-style paths served without a session. Use this for
+public pages and static assets instead of declaring your own `SecurityFilterChain`, which would
+make the starter back off entirely.
 |`uniauth.internal.enabled` |`false` |
 |`uniauth.internal.users[].password` |— |Carries an algorithm prefix, e.g. `{noop}` or `{bcrypt}`.
 |`uniauth.ldap.enabled` |`false` |

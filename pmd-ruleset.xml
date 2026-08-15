@@ -56,6 +56,8 @@
         <exclude name="NPathComplexity"/>
         <exclude name="GodClass"/>
         <exclude name="TooManyFields"/>
+        <exclude name="UseUtilityClass"/> <!-- Spring Boot Application class has static main -->
+        <exclude name="ClassWithOnlyPrivateConstructorsShouldBeFinal"/>
         <exclude name="AvoidThrowingRawExceptionTypes"/>
         <exclude name="SignatureDeclareThrowsException"/> <!-- HttpSecurity builder methods declare Exception -->
         <exclude name="UseObjectForClearerAPI"/>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<!--
+  Shared chrome for the sample pages, plus the patch-panel fragment that both the public
+  landing page and the dashboard render. The panel is the same component in both places —
+  signed out it shows which ports exist, signed in it lights the one that answered.
+-->
+<head th:fragment="head(title)">
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<title th:text="'UniAuth · ' + ${title}">UniAuth</title>
+	<link rel="stylesheet" th:href="@{/css/uniauth.css}"/>
+</head>
+<body>
+
+<header th:fragment="rail(current)" class="rail">
+	<a class="rail__mark" th:href="@{/}">uni<span>auth</span></a>
+	<nav class="rail__nav">
+		<a class="rail__link" th:href="@{/}"
+		   th:attrappend="aria-current=${current == 'index'} ? 'page'">Overview</a>
+		<a class="rail__link" th:href="@{/how-it-works}"
+		   th:attrappend="aria-current=${current == 'how'} ? 'page'">How it works</a>
+		<a class="rail__link" th:href="@{/dashboard}" sec:authorize="isAuthenticated()"
+		   th:attrappend="aria-current=${current == 'dashboard'} ? 'page'">Dashboard</a>
+		<a class="rail__link" th:href="@{/session}" sec:authorize="isAuthenticated()"
+		   th:attrappend="aria-current=${current == 'session'} ? 'page'">Session</a>
+		<a class="button" th:href="@{/login}" sec:authorize="!isAuthenticated()">Sign in</a>
+		<form th:action="@{/logout}" method="post" sec:authorize="isAuthenticated()">
+			<button class="button button--ghost" type="submit">Sign out</button>
+		</form>
+	</nav>
+</header>
+
+<!--
+  ports : List<AuthProvider> from the starter's registry
+  live  : AuthProviderType that answered this session, or null when signed out
+-->
+<section th:fragment="panel(ports, live)" class="panel">
+	<p class="panel__caption">
+		<span>Provider panel</span>
+		<span th:text="${#lists.size(ports)} + ' enabled'">0 enabled</span>
+	</p>
+
+	<p class="panel__empty" th:if="${#lists.isEmpty(ports)}">
+		No provider is enabled. Turn one on under <code>uniauth.*</code>.
+	</p>
+
+	<ul class="ports" th:unless="${#lists.isEmpty(ports)}">
+		<li th:each="port : ${ports}">
+			<span class="port"
+			      th:classappend="${live != null and live.name() == port.type().name()} ? 'port--live'">
+				<span class="port__jack"></span>
+				<span class="port__name" th:text="${port.displayName()}">Provider</span>
+				<span class="port__kind" th:text="${port.type()}">TYPE</span>
+			</span>
+		</li>
+	</ul>
+
+	<p class="bus" th:unless="${#lists.isEmpty(ports)}">
+		One line out · <strong>SecurityFilterChain</strong>
+	</p>
+</section>
+
+</body>
+</html>

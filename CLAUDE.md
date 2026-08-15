@@ -6,8 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Spring Boot **starter** (`org.alexmond:uniauth-spring-boot-starter`) that puts an internal user
 store, OAuth2/OIDC, SAML 2.0 and LDAP behind a **single `SecurityFilterChain`**, with a login page
-that lets the user choose among whichever mechanisms are enabled. Currently scaffolded: the starter
-module only. A runnable sample app is intended and will attach to the `default` profile.
+that lets the user choose among whichever mechanisms are enabled.
+
+Two modules: the starter, and `uniauth-examples` — a runnable sample app that only joins the
+reactor under `-Pdefault`.
+
+```bash
+./mvnw -Pdefault -DskipTests install                    # once — publishes the starter
+./mvnw -Pdefault -pl uniauth-examples spring-boot:run   # http://localhost:8080
+```
+
+The `install` is not optional (`-pl` resolves the starter from the repository, not the reactor)
+and `-am` cannot replace it — that runs `spring-boot:run` against the parent too and fails on a
+missing main class.
 
 ## Build & test
 
@@ -76,6 +87,23 @@ cannot be listed; that limitation is documented on the class.
 
 **Conditionals.** Every bean is `@ConditionalOnMissingBean`, so an app overrides by declaring its
 own rather than excluding the auto-configuration. `uniauth.enabled=false` backs off entirely.
+
+### The sample app (`uniauth-examples`)
+
+Design direction is a **patch panel**: providers are labelled ports, and the one that
+authenticated you shows a lit brass jack with a cable dropping to the bus. It is driven by real
+state — `AuthProviderRegistry` supplies the ports, and `SessionFactsResolver` works out which
+one answered. Keep it that way; the panel is meant to be an instrument, not an illustration.
+
+`SessionFactsResolver` reads the mechanism off the concrete `Authentication` types, because
+nothing records it directly. OAuth2 and SAML have their own token classes; internal and LDAP
+both produce `UsernamePasswordAuthenticationToken` and are told apart by whether the principal
+is an `LdapUserDetails`. It lives in the sample, not the starter — promoting it would widen the
+library's API before anything depends on it.
+
+`templates/uniauth/login.html` in the sample **overrides the starter's own login template**.
+That is deliberate: it demonstrates the supported re-skin path (an app's templates precede the
+starter jar on the classpath) and doubles as the app's own styling.
 
 ### Two traps already hit here
 

@@ -38,6 +38,13 @@ public class UniAuthProperties {
 	/** Path of the JSON endpoint listing the enabled providers. */
 	private String providersEndpoint = "/uniauth/providers";
 
+	/**
+	 * Extra ant-style paths served without authentication, on top of the login page, the
+	 * providers endpoint and {@code /error}. Static assets and public pages go here — it
+	 * lets an application open up routes without replacing the whole filter chain.
+	 */
+	private List<String> publicPaths = new ArrayList<>();
+
 	private Internal internal = new Internal();
 
 	private Ldap ldap = new Ldap();
