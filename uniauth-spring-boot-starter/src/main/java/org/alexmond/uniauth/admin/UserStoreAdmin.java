@@ -1,4 +1,4 @@
-package org.alexmond.uniauth.examples.admin;
+package org.alexmond.uniauth.admin;
 
 import org.alexmond.uniauth.provider.AuthProviderType;
 
@@ -6,6 +6,11 @@ import java.util.List;
 
 /**
  * Creating an account, in whichever place accounts for a given mechanism live.
+ *
+ * <p>
+ * This is an SPI: UniAuth defines the shape and exposes it over the admin API, but has no
+ * idea where a given application keeps its users. Publish one bean per store you want
+ * administrable and it appears; publish none and the API reports nothing to manage.
  *
  * <p>
  * The three implementations have almost nothing in common underneath — a

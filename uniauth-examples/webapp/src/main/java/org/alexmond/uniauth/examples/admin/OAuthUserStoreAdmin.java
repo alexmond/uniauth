@@ -1,6 +1,7 @@
 package org.alexmond.uniauth.examples.admin;
 
 import org.alexmond.uniauth.examples.oauth.OAuthUserStore;
+import org.alexmond.uniauth.admin.UserStoreAdmin;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.springframework.stereotype.Component;
 

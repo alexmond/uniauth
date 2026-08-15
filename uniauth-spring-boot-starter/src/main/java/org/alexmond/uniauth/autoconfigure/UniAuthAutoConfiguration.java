@@ -48,7 +48,7 @@ import java.util.List;
 @ConditionalOnProperty(prefix = "uniauth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(UniAuthProperties.class)
 @Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class, Oauth2AdaptersConfiguration.class,
-		ApprovalConfiguration.class })
+		ApprovalConfiguration.class, AdminApiConfiguration.class })
 public class UniAuthAutoConfiguration {
 
 	@Bean

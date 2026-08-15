@@ -1,6 +1,6 @@
 package org.alexmond.uniauth.examples.web;
 
-import org.alexmond.uniauth.examples.admin.UserStoreAdmin;
+import org.alexmond.uniauth.admin.UserStoreAdmin;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;

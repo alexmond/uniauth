@@ -1,6 +1,7 @@
 package org.alexmond.uniauth.examples.admin;
 
 import org.alexmond.uniauth.config.UniAuthProperties;
+import org.alexmond.uniauth.admin.UserStoreAdmin;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;

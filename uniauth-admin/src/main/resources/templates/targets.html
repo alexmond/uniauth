@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Applications')}"><title>UniAuth Admin</title></head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail}"></header>
+	<main>
+		<p class="eyebrow">Console</p>
+		<h1 class="display">Applications<br/><em>under management.</em></h1>
+		<p class="lede">
+			Each is a separate running application, reached over its admin API. This console
+			holds no accounts of its own — it asks them.
+		</p>
+
+		<div class="alert alert--error" th:if="${error}" th:text="${error}">error</div>
+
+		<p class="note" th:if="${#lists.isEmpty(targets)}" style="margin-top:0">
+			Nothing configured. Add entries under <code>uniauth-admin.targets</code>.
+		</p>
+
+		<ul class="ports" th:unless="${#lists.isEmpty(targets)}">
+			<li th:each="t : ${targets}">
+				<a class="port" th:href="@{'/apps/' + ${t.id}}">
+					<span class="port__jack"></span>
+					<span class="port__name" th:text="${t.name}">name</span>
+					<span class="port__kind" th:text="${t.baseUrl}">url</span>
+				</a>
+			</li>
+		</ul>
+	</main>
+</div>
+</body>
+</html>

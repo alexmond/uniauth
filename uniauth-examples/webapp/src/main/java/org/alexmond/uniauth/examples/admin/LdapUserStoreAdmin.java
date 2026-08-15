@@ -1,5 +1,6 @@
 package org.alexmond.uniauth.examples.admin;
 
+import org.alexmond.uniauth.admin.UserStoreAdmin;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.springframework.ldap.core.AttributesMapper;
 import org.springframework.ldap.core.LdapTemplate;

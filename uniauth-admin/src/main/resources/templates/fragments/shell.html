@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<!-- Console chrome. Same design language as the demo, deliberately: it is the same product. -->
+<head th:fragment="head(title)">
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<title th:text="'UniAuth Admin · ' + ${title}">UniAuth Admin</title>
+	<link rel="stylesheet" th:href="@{/css/uniauth.css}"/>
+</head>
+<body>
+<header th:fragment="rail" class="rail">
+	<a class="rail__mark" th:href="@{/}">uniauth<span>&nbsp;admin</span></a>
+	<nav class="rail__nav">
+		<a class="rail__link" th:href="@{/}">Applications</a>
+		<form th:action="@{/logout}" method="post" sec:authorize="isAuthenticated()">
+			<button class="button button--ghost" type="submit">Sign out</button>
+		</form>
+	</nav>
+</header>
+</body>
+</html>

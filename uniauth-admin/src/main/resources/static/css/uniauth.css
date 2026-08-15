@@ -1,0 +1,574 @@
+/*
+ * UniAuth sample — "patch panel".
+ *
+ * Authentication as routing: four labelled ports, one line out. The palette is switchboard
+ * metal (brass on oxidised ink), and the display face is monospace because this domain is
+ * made of literal strings — distinguished names, registration ids, claim keys.
+ *
+ * This commits to a single dark treatment on purpose: a switchboard is a lit panel in a
+ * dim room, and a half-hearted light variant would blunt that.
+ */
+
+:root {
+	--ink: #10222a;
+	--ink-panel: #16303a;
+	--ink-raised: #1d3d49;
+	--rule: #2a5462;
+	--brass: #c8963e;
+	--brass-bright: #f0c674;
+	--patina: #52a396;
+	--bone: #eee6d8;
+	--muted: #8aa8b1;
+
+	--mono: ui-monospace, "SFMono-Regular", "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+	--sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+	--gutter: clamp(1.25rem, 4vw, 3.5rem);
+	--measure: 68rem;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	background: var(--ink);
+	color: var(--bone);
+	font-family: var(--sans);
+	font-size: 16px;
+	line-height: 1.6;
+	/* A faint vertical sheen, like light falling across a metal panel. */
+	background-image: linear-gradient(160deg, rgba(200, 150, 62, 0.06), transparent 42%);
+	background-attachment: fixed;
+}
+
+.shell {
+	max-width: var(--measure);
+	margin: 0 auto;
+	padding: 0 var(--gutter) 5rem;
+}
+
+/* ---------- top rail ---------- */
+
+.rail {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1.25rem 0;
+	border-bottom: 1px solid var(--rule);
+	margin-bottom: clamp(2.5rem, 7vw, 5rem);
+}
+
+.rail__mark {
+	font-family: var(--mono);
+	font-size: 0.9375rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--bone);
+	text-decoration: none;
+}
+
+.rail__mark span {
+	color: var(--brass);
+}
+
+.rail__nav {
+	display: flex;
+	align-items: center;
+	gap: 1.5rem;
+	flex-wrap: wrap;
+}
+
+.rail__link {
+	font-family: var(--mono);
+	font-size: 0.8125rem;
+	letter-spacing: 0.04em;
+	color: var(--muted);
+	text-decoration: none;
+	padding-bottom: 2px;
+	border-bottom: 1px solid transparent;
+}
+
+.rail__link:hover,
+.rail__link:focus-visible {
+	color: var(--bone);
+	border-bottom-color: var(--brass);
+}
+
+.rail__link[aria-current="page"] {
+	color: var(--bone);
+	border-bottom-color: var(--rule);
+}
+
+/* ---------- type ---------- */
+
+.eyebrow {
+	font-family: var(--mono);
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.18em;
+	color: var(--brass);
+	margin: 0 0 1rem;
+}
+
+.display {
+	font-family: var(--mono);
+	font-size: clamp(2.25rem, 7.5vw, 4.25rem);
+	line-height: 1.02;
+	letter-spacing: -0.035em;
+	font-weight: 600;
+	text-transform: uppercase;
+	margin: 0 0 1.5rem;
+	text-wrap: balance;
+}
+
+.display em {
+	font-style: normal;
+	color: var(--brass);
+}
+
+.lede {
+	font-size: clamp(1.0625rem, 2vw, 1.25rem);
+	color: var(--muted);
+	max-width: 46ch;
+	margin: 0 0 2.5rem;
+}
+
+.section-title {
+	font-family: var(--mono);
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.18em;
+	color: var(--muted);
+	margin: 0 0 1.25rem;
+	padding-bottom: 0.625rem;
+	border-bottom: 1px solid var(--rule);
+}
+
+.prose {
+	max-width: 62ch;
+	color: var(--muted);
+}
+
+.prose h2 {
+	font-family: var(--mono);
+	font-size: 1.0625rem;
+	letter-spacing: -0.01em;
+	color: var(--bone);
+	margin: 2.5rem 0 0.75rem;
+}
+
+.prose code {
+	font-family: var(--mono);
+	font-size: 0.875em;
+	color: var(--brass-bright);
+}
+
+/* ---------- the patch panel (signature) ---------- */
+
+.panel {
+	background: var(--ink-panel);
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	padding: clamp(1.5rem, 4vw, 2.5rem);
+	/* Two hairlines above and below, like the screw strip on a rack unit. */
+	box-shadow: inset 0 1px 0 rgba(240, 198, 116, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.panel__caption {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+	font-family: var(--mono);
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.16em;
+	color: var(--muted);
+	margin-bottom: 1.75rem;
+}
+
+.ports {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+	gap: 0.75rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.port {
+	position: relative;
+	background: var(--ink-raised);
+	border: 1px solid var(--rule);
+	border-radius: 2px;
+	padding: 1rem 1rem 0.875rem;
+	display: block;
+	text-decoration: none;
+	color: inherit;
+}
+
+.port__jack {
+	/* Inline by default, which silently drops width/height and leaves a hairline tick. */
+	display: block;
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: 50%;
+	background: var(--ink);
+	border: 1px solid var(--rule);
+	margin-bottom: 0.75rem;
+}
+
+.port__name {
+	font-family: var(--mono);
+	font-size: 0.9375rem;
+	letter-spacing: -0.01em;
+	color: var(--bone);
+	display: block;
+}
+
+.port__kind {
+	font-family: var(--mono);
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	color: var(--muted);
+	display: block;
+	margin-top: 0.25rem;
+}
+
+/* A port that answered this session: brass jack, warm edge, and a line down to the bus. */
+.port--live {
+	border-color: var(--brass);
+	background: linear-gradient(180deg, rgba(200, 150, 62, 0.16), transparent);
+}
+
+.port--live .port__jack {
+	background: var(--brass-bright);
+	border-color: var(--brass-bright);
+	box-shadow: 0 0 0 3px rgba(240, 198, 116, 0.22);
+}
+
+.port--live .port__kind {
+	color: var(--brass);
+}
+
+.port--live::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: -1.75rem;
+	width: 1px;
+	height: 1.75rem;
+	background: linear-gradient(180deg, var(--brass), rgba(200, 150, 62, 0.15));
+}
+
+/* A clickable port needs to look clickable — hover cue and a pointer. */
+a.port {
+	cursor: pointer;
+}
+
+a.port:hover,
+a.port:focus-visible {
+	border-color: var(--patina);
+}
+
+a.port:hover .port__jack {
+	border-color: var(--patina);
+}
+
+.bus {
+	margin-top: 1.75rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--rule);
+	font-family: var(--mono);
+	font-size: 0.75rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--muted);
+	text-align: center;
+}
+
+.bus strong {
+	color: var(--bone);
+	font-weight: 600;
+}
+
+.panel__empty {
+	font-family: var(--mono);
+	font-size: 0.875rem;
+	color: var(--muted);
+	text-align: center;
+	padding: 1.5rem 0;
+}
+
+/* ---------- data rows ---------- */
+
+/*
+ * Separators are drawn per cell rather than by showing a background through 1px gaps:
+ * a full-width cell leaves an empty track in the row above, and with the background
+ * trick that empty track renders as a solid block.
+ */
+.facts {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+	gap: 1px;
+	margin: 0;
+}
+
+.fact {
+	background: var(--ink-panel);
+	box-shadow: 0 0 0 1px var(--rule);
+	padding: 1.125rem 1.25rem;
+	margin: 0;
+}
+
+.fact__key {
+	font-family: var(--mono);
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	color: var(--muted);
+	margin: 0 0 0.5rem;
+}
+
+.fact__value {
+	font-family: var(--mono);
+	font-size: 1rem;
+	color: var(--bone);
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.fact__value--brass {
+	color: var(--brass-bright);
+}
+
+/* Class names like UsernamePasswordAuthenticationToken break mid-word in a third of a
+   row; give them the full width instead. */
+.fact--wide {
+	grid-column: 1 / -1;
+}
+
+.rows {
+	width: 100%;
+	border-collapse: collapse;
+	font-family: var(--mono);
+	font-size: 0.875rem;
+}
+
+.rows caption {
+	text-align: left;
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.16em;
+	color: var(--muted);
+	padding-bottom: 0.75rem;
+}
+
+.rows th,
+.rows td {
+	text-align: left;
+	padding: 0.6875rem 1rem;
+	border-bottom: 1px solid var(--rule);
+	vertical-align: top;
+}
+
+/* Two-column key/value listings: the key column is fixed so values line up. */
+.rows th {
+	color: var(--muted);
+	font-weight: 400;
+	white-space: nowrap;
+	width: 34%;
+}
+
+/* Genuine multi-column tables, where a fixed first column would overflow the rest. */
+.rows--grid th {
+	width: auto;
+}
+
+.rows td {
+	color: var(--bone);
+	overflow-wrap: anywhere;
+}
+
+.scroll-x {
+	overflow-x: auto;
+}
+
+/* ---------- chips, buttons, notices ---------- */
+
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.chip {
+	font-family: var(--mono);
+	font-size: 0.75rem;
+	letter-spacing: 0.04em;
+	color: var(--patina);
+	border: 1px solid var(--rule);
+	border-radius: 2px;
+	padding: 0.25rem 0.5rem;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	align-items: center;
+	margin-top: 2.5rem;
+}
+
+.button {
+	font-family: var(--mono);
+	font-size: 0.8125rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	text-decoration: none;
+	/* As a flex item in a narrow table cell a button will otherwise shrink to one
+	   character per line. */
+	white-space: nowrap;
+	padding: 0.6875rem 1.25rem;
+	border-radius: 2px;
+	border: 1px solid var(--brass);
+	color: var(--ink);
+	background: var(--brass);
+	cursor: pointer;
+}
+
+.button:hover,
+.button:focus-visible {
+	background: var(--brass-bright);
+	border-color: var(--brass-bright);
+}
+
+.button--ghost {
+	background: transparent;
+	color: var(--bone);
+	border-color: var(--rule);
+}
+
+.button--ghost:hover,
+.button--ghost:focus-visible {
+	background: transparent;
+	color: var(--brass-bright);
+	border-color: var(--brass);
+}
+
+.note {
+	font-family: var(--mono);
+	font-size: 0.8125rem;
+	color: var(--muted);
+	border-left: 2px solid var(--brass);
+	padding: 0.375rem 0 0.375rem 1rem;
+	margin: 2rem 0 0;
+}
+
+.stack {
+	margin-top: clamp(3rem, 8vw, 5rem);
+}
+
+/* ---------- sign-in form (login page re-skin) ---------- */
+
+.field {
+	display: block;
+	margin-bottom: 1rem;
+}
+
+.field__label {
+	font-family: var(--mono);
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	color: var(--muted);
+	display: block;
+	margin-bottom: 0.375rem;
+}
+
+.field__input {
+	width: 100%;
+	font-family: var(--mono);
+	font-size: 1rem;
+	color: var(--bone);
+	background: var(--ink);
+	border: 1px solid var(--rule);
+	border-radius: 2px;
+	padding: 0.625rem 0.75rem;
+}
+
+.field__input:focus-visible {
+	outline: 2px solid var(--brass);
+	outline-offset: 1px;
+}
+
+.alert {
+	font-family: var(--mono);
+	font-size: 0.8125rem;
+	padding: 0.75rem 1rem;
+	border-radius: 2px;
+	margin-bottom: 1.5rem;
+	border: 1px solid var(--rule);
+}
+
+.alert--error {
+	border-color: #b4553f;
+	color: #f0a68f;
+}
+
+.alert--info {
+	border-color: var(--patina);
+	color: var(--patina);
+}
+
+.centred {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem var(--gutter);
+}
+
+.card {
+	width: 100%;
+	max-width: 27rem;
+}
+
+/* Narrow screens: the nav wraps to two lines and align-items:center then floats the mark
+   between them. Stack the rail instead. */
+@media (max-width: 34rem) {
+	.rail {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.rail__nav {
+		gap: 1rem;
+	}
+}
+
+/* ---------- accessibility floor ---------- */
+
+:focus-visible {
+	outline: 2px solid var(--brass-bright);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}

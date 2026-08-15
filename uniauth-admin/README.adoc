@@ -1,0 +1,55 @@
+= UniAuth Admin
+
+A standalone console for administering users across one or more running UniAuth applications.
+
+== Why it is a separate process, and what that costs
+
+The console owns no user store. It cannot: of the three kinds a UniAuth application can have,
+two — the internal store and a local OAuth provider's accounts — live inside that
+application's memory. So the console asks each application over its admin API instead of
+pretending to share state with it.
+
+The consequence is worth stating plainly: **accounts created through this console live in the
+managed application, so restarting it takes them with it.** Only the directory entries survive,
+because a directory is a real external store.
+
+== Running
+
+[source,bash]
+----
+./mvnw -DskipTests install                    # once
+./mvnw -pl uniauth-admin spring-boot:run      # http://localhost:8090
+----
+
+Sign in with `admin` / `console-pass`. Those are the *console's own* administrators — an account
+here grants nothing on any managed application, and vice versa. The console signs them in with
+UniAuth itself, which is also a useful shakedown of the starter.
+
+== Configuring what it manages
+
+[source,yaml]
+----
+uniauth-admin:
+  targets:
+    - id: webapp
+      name: UniAuth demo web app
+      base-url: http://localhost:8080
+      token: ${UNIAUTH_ADMIN_TARGET_WEBAPP_TOKEN}
+----
+
+The token must match that application's `uniauth.admin-api.token`. Keep it out of files — it
+creates accounts on the far side.
+
+== Enabling the API on a managed application
+
+[source,yaml]
+----
+uniauth:
+  admin-api:
+    enabled: true
+    token: ${UNIAUTH_ADMIN_API_TOKEN}
+----
+
+Off by default, and it **refuses to start when enabled without a token** rather than defaulting
+to something guessable. The application decides what is administrable by publishing
+`UserStoreAdmin` beans; publish none and the API reports an empty list.

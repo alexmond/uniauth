@@ -1,0 +1,38 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: uniauth-admin
+  thymeleaf:
+    # The console has no login template of its own — it uses the starter's chooser.
+    check-template-location: true
+
+# The applications this console administers. Each entry is a separate running application
+# reached over its admin API; the token must match that application's
+# uniauth.admin-api.token. Inject the real ones from the environment.
+uniauth-admin:
+  targets:
+    - id: webapp
+      name: UniAuth demo web app
+      base-url: ${UNIAUTH_ADMIN_TARGET_WEBAPP_URL:http://localhost:8080}
+      token: ${UNIAUTH_ADMIN_TARGET_WEBAPP_TOKEN:demo-admin-token}
+
+uniauth:
+  # The console signs its own administrators in with UniAuth. These are a separate
+  # population from the users being administered — an account here grants no access to any
+  # managed application, and vice versa.
+  internal:
+    enabled: true
+    display-name: Console account
+    users:
+      - username: admin
+        password: "{noop}console-pass"
+        roles: [ USER, ADMIN ]
+
+  public-paths:
+    - /css/**
+
+logging:
+  level:
+    org.alexmond.uniauth: INFO

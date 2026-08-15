@@ -13,6 +13,7 @@ submodules only join the reactor under `-Pdefault`.
 
 ```
 uniauth-spring-boot-starter/   the library
+uniauth-admin/                 standalone console, an app not a library (skipPublishing)
 uniauth-examples/              aggregator, skipPublishing=true
   webapp/                      uniauth-example-webapp   — server-rendered, start here
   headless/                    uniauth-example-headless — API-first, 401 not redirect
@@ -157,6 +158,28 @@ check intact, then adds the tenant-template issuer rule itself. It also checks t
 
 **Apple is unsupported** and should stay that way until Spring supports a non-static client
 secret: Apple requires a generated ES256 JWT and `ClientRegistration.Builder` takes only a string.
+
+### The admin console is a separate process, and that is the hard part
+
+`uniauth-admin` administers users across running UniAuth applications. It **owns no user
+store**, and cannot: two of the three kinds — the internal store and a local OAuth provider's
+accounts — live inside a running application's memory. So it asks each application over the
+starter's admin API (`uniauth.admin-api.*`) rather than pretending to share state. The
+consequence is honest and worth repeating to anyone surprised by it: restart a managed
+application and the accounts the console created there are gone, because that is where they
+lived.
+
+- **`UserStoreAdmin` is an SPI in the starter.** The API exposes whatever beans an
+  application publishes; publish none and it reports nothing administrable. It began in the
+  webapp example and moved when the API needed it — the same promote-on-demand rule.
+- **The API refuses to start without a token.** It creates accounts, so defaulting to a
+  guessable one, or running open, both end with an unprotected write endpoint. The
+  constructor throws.
+- **Token comparison is constant-time** (`MessageDigest.isEqual`). A plain `equals` leaks the
+  credential a character at a time to anyone who can measure the response.
+- **Its chain is stateless and CSRF-disabled**, ahead of the application's. A console has no
+  session to ride and must never be redirected to a login page. An application session is
+  *not* accepted by the API, and there is a test for that.
 
 ### The example hosts its own OAuth2 provider
 
