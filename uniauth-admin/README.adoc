@@ -21,7 +21,9 @@ because a directory is a real external store.
 ./mvnw -pl uniauth-admin spring-boot:run      # http://localhost:8090
 ----
 
-Sign in with `admin` / `console-pass`. Those are the *console's own* administrators — an account
+Sign in with `admin` / `admin` — a demo credential like the rest of this repo's, and the same
+locally and on the lab so there is nothing to look up. Those are the *console's own*
+administrators — an account
 here grants nothing on any managed application, and vice versa. The console signs them in with
 UniAuth itself, which is also a useful shakedown of the starter.
 

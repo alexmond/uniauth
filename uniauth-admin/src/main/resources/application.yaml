@@ -27,7 +27,7 @@ uniauth:
     display-name: Console account
     users:
       - username: admin
-        password: "{noop}console-pass"
+        password: "{noop}admin"
         roles: [ USER, ADMIN ]
 
   public-paths:

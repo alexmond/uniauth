@@ -67,7 +67,7 @@ class ConsoleAccessTest {
 	}
 
 	private HttpSession signIn() throws Exception {
-		return this.mockMvc.perform(formLogin("/login").user("admin").password("console-pass"))
+		return this.mockMvc.perform(formLogin("/login").user("admin").password("admin"))
 			.andExpect(authenticated().withUsername("admin"))
 			.andReturn()
 			.getRequest()
