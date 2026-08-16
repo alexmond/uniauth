@@ -19,6 +19,7 @@
 	--patina: #52a396;
 	--bone: #eee6d8;
 	--muted: #8aa8b1;
+	--danger: #c2584f;
 
 	--mono: ui-monospace, "SFMono-Regular", "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
 	--sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -588,27 +589,27 @@ a.port:hover .port__jack {
 	font-size: .7rem;
 	letter-spacing: .14em;
 	text-transform: uppercase;
-	color: var(--dim);
+	color: var(--muted);
 	padding: 0 .75rem .6rem 0;
-	border-bottom: 1px solid var(--line);
+	border-bottom: 1px solid var(--rule);
 	font-weight: 500;
 }
 
 .ledger td {
 	padding: .85rem .75rem .85rem 0;
-	border-bottom: 1px solid var(--line);
+	border-bottom: 1px solid var(--rule);
 	vertical-align: middle;
 }
 
 .ledger__name {
 	display: block;
-	color: var(--ink);
+	color: var(--bone);
 }
 
 .ledger__detail {
 	display: block;
 	font-size: .75rem;
-	color: var(--dim);
+	color: var(--muted);
 	margin-top: .15rem;
 }
 
@@ -629,14 +630,14 @@ a.port:hover .port__jack {
 }
 
 .button--danger {
-	border-color: var(--danger, #c2584f);
-	color: var(--danger, #c2584f);
+	border-color: var(--danger);
+	color: var(--danger);
 	background: transparent;
 }
 
 .button--danger:hover {
-	background: var(--danger, #c2584f);
-	color: var(--bg);
+	background: var(--danger);
+	color: var(--ink);
 }
 
 /* The mechanism a store backs, on its card. Set above the name rather than below it:
@@ -647,6 +648,6 @@ a.port:hover .port__jack {
 	font-size: .65rem;
 	letter-spacing: .18em;
 	text-transform: uppercase;
-	color: var(--brass, #c9a227);
+	color: var(--brass);
 	margin-bottom: .35rem;
 }
