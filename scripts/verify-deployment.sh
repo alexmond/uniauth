@@ -70,7 +70,18 @@ check "a sign-in lands on the page that reports it" \
   "$(form_login_location $WEBAPP alice s3cret "$(mktemp)")" "/dashboard"
 check "alice sees the approvals queue (ROLE_ADMIN)" "$(curl -s -b "$J" -o /dev/null -w '%{http_code}' $WEBAPP/approvals)" "200"
 
-J2=$(mktemp); form_login $WEBAPP bob bobspassword "$J2" >/dev/null
+# Establish the state rather than assume it. The approval store is in memory, so a pod
+# restart puts bob back in the queue — and a suite that assumed he was already approved
+# reported four failures for what is documented behaviour of InMemoryApprovalStore.
+J2=$(mktemp); form_login $WEBAPP bob bobspassword "$J2" >/dev/null   # records him pending
+APPROVE=$(mktemp); form_login $WEBAPP alice s3cret "$APPROVE" >/dev/null
+CSRF=$(curl -s -b "$APPROVE" -c "$APPROVE" $WEBAPP/approvals \
+  | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+curl -s -b "$APPROVE" -c "$APPROVE" -o /dev/null \
+  --data-urlencode "provider=ldap" --data-urlencode "principal=bob" \
+  --data-urlencode "outcome=APPROVED" --data-urlencode "_csrf=$CSRF" $WEBAPP/approvals
+check "an administrator can approve a held account" \
+  "$(curl -s -b "$J2" -o /dev/null -w '%{http_code}' $WEBAPP/dashboard)" "200"
 # The dashboard is the one page that reports the session; /session was folded into it.
 BOBPAGE=$(curl -s -b "$J2" $WEBAPP/dashboard)
 check "bob (LDAP) carries his directory DN" "$BOBPAGE" "uid=bob,ou=people,dc=example,dc=com"
@@ -88,6 +99,22 @@ check "  ...and leaves no session" "$(curl -s -b "$J4" -o /dev/null -w '%{redire
 
 check "session cookie is app-specific (not JSESSIONID)" "$(grep -o 'WEBAPPSESSION' $J | head -1)" "WEBAPPSESSION"
 check "actuator is NOT on the public port" "$(curl -s -o /dev/null -w '%{http_code}' $WEBAPP/actuator/health)" "404"
+
+# Google, when the google profile is on. Skipped rather than failed otherwise: the button
+# is configuration, and an example without credentials is correctly not offering it.
+if printf '%s' "$CHOOSER" | grep -q '/oauth2/authorization/google'; then
+  section "webapp -> Google"
+  GLOC=$(curl -s -o /dev/null -w '%{redirect_url}' "$WEBAPP/oauth2/authorization/google")
+  check "the chooser offers Google"        "$CHOOSER" "/oauth2/authorization/google"
+  check "it redirects to accounts.google" "$GLOC" "accounts.google.com/o/oauth2/v2/auth"
+  check "asking for the openid scope"     "$GLOC" "scope=openid"
+  check "with PKCE"                       "$GLOC" "code_challenge"
+  # Google rejects http for anything that is not localhost, so the registered URI is
+  # https — and a browser arriving over http would send one Google has never seen.
+  check "redirect_uri is the HTTPS callback" "$GLOC" "redirect_uri=https://"
+else
+  printf '\n\033[1mwebapp -> Google\033[0m\n  \033[33mSKIP\033[0m google profile is off\n'
+fi
 
 section "webapp -> authserver — the OAuth hop across two hosts"
 JO=$(mktemp)
