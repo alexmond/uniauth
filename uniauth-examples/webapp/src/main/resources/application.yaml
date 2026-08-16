@@ -158,3 +158,47 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
+
+---
+# ---------------------------------------------------------------------------------------
+# GitHub, when credentials are supplied. Activate with the "github" profile.
+#
+# The interesting one, because it is NOT OpenID Connect: plain OAuth2, no id_token, no
+# claims — a bare OAuth2User with whatever /user happens to return. That is the distinction
+# AuthProvider.oidc() carries, and the chooser shows GitHub and Google side by side
+# precisely so it is visible.
+#
+# It also gives no email address at all by default, even with an account that has one:
+# GitHub keeps addresses on a separate endpoint. uniauth.oauth2.github.fetch-email turns on
+# the adapter that asks for them, which needs the user:email scope below — without it the
+# call is refused and the login still succeeds, just with no address to show an approver.
+#
+# Setting it up (once, at https://github.com/settings/developers → OAuth Apps):
+#   1. New OAuth App.
+#   2. Authorisation callback URL: <base>/login/oauth2/code/github
+#      GitHub allows exactly ONE callback per app, so pick the https one for a deployment.
+#   3. Put the id and secret in GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET.
+# ---------------------------------------------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: github
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope:
+              # Boot's CommonOAuth2Provider defaults to read:user alone, which is enough to
+              # sign in and not enough to learn an address.
+              - read:user
+              - user:email
+
+uniauth:
+  oauth2:
+    github:
+      # The second call GitHub requires before any email exists. It takes only the primary
+      # verified address, and reports it as verified.
+      fetch-email: true

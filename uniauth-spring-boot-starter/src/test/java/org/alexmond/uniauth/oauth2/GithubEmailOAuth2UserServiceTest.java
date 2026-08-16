@@ -65,6 +65,21 @@ class GithubEmailOAuth2UserServiceTest {
 	}
 
 	@Test
+	void marksTheFetchedAddressAsVerified() {
+		// It is taken only from an entry GitHub calls primary AND verified, so saying so
+		// is reporting a fact. Leaving it unsaid would make a checked address
+		// indistinguishable from one nobody stands behind — which is the distinction an
+		// approver is deciding on.
+		this.server.expect(requestTo(EMAILS_URI)).andRespond(withSuccess("""
+				[{"email":"bob@example.com","primary":true,"verified":true}]
+				""", MediaType.APPLICATION_JSON));
+
+		OAuth2User user = service(githubUser(null)).loadUser(request("github"));
+
+		assertThat(user.<Boolean>getAttribute("email_verified")).isTrue();
+	}
+
+	@Test
 	void leavesAnExistingEmailAlone() {
 		OAuth2User user = service(githubUser("public@example.com")).loadUser(request("github"));
 

@@ -63,6 +63,11 @@ public class GithubEmailOAuth2UserService implements OAuth2UserService<OAuth2Use
 		}
 		Map<String, Object> attributes = new LinkedHashMap<>(user.getAttributes());
 		attributes.put("email", email);
+		// Say so. The address is taken only from an entry GitHub marks primary AND
+		// verified, so this is a fact rather than an assumption — and without it a
+		// consumer cannot tell a checked address from one nobody stands behind, which is
+		// exactly the distinction an approval decision turns on.
+		attributes.put("email_verified", true);
 		String nameAttribute = userRequest.getClientRegistration()
 			.getProviderDetails()
 			.getUserInfoEndpoint()
