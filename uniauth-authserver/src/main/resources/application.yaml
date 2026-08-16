@@ -42,6 +42,7 @@ spring:
               scopes:
                 - openid
                 - profile
+                - email
 
           # The admin console. Its OWN client, not a second redirect-uri on the demo's:
           # two applications are two clients, and sharing one would let either be sent to
@@ -63,6 +64,7 @@ spring:
               scopes:
                 - openid
                 - profile
+                - email
 
 authserver:
   # Accounts this provider starts with, so it is usable on a fresh boot. Everything added
@@ -71,12 +73,29 @@ authserver:
     - username: olivia
       password: oauth-pass
       roles: [ USER ]
+      name: Olivia Okonkwo
+      email: olivia@example.com
+      # This provider checked the address, so a relying party can treat it as identity.
+      email-verified: true
     # An account that can administer through the console, to make the OIDC path usable on a
     # fresh boot. The console admits provider accounts carrying ROLE_ADMIN — see the note on
     # privilege escalation in the console's own configuration.
     - username: oscar
       password: oscar-pass
       roles: [ USER, ADMIN ]
+      name: Oscar Prieto
+      email: oscar@example.com
+      email-verified: true
+
+    # Deliberately unverified, so the approval queue has something to show the difference
+    # with. Signing in as dana and looking at the queue is the point: the address is there,
+    # the provider will not stand behind it, and an approver can see which.
+    - username: dana
+      password: dana-pass
+      roles: [ USER ]
+      name: Dana Whitlock
+      email: dana@example.com
+      email-verified: false
 
   # Lets the uniauth-admin console manage the accounts above. Off unless a token is set;
   # the service refuses to start with it enabled and no token.

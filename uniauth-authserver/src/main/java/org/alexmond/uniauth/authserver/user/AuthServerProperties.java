@@ -29,6 +29,23 @@ public class AuthServerProperties {
 
 		private List<String> roles = new ArrayList<>(List.of("USER"));
 
+		/**
+		 * The {@code name} claim. A provider that knows only usernames is not much of
+		 * one.
+		 */
+		private String name;
+
+		/** The {@code email} claim. */
+		private String email;
+
+		/**
+		 * Whether this provider stands behind the address, as the {@code email_verified}
+		 * claim. Defaults to false, which is the honest default: an address nobody
+		 * checked is a claim, and a relying party deciding on one is trusting whoever
+		 * typed it.
+		 */
+		private boolean emailVerified;
+
 	}
 
 	@Data

@@ -10,6 +10,8 @@ import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -32,11 +34,23 @@ public final class AccountStore {
 	 */
 	private final List<String> usernames = new CopyOnWriteArrayList<>();
 
+	/**
+	 * The profile claims, which {@code UserDetails} has nowhere to put.
+	 *
+	 * <p>
+	 * Kept beside the credentials rather than folded into them: a name and an address are
+	 * things the provider asserts <em>about</em> an account, not things it authenticates
+	 * with, and the distinction is what lets email_verified mean anything.
+	 */
+	private final Map<String, Profile> profiles = new ConcurrentHashMap<>();
+
 	private final PasswordEncoder passwordEncoder;
 
 	public AccountStore(PasswordEncoder passwordEncoder, AuthServerProperties properties) {
 		this.passwordEncoder = passwordEncoder;
-		properties.getUsers().forEach((seed) -> create(seed.getUsername(), seed.getPassword(), seed.getRoles()));
+		properties.getUsers()
+			.forEach((seed) -> create(seed.getUsername(), seed.getPassword(), seed.getRoles(),
+					new Profile(seed.getName(), seed.getEmail(), seed.isEmailVerified())));
 	}
 
 	/** The manager the login chain authenticates against. */
@@ -45,10 +59,19 @@ public final class AccountStore {
 	}
 
 	public List<Account> accounts() {
-		return this.usernames.stream().map((name) -> new Account(name, rolesOf(name))).toList();
+		return this.usernames.stream().map((name) -> new Account(name, rolesOf(name), profileOf(name))).toList();
+	}
+
+	/** The claims this provider asserts about an account, never {@code null}. */
+	public Profile profileOf(String username) {
+		return this.profiles.getOrDefault(username, Profile.EMPTY);
 	}
 
 	public void create(String username, String rawPassword, List<String> roles) {
+		create(username, rawPassword, roles, Profile.EMPTY);
+	}
+
+	public void create(String username, String rawPassword, List<String> roles, Profile profile) {
 		if (this.delegate.userExists(username)) {
 			throw new IllegalArgumentException("There is already an account called " + username);
 		}
@@ -57,6 +80,13 @@ public final class AccountStore {
 			.roles(roles.toArray(String[]::new))
 			.build());
 		this.usernames.add(username);
+		this.profiles.put(username, (profile != null) ? profile : Profile.EMPTY);
+	}
+
+	/** Replaces the asserted claims. Absent fields are cleared, not merged. */
+	public void updateProfile(String username, Profile profile) {
+		require(username);
+		this.profiles.put(username, (profile != null) ? profile : Profile.EMPTY);
 	}
 
 	public void updatePassword(String username, String rawPassword) {
@@ -78,6 +108,7 @@ public final class AccountStore {
 		require(username);
 		this.delegate.deleteUser(username);
 		this.usernames.remove(username);
+		this.profiles.remove(username);
 	}
 
 	private UserDetails require(String username) {
@@ -106,7 +137,22 @@ public final class AccountStore {
 	 * One account, as an administrator sees it. No password: it goes in one direction
 	 * only.
 	 */
-	public record Account(String username, List<String> roles) {
+	public record Account(String username, List<String> roles, Profile profile) {
+	}
+
+	/**
+	 * What the provider asserts about an account.
+	 *
+	 * @param name a human name, or {@code null}
+	 * @param email an address, or {@code null}
+	 * @param emailVerified whether this provider checked that address. False is the
+	 * honest default — an unchecked address is a claim, and a relying party that treats
+	 * it as identity is trusting whoever typed it rather than this provider
+	 */
+	public record Profile(String name, String email, boolean emailVerified) {
+
+		public static final Profile EMPTY = new Profile(null, null, false);
+
 	}
 
 }

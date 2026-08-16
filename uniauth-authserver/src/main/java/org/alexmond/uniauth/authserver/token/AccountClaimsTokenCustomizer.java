@@ -1,15 +1,21 @@
 package org.alexmond.uniauth.authserver.token;
 
 import java.util.List;
+import java.util.Set;
+
+import org.alexmond.uniauth.authserver.user.AccountStore;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.util.StringUtils;
 
 /**
- * Puts the account's roles into the ID token as a {@code roles} claim.
+ * Puts what this provider knows about an account into its ID token.
  *
  * <p>
  * Without this an OIDC login tells a client <em>who</em> signed in and nothing about what
@@ -31,7 +37,13 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
  * and this provider fronts none that authorize by role — putting roles there would be
  * publishing an authorization decision nothing consumes.
  */
-public class RolesClaimTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext> {
+public class AccountClaimsTokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext> {
+
+	private final AccountStore accounts;
+
+	public AccountClaimsTokenCustomizer(AccountStore accounts) {
+		this.accounts = accounts;
+	}
 
 	@Override
 	public void customize(JwtEncodingContext context) {
@@ -52,6 +64,31 @@ public class RolesClaimTokenCustomizer implements OAuth2TokenCustomizer<JwtEncod
 			.toList();
 		if (!roles.isEmpty()) {
 			context.getClaims().claim("roles", roles);
+		}
+		addProfileClaims(context, principal.getName());
+	}
+
+	/**
+	 * The standard OIDC claims, gated on the scopes actually granted.
+	 *
+	 * <p>
+	 * Gated rather than always emitted, because that is what makes them mean anything: a
+	 * client that did not ask for {@code email} has not been authorised to learn one, and
+	 * a provider that hands it over regardless has turned a scope into decoration. It
+	 * also makes this provider behave like the real ones the demo sits beside, so what a
+	 * relying party sees here is what it will see from Google.
+	 */
+	private void addProfileClaims(JwtEncodingContext context, String username) {
+		AccountStore.Profile profile = this.accounts.profileOf(username);
+		Set<String> scopes = context.getAuthorizedScopes();
+		if (scopes.contains(OidcScopes.PROFILE) && StringUtils.hasText(profile.name())) {
+			context.getClaims().claim(StandardClaimNames.NAME, profile.name());
+		}
+		if (scopes.contains(OidcScopes.EMAIL) && StringUtils.hasText(profile.email())) {
+			context.getClaims().claim(StandardClaimNames.EMAIL, profile.email());
+			// Always alongside the address, never on its own: "unverified" is a useful
+			// answer, but only when there is something it is about.
+			context.getClaims().claim(StandardClaimNames.EMAIL_VERIFIED, profile.emailVerified());
 		}
 	}
 

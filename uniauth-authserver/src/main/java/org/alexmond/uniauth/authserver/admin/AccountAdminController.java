@@ -42,9 +42,9 @@ public class AccountAdminController {
 		if (isBlank(request.username()) || isBlank(request.password())) {
 			return problem(HttpStatus.BAD_REQUEST, "username and password are both required");
 		}
-		return attempt(
-				() -> this.accounts.create(request.username().trim(), request.password(), request.rolesOrDefault()),
-				HttpStatus.CREATED, Map.of("created", request.username().trim()));
+		return attempt(() -> this.accounts.create(request.username().trim(), request.password(),
+				request.rolesOrDefault(), request.profile()), HttpStatus.CREATED,
+				Map.of("created", request.username().trim()));
 	}
 
 	/**
@@ -54,8 +54,8 @@ public class AccountAdminController {
 	@PutMapping("${authserver.admin-api.path:/admin/api}/users/{username}")
 	public ResponseEntity<Map<String, String>> update(@PathVariable String username,
 			@RequestBody UpdateAccount request) {
-		if (isBlank(request.password()) && request.roles() == null) {
-			return problem(HttpStatus.BAD_REQUEST, "send a password, roles, or both");
+		if (isBlank(request.password()) && request.roles() == null && !request.hasProfile()) {
+			return problem(HttpStatus.BAD_REQUEST, "send a password, roles, a profile, or any combination");
 		}
 		return attempt(() -> {
 			if (!isBlank(request.password())) {
@@ -63,6 +63,9 @@ public class AccountAdminController {
 			}
 			if (request.roles() != null) {
 				this.accounts.updateRoles(username, request.roles());
+			}
+			if (request.hasProfile()) {
+				this.accounts.updateProfile(username, request.profile());
 			}
 		}, HttpStatus.OK, Map.of("updated", username));
 	}
@@ -98,10 +101,15 @@ public class AccountAdminController {
 	 * @param password the initial password, in clear
 	 * @param roles authorities to grant; defaults to USER when absent
 	 */
-	public record CreateAccount(String username, String password, List<String> roles) {
+	public record CreateAccount(String username, String password, List<String> roles, String name, String email,
+			Boolean emailVerified) {
 
 		List<String> rolesOrDefault() {
 			return (this.roles == null || this.roles.isEmpty()) ? List.of("USER") : this.roles;
+		}
+
+		AccountStore.Profile profile() {
+			return new AccountStore.Profile(this.name, this.email, Boolean.TRUE.equals(this.emailVerified));
 		}
 	}
 
@@ -109,7 +117,15 @@ public class AccountAdminController {
 	 * @param password a new password, or {@code null} to keep the current one
 	 * @param roles authorities to set, or {@code null} to leave them alone
 	 */
-	public record UpdateAccount(String password, List<String> roles) {
+	public record UpdateAccount(String password, List<String> roles, String name, String email, Boolean emailVerified) {
+
+		boolean hasProfile() {
+			return this.name != null || this.email != null || this.emailVerified != null;
+		}
+
+		AccountStore.Profile profile() {
+			return new AccountStore.Profile(this.name, this.email, Boolean.TRUE.equals(this.emailVerified));
+		}
 	}
 
 }

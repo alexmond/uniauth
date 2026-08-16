@@ -10,6 +10,10 @@
 
 replicaCount: 1
 
+# RollingUpdate or Recreate. Recreate for anything holding session or approval state in
+# memory, which is all of these: a rolling update overlaps two pods and splits that state.
+updateStrategy: RollingUpdate
+
 image:
   # Built from uniauth-examples/webapp. See deploy/helm/uniauth/README.md for the publish
   # command, or use scripts/deploy-k8s.sh which builds and pushes for you.

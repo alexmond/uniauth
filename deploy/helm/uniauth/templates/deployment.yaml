@@ -6,6 +6,15 @@ metadata:
     {{- include "uniauth.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  {{- if eq .Values.updateStrategy "Recreate" }}
+  # Recreate, not RollingUpdate. These applications hold sessions — and the approval
+  # queue — in memory, so a rolling update briefly runs two pods with divergent state:
+  # a user approved on one is still pending on the other, and a session established on
+  # one is unknown to the other. Brief downtime is the honest trade for a single replica
+  # that cannot share state.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "uniauth.selectorLabels" . | nindent 6 }}

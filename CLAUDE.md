@@ -233,6 +233,15 @@ local `admin` account stays as break-glass for when the provider is down.
   the browser one — a console has no session to ride and must never be redirected to a login
   page.
 
+### Deployments are `Recreate`, because the state is in the pod
+
+Sessions and the approval queue live in memory. A `RollingUpdate` overlaps two pods, so a
+principal approved on one is still pending on the other and a session established on one is
+unknown to the other — which showed up three times as a handful of post-deploy failures that
+passed on the next run. `updateStrategy: Recreate` in the overlays trades a few seconds of
+downtime for state that does not fork. It is not a fix for the underlying limitation:
+`InMemoryApprovalStore` still empties on restart, and a real deployment supplies its own.
+
 ### Verify a deployment by using it, not by reading `kubectl get pods`
 
 `scripts/verify-deployment.sh` and `scripts/verify-console.sh` exercise the deployed

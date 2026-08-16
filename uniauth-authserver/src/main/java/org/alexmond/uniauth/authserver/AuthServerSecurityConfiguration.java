@@ -1,7 +1,7 @@
 package org.alexmond.uniauth.authserver;
 
 import org.alexmond.uniauth.authserver.admin.BearerTokenAuthenticationFilter;
-import org.alexmond.uniauth.authserver.token.RolesClaimTokenCustomizer;
+import org.alexmond.uniauth.authserver.token.AccountClaimsTokenCustomizer;
 import org.alexmond.uniauth.authserver.user.AccountStore;
 import org.alexmond.uniauth.authserver.user.AuthServerProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -46,12 +46,13 @@ public class AuthServerSecurityConfiguration {
 	}
 
 	/**
-	 * Reports each account's roles in its ID token, so a client can authorize on them.
-	 * Picked up by the authorization server's token generator by type.
+	 * Reports what this provider knows about an account in its ID token — roles, and the
+	 * standard profile claims for the scopes granted. Picked up by the authorization
+	 * server's token generator by type.
 	 */
 	@Bean
-	OAuth2TokenCustomizer<JwtEncodingContext> rolesClaimTokenCustomizer() {
-		return new RolesClaimTokenCustomizer();
+	OAuth2TokenCustomizer<JwtEncodingContext> accountClaimsTokenCustomizer(AccountStore accounts) {
+		return new AccountClaimsTokenCustomizer(accounts);
 	}
 
 	/** Authorize, token, jwks, userinfo, discovery. */

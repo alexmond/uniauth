@@ -32,6 +32,10 @@ spring:
             scope:
               - openid
               - profile
+              # Asked for explicitly. The provider gates the email claims on this scope, so
+              # without it the approval queue would show a login with no address — which is
+              # the correct outcome for a client that never asked for one.
+              - email
         provider:
           local:
             # Browser-facing: the user is redirected to the provider here.
