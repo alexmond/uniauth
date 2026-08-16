@@ -29,9 +29,33 @@
 		</section>
 
 		<p class="note">
-			Nothing to do here but wait. Once someone approves you, the dashboard opens on your
-			next request — no need to sign in again.
+			Once someone approves you, the dashboard opens on your next request — no need to
+			sign in again.
 		</p>
+
+		<!--
+		  The way out of the queue, offered here rather than left as an exercise.
+
+		  This page used to say "nothing to do but wait", which is true for the account that
+		  is waiting and useless to the person trying the demo: they are both parties. The
+		  approval is made by an administrator of THIS application — the internal store — so
+		  signing out and back in as one is the whole loop, and it is worth naming because
+		  the queue is otherwise unreachable from the only page you can see.
+		-->
+		<section class="stack">
+			<h2 class="section-title">Approving, from the other side</h2>
+			<p class="prose">
+				The decision belongs to an administrator of this application, not to the provider
+				that vouched for you — which is the point of the gate. In this demo that is the
+				internal account <code>alice</code> / <code>s3cret</code>: sign out, sign in as
+				her, and the queue is on the nav.
+			</p>
+			<div class="actions">
+				<form th:action="@{/logout}" method="post">
+					<button class="button" type="submit">Sign out and approve as an administrator</button>
+				</form>
+			</div>
+		</section>
 
 		<div class="actions">
 			<form th:action="@{/logout}" method="post">

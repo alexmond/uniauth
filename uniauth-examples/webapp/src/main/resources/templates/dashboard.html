@@ -1,15 +1,50 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('Dashboard')}">
-	<title>UniAuth</title>
-</head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/shell :: head('Dashboard')}"><title>UniAuth · Dashboard</title></head>
 <body>
 <div class="shell">
 	<header th:replace="~{fragments/shell :: rail('dashboard')}"></header>
 
 	<main>
-		<p class="eyebrow">Protected page · signed in</p>
-		<h1 class="display">You came in<br/>through <em th:text="${facts.answeredBy()}">LDAP</em>.</h1>
+		<!--
+		  Where a successful sign-in lands, and the only page that reports on the session.
+
+		  It used to share that job with a second page, /session, which showed the same
+		  facts under a different heading — and the sign-in landed on neither, dropping the
+		  user on the public overview with nothing to say whether anything had happened.
+		  The outcome comes first here; the evidence for it follows.
+		-->
+		<p class="eyebrow">Authenticated · <span th:text="${facts.answeredBy()}">LDAP</span></p>
+		<h1 class="display">Signed in<br/>through <em th:text="${facts.answeredBy()}">LDAP</em>.</h1>
+
+		<div class="verdict">
+			<p class="verdict__line">
+				<span class="verdict__mark">✓</span>
+				<span>
+					Authentication succeeded. <strong th:text="${facts.name()}">name</strong> was
+					vouched for by <strong th:text="${facts.answeredBy()}">LDAP</strong>, and this
+					application accepted it.
+				</span>
+			</p>
+			<p class="verdict__line" th:if="${approval != null}">
+				<span class="verdict__mark">✓</span>
+				<span>
+					Authenticating was not enough on its own: this provider is behind the approval
+					gate, and an administrator admitted you
+					<span th:if="${approval.decidedBy() != null}">
+						(<strong th:text="${approval.decidedBy()}">admin</strong>)</span>.
+				</span>
+			</p>
+			<p class="verdict__line" th:if="${approval == null}">
+				<span class="verdict__mark verdict__mark--quiet">·</span>
+				<span>
+					No approval was required — accounts from this provider are admitted as soon as
+					they authenticate.
+				</span>
+			</p>
+		</div>
+
 		<p class="lede">
 			Every port below was available. The lit one is the provider that actually accepted
 			your credentials and put this session on the chain.
@@ -49,8 +84,35 @@
 			</p>
 		</section>
 
+		<section class="stack">
+			<h2 class="section-title">What the principal carries</h2>
+			<p class="prose" style="margin:0 0 1.25rem">
+				The same account looks different depending on which provider vouched for it: a
+				directory entry brings a DN, an OIDC login brings claims, a SAML assertion brings
+				attributes.
+			</p>
+			<div class="scroll-x">
+				<table class="rows">
+					<caption th:text="'Principal detail · ' + ${facts.tokenType()}">Principal detail</caption>
+					<tbody>
+					<tr>
+						<th scope="row">name</th>
+						<td th:text="${facts.name()}">name</td>
+					</tr>
+					<tr th:each="detail : ${facts.details()}">
+						<th scope="row" th:text="${detail.key()}">key</th>
+						<td th:text="${detail.value()}">value</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+			<p class="note" th:if="${#lists.isEmpty(facts.details())}">
+				This provider exposes nothing beyond the principal name.
+			</p>
+		</section>
+
 		<div class="actions">
-			<a class="button" th:href="@{/session}">Inspect the raw session</a>
+			<a class="button" th:href="@{/approvals}" sec:authorize="hasRole('ADMIN')">Review the approval queue</a>
 			<a class="button button--ghost" th:href="@{/}">Back to the public page</a>
 		</div>
 	</main>

@@ -34,6 +34,14 @@ form_login() { # <base> <user> <pass> <jar>
     --data-urlencode "_csrf=$t" "$base/login"
 }
 
+# Same as form_login, but reports where the login sent you rather than the status.
+form_login_location() {
+  local base=$1 jar=$4 t
+  t=$(curl -s -c "$jar" "$base/login" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+  curl -s -b "$jar" -c "$jar" -o /dev/null -w '%{redirect_url}' \
+    --data-urlencode "username=$2" --data-urlencode "password=$3" --data-urlencode "_csrf=$t" "$base/login"
+}
+
 section "openldap — the directory itself"
 POD=$(kubectl -n "${NAMESPACE:-uniauth}" get pod -l app=openldap -o jsonpath='{.items[0].metadata.name}')
 R=$(kubectl -n "${NAMESPACE:-uniauth}" exec "$POD" -- ldapwhoami -x -D "uid=bob,ou=people,dc=example,dc=com" -w bobspassword 2>&1)
@@ -56,11 +64,19 @@ check "provider link points at its own entry point" "$CHOOSER" "/oauth2/authoriz
 
 J=$(mktemp); form_login $WEBAPP alice s3cret "$J" >/dev/null
 check "alice (internal) reaches the dashboard" "$(curl -s -b "$J" -o /dev/null -w '%{http_code}' $WEBAPP/dashboard)" "200"
+# A successful sign-in used to land on the PUBLIC overview, which says nothing about
+# having authenticated — the one moment confirmation matters most.
+check "a sign-in lands on the page that reports it" \
+  "$(form_login_location $WEBAPP alice s3cret "$(mktemp)")" "/dashboard"
 check "alice sees the approvals queue (ROLE_ADMIN)" "$(curl -s -b "$J" -o /dev/null -w '%{http_code}' $WEBAPP/approvals)" "200"
 
 J2=$(mktemp); form_login $WEBAPP bob bobspassword "$J2" >/dev/null
-BOBPAGE=$(curl -s -b "$J2" $WEBAPP/session)
+# The dashboard is the one page that reports the session; /session was folded into it.
+BOBPAGE=$(curl -s -b "$J2" $WEBAPP/dashboard)
 check "bob (LDAP) carries his directory DN" "$BOBPAGE" "uid=bob,ou=people,dc=example,dc=com"
+check "the dashboard states the outcome"    "$BOBPAGE" "Authentication succeeded"
+check "  ...and names who admitted him"     "$BOBPAGE" "admitted you"
+check "the old /session URL redirects"      "$(curl -s -b "$J2" -o /dev/null -w '%{redirect_url}' $WEBAPP/session)" "/dashboard"
 
 J3=$(mktemp); form_login $WEBAPP breakglass local-only "$J3" >/dev/null
 check "breakglass (local, beside the directory) works" \

@@ -23,8 +23,6 @@
 		   th:attrappend="aria-current=${current == 'how'} ? 'page'">How it works</a>
 		<a class="rail__link" th:href="@{/dashboard}" sec:authorize="isAuthenticated()"
 		   th:attrappend="aria-current=${current == 'dashboard'} ? 'page'">Dashboard</a>
-		<a class="rail__link" th:href="@{/session}" sec:authorize="isAuthenticated()"
-		   th:attrappend="aria-current=${current == 'session'} ? 'page'">Session</a>
 		<a class="rail__link" th:href="@{/approvals}" sec:authorize="hasRole('ADMIN')"
 		   th:attrappend="aria-current=${current == 'approvals'} ? 'page'">Approvals</a>
 		<a class="button" th:href="@{/login}" sec:authorize="!isAuthenticated()">Sign in</a>

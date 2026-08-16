@@ -97,10 +97,10 @@ class SamplePagesTest {
 	}
 
 	@Test
-	void sessionPageShowsTheDirectoryEntryDistinguishedName() throws Exception {
+	void theDashboardShowsTheDirectoryEntryDistinguishedName() throws Exception {
 		HttpSession session = signInApproved("bob", "bobspassword", "DEVELOPERS");
 
-		this.mockMvc.perform(get("/session").session((MockHttpSession) session))
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) session))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("uid=bob")));
 	}
@@ -110,6 +110,42 @@ class SamplePagesTest {
 	 * once someone has let it in. {@link ApprovalFlowTest} covers the gate itself; here
 	 * it is just a precondition to get at the pages under test.
 	 */
+	@Test
+	void aSuccessfulSignInLandsOnThePageThatReportsIt() throws Exception {
+		// It used to land on "/", this application's PUBLIC overview, which says nothing
+		// about having authenticated — so the one moment a user most wants confirmation
+		// was the one page that offered none.
+		this.mockMvc.perform(formLogin("/login").user("alice").password("s3cret"))
+			.andExpect(redirectedUrl("/dashboard"));
+	}
+
+	@Test
+	void theDashboardStatesThatAuthenticationSucceeded() throws Exception {
+		HttpSession session = signIn("alice", "s3cret", "USER", "ADMIN");
+
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) session))
+			.andExpect(content().string(containsString("Authentication succeeded")));
+	}
+
+	@Test
+	void theOldSessionUrlRedirectsRatherThan404s() throws Exception {
+		// Its content moved onto the dashboard; the URL has been linked to.
+		HttpSession session = signIn("alice", "s3cret", "USER", "ADMIN");
+
+		this.mockMvc.perform(get("/session").session((MockHttpSession) session)).andExpect(redirectedUrl("/dashboard"));
+	}
+
+	@Test
+	void theDashboardSaysWhoApprovedAHeldAccount() throws Exception {
+		// bob comes through the gate, so the page reports the decision as well as the
+		// authentication — "approved by alice" and "no approval needed" are different
+		// facts, and a blank space states neither.
+		HttpSession session = signInApproved("bob", "bobspassword", "DEVELOPERS");
+
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) session))
+			.andExpect(content().string(containsString("Authenticating was not enough on its own")));
+	}
+
 	private HttpSession signInApproved(String username, String password, String... roles) throws Exception {
 		HttpSession session = signIn(username, password, roles);
 		ApprovalKey key = new ApprovalKey("ldap", username);

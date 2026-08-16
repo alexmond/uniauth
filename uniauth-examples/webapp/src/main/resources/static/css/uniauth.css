@@ -572,3 +572,43 @@ a.port:hover .port__jack {
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* --- Sign-in verdict ------------------------------------------------------------
+   The outcome, stated before the evidence for it. A user arriving here has just been
+   through a redirect or two and the first question is whether it worked; the panel and
+   the tables below answer the second question, which is how. */
+.verdict {
+	border-left: 2px solid var(--patina);
+	background: var(--ink-panel);
+	padding: 1.25rem 1.5rem;
+	margin: 0 0 2rem;
+	border-radius: 0 4px 4px 0;
+}
+
+.verdict__line {
+	display: flex;
+	gap: .75rem;
+	align-items: baseline;
+	margin: 0;
+	color: var(--bone);
+	line-height: 1.55;
+}
+
+.verdict__line + .verdict__line {
+	margin-top: .75rem;
+}
+
+.verdict__mark {
+	color: var(--patina);
+	font-weight: 700;
+	flex: 0 0 auto;
+}
+
+.verdict__mark--quiet {
+	color: var(--muted);
+}
+
+.verdict strong {
+	color: var(--brass-bright);
+	font-weight: 600;
+}

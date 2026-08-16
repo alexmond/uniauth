@@ -43,6 +43,12 @@ spring:
             user-name-attribute: sub
 
 uniauth:
+  # Where a successful sign-in lands. The default is "/", which is this application's
+  # PUBLIC overview — so authenticating dropped you on a page that said nothing about
+  # having authenticated, and you had to go looking for the dashboard to find out whether
+  # anything had happened.
+  default-success-url: /dashboard
+
   # Anything not listed here needs a session. The starter permits its own login page,
   # the providers endpoint, /error and the pending page already.
   public-paths:
