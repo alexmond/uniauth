@@ -114,3 +114,43 @@ uniauth:
 logging:
   level:
     org.alexmond.uniauth: DEBUG
+
+---
+# ---------------------------------------------------------------------------------------
+# Google, when credentials are supplied. Activate with the "google" profile.
+#
+# A separate profile document rather than a block with empty defaults, because an empty
+# client-id is not ignored — Spring Boot builds a ClientRegistration from it and the
+# context fails at startup. Absent registration, absent button; that is the correct
+# behaviour for an example nobody has given credentials to.
+#
+# UniAuth adds nothing here. Everything but the two secrets comes from Boot's own
+# CommonOAuth2Provider, keyed on the registration id "google": endpoints, scopes, the
+# user-name attribute. That is the whole point of not re-declaring OAuth2 config under
+# uniauth.* — and why the chooser, the brand icon and the OIDC detection all light up from
+# these two lines.
+#
+# Setting it up (once, at https://console.cloud.google.com/apis/credentials):
+#   1. Create an OAuth 2.0 Client ID, type "Web application".
+#   2. Authorised redirect URI: <base>/login/oauth2/code/google
+#      Google REQUIRES https for anything that is not localhost, so:
+#        local  →  http://localhost:8080/login/oauth2/code/google
+#        lab    →  https://<host>/login/oauth2/code/google      (http will be rejected)
+#   3. Put the id and secret in GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.
+#
+# A Google account is held by the approval gate like any other OAUTH2 login — it is in
+# uniauth.approval.require-for — so the first sign-in lands on /pending until an
+# administrator admits it. That is deliberate: a real identity provider will happily vouch
+# for anyone with an account, and vouching is not the same as being let in.
+# ---------------------------------------------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: google
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
