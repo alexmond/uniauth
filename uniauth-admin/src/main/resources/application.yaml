@@ -18,6 +18,35 @@ spring:
     # The console has no login template of its own — it uses the starter's chooser.
     check-template-location: true
 
+  security:
+    oauth2:
+      # --- The console AS an OIDC client of the provider it administers ---------------
+      #
+      # So the console's login page offers the same choice every other service here does,
+      # rather than being the one box that only accepts a local password.
+      #
+      # Endpoints are declared rather than discovered from an issuer-uri: the browser-facing
+      # authorization URL and the server-to-server token/JWKS URLs are different addresses
+      # on a cluster, and one exact-issuer check cannot hold for both.
+      client:
+        registration:
+          local:
+            client-id: uniauth-admin
+            client-secret: admin-console-secret
+            client-name: Local OAuth
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - openid
+              - profile
+        provider:
+          local:
+            authorization-uri: ${CONSOLE_PROVIDER_PUBLIC_URL:http://localhost:9000}/oauth2/authorize
+            token-uri: ${CONSOLE_PROVIDER_BASE_URL:http://localhost:9000}/oauth2/token
+            jwk-set-uri: ${CONSOLE_PROVIDER_BASE_URL:http://localhost:9000}/oauth2/jwks
+            user-info-uri: ${CONSOLE_PROVIDER_BASE_URL:http://localhost:9000}/userinfo
+            user-name-attribute: sub
+
 # What this console administers. Two services, each a flat block rather than a list entry:
 # a list bound from environment variables REPLACES the one here instead of merging, so
 # supplying one field from a Secret used to blank its siblings silently.

@@ -112,4 +112,23 @@ check "console login works" "$(form_login $CONSOLE admin admin "$JC")" "302"
 check "console reaches the provider store"  "$(curl -s -b "$JC" $CONSOLE/stores/provider | grep -c 'alert--error')" "0"
 check "console reaches the directory store" "$(curl -s -b "$JC" $CONSOLE/stores/directory | grep -c 'alert--error')" "0"
 
+# The console is a client of the provider it administers. Signing in that way has to work,
+# and — more importantly — has to keep working only for accounts entitled to it.
+LOGIN=$(curl -s $CONSOLE/login)
+check "console login offers OIDC"        "$LOGIN" "/oauth2/authorization/local"
+check "console login keeps the password form (break-glass)" "$LOGIN" 'name="username"'
+
+oidc_console() { # <user> <pass> <jar> -> final status
+  local jar=$3 page t
+  page=$(curl -s -c "$jar" -b "$jar" -L "$CONSOLE/oauth2/authorization/local")
+  t=$(printf '%s' "$page" | grep -o 'name="_csrf" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"//')
+  curl -s -c "$jar" -b "$jar" -L -o /dev/null -w '%{http_code}' \
+    --data-urlencode "username=$1" --data-urlencode "password=$2" --data-urlencode "_csrf=$t" "$AUTH/login"
+}
+check "a provider ADMIN gets into the console over OIDC" "$(oidc_console oscar oscar-pass "$(mktemp)")" "200"
+# Authenticated and refused is the correct outcome, and a different thing from a failed
+# login: the provider vouched for olivia, this console simply does not admit her.
+check "an ordinary provider account is refused (403, not a login failure)" \
+  "$(oidc_console olivia oauth-pass "$(mktemp)")" "403"
+
 printf '\n\033[1m%d passed, %d failed\033[0m\n' "$PASS" "$FAIL"

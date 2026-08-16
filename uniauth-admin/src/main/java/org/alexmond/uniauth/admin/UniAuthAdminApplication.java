@@ -3,7 +3,9 @@ package org.alexmond.uniauth.admin;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 
 /**
  * A standalone console for administering the accounts behind a UniAuth deployment.
@@ -32,6 +34,17 @@ public class UniAuthAdminApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(UniAuthAdminApplication.class, args);
+	}
+
+	/**
+	 * Lets a provider account reach this console. Spring Security resolves a
+	 * {@code GrantedAuthoritiesMapper} bean from the context, so this needs no change to
+	 * the starter's filter chain — the same way the starter's own OAuth2 adapters are
+	 * picked up.
+	 */
+	@Bean
+	GrantedAuthoritiesMapper consoleAuthoritiesMapper() {
+		return new ConsoleAuthoritiesMapper();
 	}
 
 }

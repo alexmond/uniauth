@@ -203,6 +203,30 @@ lowest common denominator neither side has.
   confirmation, worse than an error. `DirectoryUserStore#delete` looks the entry up first.
 - **A store that is switched off contributes no bean**, so the console lists exactly what it
   can reach rather than offering something that fails on the first click.
+
+#### The console signs in with OIDC, and that closes a loop on purpose
+
+The console is a client of the provider it administers, so its login page offers the same
+choice every other service here does instead of being the one box that only takes a local
+password. Two pieces make it work, and neither is optional:
+
+- **`RolesClaimTokenCustomizer`** (provider) puts the account's authorities into the ID
+  token as `roles`. Without it an OIDC login arrives with `OIDC_USER` and `SCOPE_*` and no
+  roles, so every console page 403s — a working sign-in that reaches nothing, which reads
+  as a broken console rather than a permissions decision.
+- **`ConsoleAuthoritiesMapper`** (console) maps that claim back to authorities. It honours
+  only `ROLE_`-prefixed values, so a provider cannot name an authority of its own choosing.
+
+The console is a **separate client** at the provider (`uniauth-admin`), not a second
+redirect-uri on the demo's — sharing one would let either application be sent to the
+other's callback.
+
+**The loop is real and deliberate.** The console holds a token that creates provider
+accounts, including `ROLE_ADMIN` ones, so admitting provider administrators here means a
+provider administrator can administer the provider. Fine when both are the same operator,
+wrong wherever the two populations are meant to be separate; there, disable the
+registration or key on a claim the provider's own admins cannot grant themselves. The
+local `admin` account stays as break-glass for when the provider is down.
 - **The provider's API refuses to start without a token**, compares it with
   `MessageDigest.isEqual` (a plain `equals` leaks the credential a character at a time to
   anyone who can measure the response), and runs on a stateless CSRF-disabled chain ahead of

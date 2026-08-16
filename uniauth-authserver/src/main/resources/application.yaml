@@ -37,6 +37,26 @@ spring:
                 - openid
                 - profile
 
+          # The admin console. Its OWN client, not a second redirect-uri on the demo's:
+          # two applications are two clients, and sharing one would let either be sent to
+          # the other's callback. The console's pages need a role, so its ID token carries
+          # the account's roles (see RolesClaimTokenCustomizer).
+          uniauth-admin:
+            require-authorization-consent: false
+            registration:
+              client-id: uniauth-admin
+              client-secret: "{noop}admin-console-secret"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+              redirect-uris:
+                - ${AUTHSERVER_CONSOLE_REDIRECT_URI:http://localhost:8090/login/oauth2/code/local}
+              scopes:
+                - openid
+                - profile
+
 authserver:
   # Accounts this provider starts with, so it is usable on a fresh boot. Everything added
   # later through the admin API is in memory and goes with a restart.
@@ -44,6 +64,12 @@ authserver:
     - username: olivia
       password: oauth-pass
       roles: [ USER ]
+    # An account that can administer through the console, to make the OIDC path usable on a
+    # fresh boot. The console admits provider accounts carrying ROLE_ADMIN — see the note on
+    # privilege escalation in the console's own configuration.
+    - username: oscar
+      password: oscar-pass
+      roles: [ USER, ADMIN ]
 
   # Lets the uniauth-admin console manage the accounts above. Off unless a token is set;
   # the service refuses to start with it enabled and no token.

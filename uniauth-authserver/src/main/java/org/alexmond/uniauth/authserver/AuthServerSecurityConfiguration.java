@@ -1,6 +1,7 @@
 package org.alexmond.uniauth.authserver;
 
 import org.alexmond.uniauth.authserver.admin.BearerTokenAuthenticationFilter;
+import org.alexmond.uniauth.authserver.token.RolesClaimTokenCustomizer;
 import org.alexmond.uniauth.authserver.user.AccountStore;
 import org.alexmond.uniauth.authserver.user.AuthServerProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,6 +19,8 @@ import org.springframework.security.config.annotation.web.configurers.oauth2.ser
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -40,6 +43,15 @@ public class AuthServerSecurityConfiguration {
 	@Bean
 	PasswordEncoder passwordEncoder() {
 		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+	}
+
+	/**
+	 * Reports each account's roles in its ID token, so a client can authorize on them.
+	 * Picked up by the authorization server's token generator by type.
+	 */
+	@Bean
+	OAuth2TokenCustomizer<JwtEncodingContext> rolesClaimTokenCustomizer() {
+		return new RolesClaimTokenCustomizer();
 	}
 
 	/** Authorize, token, jwks, userinfo, discovery. */

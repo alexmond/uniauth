@@ -41,6 +41,21 @@ class ConsoleAccessTest {
 	}
 
 	@Test
+	void theLoginPageOffersOidcBesideTheLocalAccount() throws Exception {
+		// The console was the one service here that could only be entered with a local
+		// password, while every other login page offered a choice. Nothing failed — the
+		// button simply was not there, which no test of a working sign-in would notice.
+		this.mockMvc.perform(get("/login"))
+			.andExpect(status().isOk())
+			// The redirect provider renders as a link to its own entry point...
+			.andExpect(content().string(containsString("/oauth2/authorization/local")))
+			.andExpect(content().string(containsString("Local OAuth")))
+			// ...beside the username/password form, which is still how the break-glass
+			// console account gets in when the provider is down.
+			.andExpect(content().string(containsString("name=\"username\"")));
+	}
+
+	@Test
 	void anAdministratorSeesTheConfiguredStores() throws Exception {
 		HttpSession session = signIn();
 
