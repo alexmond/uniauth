@@ -22,6 +22,26 @@ uniauth:
   # The console signs its own administrators in with UniAuth. These are a separate
   # population from the users being administered — an account here grants no access to any
   # managed application, and vice versa.
+  #
+  # ---------------------------------------------------------------------------------------
+  # admin/admin is a DEMO credential, and a worse one here than elsewhere in this repo.
+  #
+  # This console holds a token that creates accounts on every application it manages,
+  # including accounts with ADMIN roles. Whoever signs in here can therefore grant
+  # themselves administrator on the managed applications — the login below is a privilege
+  # escalation path, not just a way into a dashboard.
+  #
+  # Anywhere that matters, override it with a real password from a Secret or the
+  # environment, and use a real encoder:
+  #
+  #   UNIAUTH_INTERNAL_USERS_0_USERNAME=<name>
+  #   UNIAUTH_INTERNAL_USERS_0_PASSWORD={bcrypt}$2a$10$...
+  #   UNIAUTH_INTERNAL_USERS_0_ROLES_0=USER
+  #   UNIAUTH_INTERNAL_USERS_0_ROLES_1=ADMIN
+  #
+  # Supply EVERY field: a list bound from environment variables replaces the one here
+  # rather than merging with it.
+  # ---------------------------------------------------------------------------------------
   internal:
     enabled: true
     display-name: Console account

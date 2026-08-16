@@ -21,8 +21,13 @@ because a directory is a real external store.
 ./mvnw -pl uniauth-admin spring-boot:run      # http://localhost:8090
 ----
 
-Sign in with `admin` / `admin` — a demo credential like the rest of this repo's, and the same
-locally and on the lab so there is nothing to look up. Those are the *console's own*
+Sign in with `admin` / `admin`, the same locally and on the lab so there is nothing to look up.
+
+WARNING: That is a demo credential, and a worse one here than elsewhere in this repo. The
+console holds a token that creates accounts — including ADMIN accounts — on every application
+it manages, so whoever signs in can grant themselves administrator on those applications. It is
+fine on a trusted LAN and nowhere else. Override it with a bcrypt password from a Secret before
+this console is reachable by anyone you would not hand that power to. Those are the *console's own*
 administrators — an account
 here grants nothing on any managed application, and vice versa. The console signs them in with
 UniAuth itself, which is also a useful shakedown of the starter.
