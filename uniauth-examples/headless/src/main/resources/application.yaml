@@ -2,12 +2,6 @@ spring:
   application:
     name: uniauth-headless-example
 
-  # An in-process directory so the LDAP path works with nothing else running.
-  ldap:
-    embedded:
-      base-dn: dc=example,dc=com
-      ldif: classpath:sample-directory.ldif
-      port: 18390
 
 uniauth:
   # No public pages here — the only thing served without a session is the providers
@@ -24,7 +18,13 @@ uniauth:
   ldap:
     enabled: true
     display-name: Directory account
-    url: ldap://localhost:18390/dc=example,dc=com
+    url: ${LDAP_URL:ldap://localhost:389/dc=example,dc=com}
+    # A bind account for searches. The embedded server was world-readable; a real
+    # directory is not — OpenLDAP's default ACL is "by self read ... by * none", and a
+    # denied search returns "no such object" rather than admitting the entry exists.
+    # Without this, bob authenticates and then comes back with no groups.
+    manager-dn: ${LDAP_MANAGER_DN:cn=admin,dc=example,dc=com}
+    manager-password: ${LDAP_MANAGER_PASSWORD:admin-pass}
     user-dn-patterns:
       - uid={0},ou=people
     group-search-base: ou=groups

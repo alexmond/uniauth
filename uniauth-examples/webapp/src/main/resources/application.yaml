@@ -42,14 +42,6 @@ spring:
             user-info-uri: ${AUTHSERVER_INTERNAL_URL:http://localhost:9000}/userinfo
             user-name-attribute: sub
 
-  # An in-process directory, so the LDAP path works with nothing else running.
-  # A real deployment points uniauth.ldap.url at its own server and deletes this block.
-  ldap:
-    embedded:
-      base-dn: dc=example,dc=com
-      ldif: classpath:sample-directory.ldif
-      port: 18389
-
 uniauth:
   # Anything not listed here needs a session. The starter permits its own login page,
   # the providers endpoint, /error and the pending page already.
@@ -80,7 +72,13 @@ uniauth:
   ldap:
     enabled: true
     display-name: Directory account
-    url: ldap://localhost:18389/dc=example,dc=com
+    url: ${LDAP_URL:ldap://localhost:389/dc=example,dc=com}
+    # A bind account for searches. The embedded server was world-readable; a real
+    # directory is not — OpenLDAP's default ACL is "by self read ... by * none", and a
+    # denied search returns "no such object" rather than admitting the entry exists.
+    # Without this, bob authenticates and then comes back with no groups.
+    manager-dn: ${LDAP_MANAGER_DN:cn=admin,dc=example,dc=com}
+    manager-password: ${LDAP_MANAGER_PASSWORD:admin-pass}
     user-dn-patterns:
       - uid={0},ou=people
     group-search-base: ou=groups

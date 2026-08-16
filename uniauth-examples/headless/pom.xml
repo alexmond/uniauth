@@ -32,10 +32,11 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Runs an in-process directory so the LDAP path works with no external server. -->
+        <!-- An in-process directory for the tests only; the application talks to a real one. -->
         <dependency>
             <groupId>com.unboundid</groupId>
             <artifactId>unboundid-ldapsdk</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

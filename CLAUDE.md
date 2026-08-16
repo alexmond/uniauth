@@ -220,6 +220,25 @@ again, that is what it costs.
 Its accounts are its own, administered through its own token-authenticated admin API — which is
 where such an API belongs, rather than inside a client library.
 
+### The directory is its own service too (was: embedded in the example)
+
+The examples used to run Boot's `spring.ldap.embedded` UnboundID server in-process. That is a
+**test fixture**, and it is now scoped as one: `unboundid-ldapsdk` is `<scope>test</scope>`, the
+embedded server is declared in `src/test/resources/application.yaml`, and the applications
+themselves only know `uniauth.ldap.url`. The lab runs OpenLDAP (`osixia/openldap:1.5.0`,
+manifests in the private `uniauth-deploy` overlay).
+
+Two things bite the moment the directory is real, and neither shows up against the embedded one:
+
+- **A real directory is not world-readable.** OpenLDAP's default ACL is `by self read … by * none`,
+  and a denied search returns **`no such object` (32)**, not "permission denied" — it will not
+  admit the entry exists. bob authenticates and then comes back with no groups. The fix is a bind
+  account: `uniauth.ldap.manager-dn` / `manager-password`, which the authorities populator uses
+  for the group search.
+- **Mount a bootstrap LDIF with `subPath`.** A whole-directory ConfigMap mount plants a `..data`
+  symlink tree beside the file, osixia's bootstrap `find`s both copies, and the second pass dies
+  with **status 68 (already exists)** on a database that was empty a second ago.
+
 ### Two extension points, before you replace the chain
 
 Declaring your own `SecurityFilterChain` makes the whole starter back off, so these exist to
