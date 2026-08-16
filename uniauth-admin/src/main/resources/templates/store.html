@@ -5,7 +5,8 @@
 <div class="shell">
 	<header th:replace="~{fragments/shell :: rail}"></header>
 	<main>
-		<p class="eyebrow">Console · <span th:text="${store.location()}">where</span></p>
+		<p class="eyebrow">Console · <span th:text="${store.mechanism()}">MECH</span> ·
+			<span th:text="${store.location()}">where</span></p>
 		<h1 class="display" th:text="${store.name()}">Store</h1>
 		<p class="lede" th:text="${store.description()}">what it holds</p>
 

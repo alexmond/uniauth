@@ -26,6 +26,17 @@ public interface UserStore {
 	/** Name shown in the console. */
 	String name();
 
+	/**
+	 * The mechanism these accounts sign in with — {@code OIDC}, {@code LDAP}.
+	 *
+	 * <p>
+	 * Named on the card because a service name does not say what it holds: "UniAuth
+	 * provider" reads as a piece of infrastructure rather than as the place OAuth users
+	 * live, and the question it prompts is where the OIDC store went. The application's
+	 * own provider panel labels every entry with its mechanism for the same reason.
+	 */
+	String mechanism();
+
 	/** Where the accounts actually live, shown so nobody has to guess. */
 	String location();
 

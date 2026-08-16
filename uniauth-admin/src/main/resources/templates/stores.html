@@ -8,9 +8,9 @@
 		<p class="eyebrow">Console</p>
 		<h1 class="display">Account stores<br/><em>under management.</em></h1>
 		<p class="lede">
-			Two services, administered two different ways: the provider over its admin API, the
-			directory over LDAP. This console holds no accounts of its own — its own
-			administrators are a separate population again.
+			One card per mechanism a user can sign in with, and each is a separate service: the
+			provider over its admin API, the directory over LDAP. This console holds no accounts
+			of its own — its own administrators are a separate population again.
 		</p>
 
 		<div class="alert alert--error" th:if="${error}" th:text="${error}">error</div>
@@ -20,10 +20,20 @@
 			<code>console.directory.*</code>.
 		</p>
 
+		<p class="note" style="margin-top:0">
+			There is no card for an application's <em>internal</em> store. Those accounts live in
+			the application's own memory and go with a restart, so there is nothing durable to
+			administer — the two above are services, and outlive one.
+		</p>
+
 		<ul class="ports">
 			<li th:each="store : ${stores}">
 				<a class="port" th:href="@{'/stores/' + ${store.id()}}">
 					<span class="port__jack"></span>
+					<!-- Mechanism first. A service name does not say what a store holds, and
+					     "UniAuth provider" reads as infrastructure rather than as the place
+					     OAuth accounts live. -->
+					<span class="port__mech" th:text="${store.mechanism()}">MECH</span>
 					<span class="port__name" th:text="${store.name()}">Store</span>
 					<span class="port__kind" th:text="${store.location()}">where</span>
 				</a>

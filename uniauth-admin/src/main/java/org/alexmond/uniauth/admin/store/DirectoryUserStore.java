@@ -53,6 +53,11 @@ public class DirectoryUserStore implements UserStore {
 	}
 
 	@Override
+	public String mechanism() {
+		return "LDAP";
+	}
+
+	@Override
 	public String location() {
 		return this.config.getUrl();
 	}

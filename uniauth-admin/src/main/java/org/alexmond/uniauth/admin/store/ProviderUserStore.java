@@ -44,6 +44,14 @@ public class ProviderUserStore implements UserStore {
 	}
 
 	@Override
+	public String mechanism() {
+		// OIDC rather than OAUTH2: the registration asks for the openid scope, so what
+		// these accounts actually get is an ID token with claims. That distinction is the
+		// one that changes behaviour for a client.
+		return "OIDC";
+	}
+
+	@Override
 	public String location() {
 		return this.config.getBaseUrl();
 	}

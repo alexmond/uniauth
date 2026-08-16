@@ -65,6 +65,18 @@ class ConsoleAccessTest {
 	}
 
 	@Test
+	void eachStoreCardNamesTheMechanismItBacks() throws Exception {
+		// The provider card is the OAuth/OIDC user admin, but labelled only with a
+		// service
+		// name it reads as infrastructure — and the question it prompts is where the OIDC
+		// store went, which is exactly what happened.
+		HttpSession session = signIn();
+
+		this.mockMvc.perform(get("/").session((MockHttpSession) session))
+			.andExpect(content().string(containsString("OIDC")));
+	}
+
+	@Test
 	void aStoreThatIsSwitchedOffIsNotOffered() throws Exception {
 		HttpSession session = signIn();
 

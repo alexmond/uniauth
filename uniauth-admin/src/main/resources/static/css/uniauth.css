@@ -638,3 +638,15 @@ a.port:hover .port__jack {
 	background: var(--danger, #c2584f);
 	color: var(--bg);
 }
+
+/* The mechanism a store backs, on its card. Set above the name rather than below it:
+   it is the thing being looked for ("where is OIDC administered") and the service name
+   is the answer, not the question. */
+.port__mech {
+	display: block;
+	font-size: .65rem;
+	letter-spacing: .18em;
+	text-transform: uppercase;
+	color: var(--brass, #c9a227);
+	margin-bottom: .35rem;
+}
