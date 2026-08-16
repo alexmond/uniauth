@@ -290,6 +290,14 @@ the internal store enabled at the same time — that combination is what proves 
 falls through. Integration tests pin the app class explicitly:
 `@SpringBootTest(classes = TestApplication.class)`.
 
+**Never put an `application.yaml` in an example's `src/test/resources`.** Boot resolves
+`classpath:/application.yaml` to the *first* match, and `target/test-classes` precedes
+`target/classes`, so it does not add to the application's configuration — it replaces it
+outright, taking the internal accounts, public paths and approval gate with it. The tests then
+fail on a missing `ApprovalStore` bean, which points nowhere near the actual cause. Test
+overrides go in `application-test.yaml` with `@ActiveProfiles("test")`; a profile document
+overlays the base file instead of shadowing it.
+
 ## Boot 4 gotchas
 
 Boot 4 relocated things; verify against the jars rather than assuming 3.x layout.
