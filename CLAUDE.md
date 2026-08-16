@@ -174,27 +174,57 @@ Related: an app whose `server.port` differs from the chart's 8080 goes **Ready a
 unreachable** — the probes target the management port, so only the ingress notices, with a
 502. The console had this at 8090.
 
-### The admin console is a separate process, and that is the hard part
+### The admin console administers SERVICES, not applications
 
-`uniauth-admin` administers users across running UniAuth applications. It **owns no user
-store**, and cannot: two of the three kinds — the internal store and a local OAuth provider's
-accounts — live inside a running application's memory. So it asks each application over the
-starter's admin API (`uniauth.admin-api.*`) rather than pretending to share state. The
-consequence is honest and worth repeating to anyone surprised by it: restart a managed
-application and the accounts the console created there are gone, because that is where they
-lived.
+`uniauth-admin` owns no user store. It administers the two populations that exist
+independently of any application and survive a restart:
 
-- **`UserStoreAdmin` is an SPI in the starter.** The API exposes whatever beans an
-  application publishes; publish none and it reports nothing administrable. It began in the
-  webapp example and moved when the API needed it — the same promote-on-demand rule.
-- **The API refuses to start without a token.** It creates accounts, so defaulting to a
-  guessable one, or running open, both end with an unprotected write endpoint. The
-  constructor throws.
-- **Token comparison is constant-time** (`MessageDigest.isEqual`). A plain `equals` leaks the
-  credential a character at a time to anyone who can measure the response.
-- **Its chain is stateless and CSRF-disabled**, ahead of the application's. A console has no
-  session to ride and must never be redirected to a login page. An application session is
-  *not* accepted by the API, and there is a test for that.
+- **the provider's accounts** — over `uniauth-authserver`'s token-authenticated admin API;
+- **the directory** — over LDAP, written directly.
+
+It used to administer running UniAuth *applications*, over an admin API the starter
+published. Both halves of that were wrong. The API had no business in an authentication
+library, and the accounts it reached lived in an application's memory, so "administering"
+them meant editing something that vanished on the next restart. When the starter's API was
+removed the console kept pointing at it and every page showed `no suitable
+HttpMessageConverter` — the app was answering with its login page, because the endpoint was
+gone.
+
+Both stores sit behind a console-local `UserStore` SPI (`store/`). Keep that interface
+small: the two backends have almost nothing in common, and widening it means inventing a
+lowest common denominator neither side has.
+
+- **Roles are editable at the provider, not in the directory.** A directory group is an
+  entry with its own members, not a field on a person — the applications resolve roles by
+  *searching* those groups. `supportsRoles()` carries this, and the template hides the
+  column.
+- **JNDI's `unbind` is idempotent**: it succeeds when the entry does not exist. Deleting an
+  absent user therefore reported "Removed ghost." having removed nothing — a false
+  confirmation, worse than an error. `DirectoryUserStore#delete` looks the entry up first.
+- **A store that is switched off contributes no bean**, so the console lists exactly what it
+  can reach rather than offering something that fails on the first click.
+- **The provider's API refuses to start without a token**, compares it with
+  `MessageDigest.isEqual` (a plain `equals` leaks the credential a character at a time to
+  anyone who can measure the response), and runs on a stateless CSRF-disabled chain ahead of
+  the browser one — a console has no session to ride and must never be redirected to a login
+  page.
+
+### Verify a deployment by using it, not by reading `kubectl get pods`
+
+`scripts/verify-deployment.sh` and `scripts/verify-console.sh` exercise the deployed
+configuration through the paths a user takes; hostnames come from the environment, so the
+repo carries no domain of its own.
+
+```bash
+WEBAPP=http://… API=http://… AUTH=http://… CONSOLE=http://… scripts/verify-deployment.sh
+```
+
+Ready proves only that the management port answers. Every deployment failure in this repo so
+far — a 502 from a port mismatch, a console pointed at a removed API, a provider 404ing its
+own root, a template needing a dialect that is not on the classpath — passed the probes. The
+console checks go further and confirm the effect on the *other* side: an account created
+through the console must actually sign in at the provider, and one created in the directory
+must sign in to the web app.
 
 ### Cookies are scoped by HOST, not by port
 

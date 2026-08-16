@@ -55,6 +55,22 @@ class AuthServerTest {
 	}
 
 	@Test
+	void itRendersItsHomePageForASignedInAccount() throws Exception {
+		// This page is never seen inside an OAuth flow — the saved authorize request wins
+		// — so nothing else here exercises it, and it shipped twice broken: first as a
+		// 404, then as a 500 from a template expression this service has no dialect for.
+		// Rendering it is the only way to catch either.
+		var session = this.mockMvc.perform(formLogin("/login").user("olivia").password("oauth-pass"))
+			.andReturn()
+			.getRequest()
+			.getSession();
+
+		this.mockMvc.perform(get("/").session((org.springframework.mock.web.MockHttpSession) session))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("olivia")));
+	}
+
+	@Test
 	void itRejectsAnAccountItDoesNotHave() throws Exception {
 		// alice is an account at the demo application, not here. Separate services,
 		// separate populations — which is the whole reason this is its own process.

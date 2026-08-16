@@ -32,10 +32,27 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- LdapTemplate, for writing directory entries. The console talks to the directory
+             directly: it IS the service, and an HTTP shim in front of it would only be a
+             second thing to secure. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-ldap</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- An in-process directory for the tests. The console's write path cannot be
+             proven against a mock: what makes it interesting is that a real directory
+             refuses anonymous writes and enforces its own schema. -->
+        <dependency>
+            <groupId>com.unboundid</groupId>
+            <artifactId>unboundid-ldapsdk</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

@@ -572,3 +572,69 @@ a.port:hover .port__jack {
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* --- Account ledger -------------------------------------------------------------
+   A table, not a card grid: the operator is comparing rows and acting on one of
+   them, which is what a table is for. */
+.ledger {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 1rem;
+}
+
+.ledger th {
+	text-align: left;
+	font: inherit;
+	font-size: .7rem;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	color: var(--dim);
+	padding: 0 .75rem .6rem 0;
+	border-bottom: 1px solid var(--line);
+	font-weight: 500;
+}
+
+.ledger td {
+	padding: .85rem .75rem .85rem 0;
+	border-bottom: 1px solid var(--line);
+	vertical-align: middle;
+}
+
+.ledger__name {
+	display: block;
+	color: var(--ink);
+}
+
+.ledger__detail {
+	display: block;
+	font-size: .75rem;
+	color: var(--dim);
+	margin-top: .15rem;
+}
+
+.row-form {
+	display: flex;
+	gap: .4rem;
+	align-items: center;
+}
+
+.field__input--tight {
+	padding: .4rem .6rem;
+	font-size: .85rem;
+}
+
+.button--tight {
+	padding: .4rem .8rem;
+	font-size: .8rem;
+}
+
+.button--danger {
+	border-color: var(--danger, #c2584f);
+	color: var(--danger, #c2584f);
+	background: transparent;
+}
+
+.button--danger:hover {
+	background: var(--danger, #c2584f);
+	color: var(--bg);
+}

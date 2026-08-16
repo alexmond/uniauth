@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Store')}"><title>UniAuth Admin</title></head>
+<body>
+<div class="shell">
+	<header th:replace="~{fragments/shell :: rail}"></header>
+	<main>
+		<p class="eyebrow">Console · <span th:text="${store.location()}">where</span></p>
+		<h1 class="display" th:text="${store.name()}">Store</h1>
+		<p class="lede" th:text="${store.description()}">what it holds</p>
+
+		<div class="alert alert--info" th:if="${done}" th:text="${done}">done</div>
+		<div class="alert alert--error" th:if="${error}" th:text="${error}">error</div>
+
+		<h2 class="section-title" style="margin-top:2.5rem">Accounts</h2>
+
+		<p class="note" th:if="${#lists.isEmpty(users)} and ${error} == null" style="margin-top:0">
+			This store is empty.
+		</p>
+
+		<table class="ledger" th:unless="${#lists.isEmpty(users)}">
+			<thead>
+			<tr>
+				<th>Account</th>
+				<th th:if="${store.supportsRoles()}">Roles</th>
+				<th>Change password</th>
+				<th></th>
+			</tr>
+			</thead>
+			<tbody>
+			<tr th:each="user : ${users}">
+				<td>
+					<span class="ledger__name" th:text="${user.username()}">name</span>
+					<span class="ledger__detail" th:if="${user.detail()}" th:text="${user.detail()}">dn</span>
+				</td>
+
+				<td th:if="${store.supportsRoles()}">
+					<form class="row-form" method="post"
+					      th:action="@{'/stores/' + ${store.id()} + '/users/' + ${user.username()} + '/roles'}">
+						<input class="field__input field__input--tight" type="text" name="roles"
+						       th:value="${#strings.listJoin(user.roles(), ', ')}"
+						       placeholder="USER, ADMIN"/>
+						<button class="button button--ghost button--tight" type="submit">Save</button>
+					</form>
+				</td>
+
+				<td>
+					<form class="row-form" method="post"
+					      th:action="@{'/stores/' + ${store.id()} + '/users/' + ${user.username()} + '/password'}">
+						<input class="field__input field__input--tight" type="text" name="password"
+						       required placeholder="new password"/>
+						<button class="button button--ghost button--tight" type="submit">Set</button>
+					</form>
+				</td>
+
+				<td>
+					<!--
+					  A plain POST, no confirmation dialog. The console is a demo and the
+					  populations are small; a modal would be theatre rather than a safeguard.
+					-->
+					<form method="post"
+					      th:action="@{'/stores/' + ${store.id()} + '/users/' + ${user.username()} + '/delete'}">
+						<button class="button button--danger button--tight" type="submit">Remove</button>
+					</form>
+				</td>
+			</tr>
+			</tbody>
+		</table>
+
+		<h2 class="section-title" style="margin-top:3rem">Add an account</h2>
+		<form th:action="@{'/stores/' + ${store.id()} + '/users'}" method="post"
+		      style="display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem;align-items:end">
+			<label class="field" style="margin:0">
+				<span class="field__label">Username</span>
+				<input class="field__input" type="text" name="username" required/>
+			</label>
+			<label class="field" style="margin:0">
+				<span class="field__label">Password</span>
+				<input class="field__input" type="text" name="password" required/>
+			</label>
+			<label class="field" style="margin:0" th:if="${store.supportsRoles()}">
+				<span class="field__label">Roles</span>
+				<input class="field__input" type="text" name="roles" placeholder="USER, ADMIN"/>
+			</label>
+			<button class="button" type="submit">Create</button>
+		</form>
+
+		<p class="note" style="margin-top:3rem" th:unless="${store.supportsRoles()}">
+			Group membership is not editable here. A directory group is an entry with its own
+			members, not a field on a person — the applications resolve roles by searching those
+			groups, so they are administered in the directory.
+		</p>
+
+		<p style="margin-top:2rem"><a class="button button--ghost" href="/">Back to the stores</a></p>
+	</main>
+</div>
+</body>
+</html>

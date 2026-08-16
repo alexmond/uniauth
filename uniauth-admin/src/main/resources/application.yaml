@@ -18,15 +18,38 @@ spring:
     # The console has no login template of its own — it uses the starter's chooser.
     check-template-location: true
 
-# The applications this console administers. Each entry is a separate running application
-# reached over its admin API; the token must match that application's
-# uniauth.admin-api.token. Inject the real ones from the environment.
+# What this console administers. Two services, each a flat block rather than a list entry:
+# a list bound from environment variables REPLACES the one here instead of merging, so
+# supplying one field from a Secret used to blank its siblings silently.
 console:
-  targets:
-    - id: webapp
-      name: UniAuth demo web app
-      base-url: ${CONSOLE_TARGETS_0_BASE_URL:http://localhost:8080}
-      token: ${CONSOLE_TARGETS_0_TOKEN:demo-admin-token}
+  # The identity provider, over its token-authenticated admin API. The token must match the
+  # provider's authserver.admin-api.token.
+  provider:
+    enabled: true
+    name: UniAuth provider
+    base-url: ${CONSOLE_PROVIDER_BASE_URL:http://localhost:9000}
+    token: ${CONSOLE_PROVIDER_TOKEN:demo-authserver-token}
+    path: /admin/api
+
+  # The LDAP directory, written to directly. Needs a bind account with write access —
+  # anonymous writes are refused by any directory worth running.
+  directory:
+    enabled: true
+    name: Directory
+    url: ${CONSOLE_DIRECTORY_URL:ldap://localhost:389/dc=example,dc=com}
+    manager-dn: ${CONSOLE_DIRECTORY_MANAGER_DN:cn=admin,dc=example,dc=com}
+    manager-password: ${CONSOLE_DIRECTORY_MANAGER_PASSWORD:admin-pass}
+    user-base: ou=people
+    user-attribute: uid
+    base-dn: dc=example,dc=com
+
+management:
+  health:
+    # Boot health-checks spring.ldap.* at localhost:389, which this console does not use —
+    # it builds its own context source from console.directory.*. Left on, the console
+    # reports DOWN over a directory it never talks to.
+    ldap:
+      enabled: false
 
 uniauth:
   # The console signs its own administrators in with UniAuth. These are a separate

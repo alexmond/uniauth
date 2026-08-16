@@ -5,51 +5,30 @@
 <div class="shell">
 	<header th:replace="~{fragments/shell :: rail}"></header>
 	<main>
-		<p class="eyebrow">Console · <span th:text="${target.baseUrl}">url</span></p>
-		<h1 class="display" th:text="${target.name}">Application</h1>
+		<p class="eyebrow">Console</p>
+		<h1 class="display">Account stores<br/><em>under management.</em></h1>
+		<p class="lede">
+			Two services, administered two different ways: the provider over its admin API, the
+			directory over LDAP. This console holds no accounts of its own — its own
+			administrators are a separate population again.
+		</p>
 
-		<div class="alert alert--info" th:if="${created}" th:text="${created}">created</div>
 		<div class="alert alert--error" th:if="${error}" th:text="${error}">error</div>
 
 		<p class="note" th:if="${#lists.isEmpty(stores)}" style="margin-top:0">
-			This application reports nothing administrable. It publishes no
-			<code>UserStoreAdmin</code> beans, or its admin API is off.
+			Nothing is configured. Set <code>console.provider.*</code> or
+			<code>console.directory.*</code>.
 		</p>
 
-		<section class="stack" th:each="store : ${stores}" style="margin-top:2.5rem">
-			<h2 class="section-title"
-			    th:text="${store.displayName} + ' · ' + ${store.mechanism}">Store</h2>
-			<p class="prose" style="margin:0 0 1.25rem" th:text="${store.description}">what it does</p>
-
-			<p class="fact__key" style="margin-bottom:.5rem">Existing</p>
-			<ul class="chips" style="margin-bottom:1.5rem">
-				<li class="chip" th:each="u : ${store.usernames}" th:text="${u}">name</li>
-				<li class="chip" th:if="${#lists.isEmpty(store.usernames)}">none</li>
-			</ul>
-
-			<form th:action="@{'/apps/' + ${target.id} + '/users'}" method="post"
-			      style="display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem;align-items:end">
-				<input type="hidden" name="mechanism" th:value="${store.mechanism}"/>
-				<label class="field" style="margin:0">
-					<span class="field__label">Username</span>
-					<input class="field__input" type="text" name="username" required/>
-				</label>
-				<label class="field" style="margin:0">
-					<span class="field__label">Password</span>
-					<input class="field__input" type="text" name="password" required/>
-				</label>
-				<label class="field" style="margin:0">
-					<span class="field__label">Roles</span>
-					<input class="field__input" type="text" name="roles" placeholder="USER, ADMIN"/>
-				</label>
-				<button class="button" type="submit">Create</button>
-			</form>
-		</section>
-
-		<p class="note" style="margin-top:3rem">
-			These accounts live in the managed application, not here. Restart it and any it kept
-			in memory are gone.
-		</p>
+		<ul class="ports">
+			<li th:each="store : ${stores}">
+				<a class="port" th:href="@{'/stores/' + ${store.id()}}">
+					<span class="port__jack"></span>
+					<span class="port__name" th:text="${store.name()}">Store</span>
+					<span class="port__kind" th:text="${store.location()}">where</span>
+				</a>
+			</li>
+		</ul>
 	</main>
 </div>
 </body>

@@ -2,6 +2,7 @@ package org.alexmond.uniauth.admin;
 
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -21,14 +22,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The console has administrators of its own, signed in with UniAuth.
  *
  * <p>
- * They are a separate population from the users being administered — an account here
- * grants nothing on any managed application, which is most of the reason to run the
- * console as its own process rather than a page inside one of them.
+ * They are a separate population from the accounts being administered — signing in here
+ * grants nothing at the provider or in the directory, which is most of the reason to run
+ * the console as its own process rather than a page inside one of them.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = { "console.targets[0].id=demo", "console.targets[0].name=Demo application",
-		"console.targets[0].base-url=http://localhost:1", "console.targets[0].token=t" })
+@TestPropertySource(properties = { "console.provider.base-url=http://localhost:1", "console.provider.token=t",
+		"console.directory.enabled=false" })
 class ConsoleAccessTest {
 
 	@Autowired
@@ -40,30 +41,41 @@ class ConsoleAccessTest {
 	}
 
 	@Test
-	void anAdministratorSeesTheManagedApplications() throws Exception {
+	void anAdministratorSeesTheConfiguredStores() throws Exception {
 		HttpSession session = signIn();
 
 		this.mockMvc.perform(get("/").session((MockHttpSession) session))
 			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("Demo application")));
+			.andExpect(content().string(containsString("UniAuth provider")));
 	}
 
 	@Test
-	void anUnreachableApplicationRendersAMessageRatherThanBreakingThePage() throws Exception {
-		// Port 1 is nothing; the console must still draw its page. An administrator
-		// discovering an application is down should see that, not a stack trace.
+	void aStoreThatIsSwitchedOffIsNotOffered() throws Exception {
 		HttpSession session = signIn();
 
-		this.mockMvc.perform(get("/apps/demo").session((MockHttpSession) session))
+		// The console lists what it can actually reach. Rendering a store nobody
+		// configured, and letting it fail on the first click, is the bug this replaces.
+		this.mockMvc.perform(get("/").session((MockHttpSession) session))
+			.andExpect(content().string(org.hamcrest.Matchers.not(containsString("/stores/directory"))));
+	}
+
+	@Test
+	void anUnreachableStoreRendersAMessageRatherThanBreakingThePage() throws Exception {
+		// Port 1 is nothing; the console must still draw its page. An empty table with no
+		// explanation reads as "this store is empty", which is a different and much more
+		// alarming claim than "I could not ask".
+		HttpSession session = signIn();
+
+		this.mockMvc.perform(get("/stores/provider").session((MockHttpSession) session))
 			.andExpect(status().isOk())
 			.andExpect(content().string(containsString("not answering")));
 	}
 
 	@Test
-	void anUnknownApplicationGoesBackToTheList() throws Exception {
+	void anUnknownStoreGoesBackToTheList() throws Exception {
 		HttpSession session = signIn();
 
-		this.mockMvc.perform(get("/apps/nope").session((MockHttpSession) session)).andExpect(redirectedUrl("/"));
+		this.mockMvc.perform(get("/stores/nope").session((MockHttpSession) session)).andExpect(redirectedUrl("/"));
 	}
 
 	private HttpSession signIn() throws Exception {

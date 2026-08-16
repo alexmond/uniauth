@@ -8,11 +8,6 @@ server:
   port: 8080
 
 management:
-  health:
-    # The starter brings spring-boot-starter-ldap along, and Boot then health-checks a
-    # directory at localhost:389 that this application has no business talking to.
-    ldap:
-      enabled: false
   endpoints:
     web:
       exposure:

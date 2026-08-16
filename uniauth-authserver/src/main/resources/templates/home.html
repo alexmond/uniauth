@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!--
+  Where a direct sign-in lands.
+
+  Inside an OAuth flow nobody sees this page: the entry point saved the authorize request,
+  and success resumes it. It is reached by signing in at the provider directly, which is
+  worth having a real answer for rather than a 404 — a provider that 404s its own root
+  looks broken to anyone checking whether it is up.
+-->
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<title>UniAuth provider</title>
+	<link rel="stylesheet" th:href="@{/css/uniauth.css}"/>
+</head>
+<body>
+<div class="centred">
+	<main class="card">
+		<p class="eyebrow">UniAuth provider</p>
+		<h1 class="display" style="font-size: clamp(1.5rem, 4vw, 2rem)">Signed in here.</h1>
+		<p class="lede" style="font-size: 1rem; margin-bottom: 2rem">
+			You are signed in to the <em>provider</em>, as
+			<strong th:text="${name}">someone</strong>. That is not a session at
+			any application — it is what lets this service vouch for you when one asks.
+		</p>
+		<p class="note" style="margin-bottom: 2rem">
+			An application starts that conversation by redirecting you here with an authorize
+			request. Arriving on your own, there is nothing to authorize.
+		</p>
+		<form action="/logout" method="post">
+			<button class="button button--ghost" type="submit">Sign out</button>
+		</form>
+	</main>
+</div>
+</body>
+</html>
