@@ -71,6 +71,7 @@
 
     <modules>
         <module>uniauth-spring-boot-starter</module>
+        <module>uniauth-authserver</module>
         <module>uniauth-admin</module>
     </modules>
 

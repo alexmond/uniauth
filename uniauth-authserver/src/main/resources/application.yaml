@@ -1,0 +1,63 @@
+server:
+  port: 9000
+  servlet:
+    session:
+      cookie:
+        # Distinct per service. Cookies are scoped by host and NOT by port, so two Spring
+        # applications on localhost:8080 and localhost:9000 share one JSESSIONID and each
+        # silently overwrites the other's session. In an OAuth redirect that is fatal and
+        # almost invisible: the provider's cookie replaces the client's, the client comes
+        # back to a session with no saved authorization request, and the login fails with
+        # nothing logged but a redirect to ?error.
+        name: AUTHSERVERSESSION
+
+spring:
+  application:
+    name: uniauth-authserver
+
+  security:
+    oauth2:
+      authorizationserver:
+        client:
+          uniauth-demo:
+            require-authorization-consent: false
+            registration:
+              client-id: uniauth-demo
+              client-secret: "{noop}demo-secret"
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+              # Where this provider is willing to send a user back to. One entry per
+              # application that trusts it.
+              redirect-uris:
+                - ${AUTHSERVER_CLIENT_REDIRECT_URI:http://localhost:8080/login/oauth2/code/local}
+              scopes:
+                - openid
+                - profile
+
+authserver:
+  # Accounts this provider starts with, so it is usable on a fresh boot. Everything added
+  # later through the admin API is in memory and goes with a restart.
+  users:
+    - username: olivia
+      password: oauth-pass
+      roles: [ USER ]
+
+  # Lets the uniauth-admin console manage the accounts above. Off unless a token is set;
+  # the service refuses to start with it enabled and no token.
+  admin-api:
+    enabled: true
+    token: ${AUTHSERVER_ADMIN_API_TOKEN:demo-authserver-token}
+    path: /admin/api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.alexmond.uniauth: INFO

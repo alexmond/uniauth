@@ -8,22 +8,25 @@
   then vouches for you and the app decides what that is worth. Accounts here are the
   OAuthUserStore population, and signing in here does not sign you in to the app.
 -->
-<head th:replace="~{fragments/shell :: head('Local OAuth provider')}">
-	<title>Local OAuth provider</title>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<title>UniAuth provider · Sign in</title>
+	<link rel="stylesheet" th:href="@{/css/uniauth.css}"/>
 </head>
 <body>
 <div class="centred">
 	<main class="card">
-		<p class="eyebrow">Local OAuth provider</p>
+		<p class="eyebrow">UniAuth provider</p>
 		<h1 class="display" style="font-size: clamp(1.5rem, 4vw, 2rem)">Authorize.</h1>
 		<p class="lede" style="font-size: 1rem; margin-bottom: 2rem">
-			A separate service from the application, running in the same process for the sake
-			of the demo. Its accounts are its own.
+			A separate service from the application that sent you here. Its accounts are its
+			own — an account at an application is not an account here.
 		</p>
 
 		<div class="alert alert--error" th:if="${param.error}">Those credentials were not accepted.</div>
 
-		<form th:action="@{/oauth-provider/login}" method="post">
+		<form th:action="@{/login}" method="post">
 			<label class="field">
 				<span class="field__label">Username</span>
 				<input class="field__input" type="text" name="username"
@@ -38,8 +41,8 @@
 		</form>
 
 		<p class="note">
-			Ships with <code>olivia</code> / <code>oauth-pass</code>. More can be added from the
-			application's admin page — they are created here, at the provider.
+			Ships with <code>olivia</code> / <code>oauth-pass</code>. More are added through this
+			provider's own admin API, which is what the uniauth-admin console drives.
 		</p>
 	</main>
 </div>

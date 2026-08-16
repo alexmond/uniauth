@@ -1,8 +1,14 @@
-demo:
-  oauth:
-    # Browser-facing base URL of this app. The authorization endpoint and the redirect URI
-    # must be reachable from the user's browser, so on a cluster this is the ingress URL.
-    base-url: http://localhost:8080
+server:
+  servlet:
+    session:
+      cookie:
+        # Distinct per service. Cookies are scoped by host and NOT by port, so two Spring
+        # applications on localhost:8080 and localhost:9000 share one JSESSIONID and each
+        # silently overwrites the other's session. In an OAuth redirect that is fatal and
+        # almost invisible: the provider's cookie replaces the client's, the client comes
+        # back to a session with no saved authorization request, and the login fails with
+        # nothing logged but a redirect to ?error.
+        name: WEBAPPSESSION
 
 spring:
   application:
@@ -10,34 +16,11 @@ spring:
 
   security:
     oauth2:
-      # --- This app AS an OAuth2 provider -------------------------------------------
-      # A local authorization server, so the OAUTH2 mechanism is demonstrable with no
-      # external identity provider. Accounts live in OAuthUserStore, separate from
-      # uniauth.internal.users — seeded with olivia / oauth-pass.
-      authorizationserver:
-        client:
-          uniauth-demo:
-            require-authorization-consent: false
-            registration:
-              client-id: uniauth-demo
-              client-secret: "{noop}demo-secret"
-              client-authentication-methods:
-                - client_secret_basic
-              authorization-grant-types:
-                - authorization_code
-                - refresh_token
-              redirect-uris:
-                - ${demo.oauth.base-url}/login/oauth2/code/local
-              scopes:
-                - openid
-                - profile
-
       # --- This app AS an OAuth2 client ---------------------------------------------
-      # Pointed at the server above. Note there is deliberately NO issuer-uri: setting one
-      # would make the client fetch its own discovery document during startup, before the
-      # server it is fetching from has started. Declaring the endpoints explicitly avoids
-      # that deadlock. (It also means no exact-issuer check on the id_token, which is what
-      # lets the browser-facing and in-pod URLs differ below.)
+      # Pointed at uniauth-authserver, which is a separate service now. Endpoints are
+      # declared explicitly rather than discovered from an issuer-uri: the browser-facing
+      # authorization URL and the server-to-server token/JWKS URLs differ on a cluster, and
+      # an exact-issuer check cannot hold for both.
       client:
         registration:
           local:
@@ -51,13 +34,12 @@ spring:
               - profile
         provider:
           local:
-            # Browser-facing: the user is redirected here.
-            authorization-uri: ${demo.oauth.base-url}/oauth2/authorize
-            # Server-to-server: this app calling itself. Loopback rather than the public
-            # URL, which would leave the pod depending on ingress hairpinning.
-            token-uri: http://localhost:8080/oauth2/token
-            jwk-set-uri: http://localhost:8080/oauth2/jwks
-            user-info-uri: http://localhost:8080/userinfo
+            # Browser-facing: the user is redirected to the provider here.
+            authorization-uri: ${AUTHSERVER_PUBLIC_URL:http://localhost:9000}/oauth2/authorize
+            # Server-to-server: this application calling the provider directly.
+            token-uri: ${AUTHSERVER_INTERNAL_URL:http://localhost:9000}/oauth2/token
+            jwk-set-uri: ${AUTHSERVER_INTERNAL_URL:http://localhost:9000}/oauth2/jwks
+            user-info-uri: ${AUTHSERVER_INTERNAL_URL:http://localhost:9000}/userinfo
             user-name-attribute: sub
 
   # An in-process directory, so the LDAP path works with nothing else running.

@@ -1,5 +1,15 @@
 server:
   port: 8090
+  servlet:
+    session:
+      cookie:
+        # Distinct per service. Cookies are scoped by host and NOT by port, so two Spring
+        # applications on localhost:8080 and localhost:9000 share one JSESSIONID and each
+        # silently overwrites the other's session. In an OAuth redirect that is fatal and
+        # almost invisible: the provider's cookie replaces the client's, the client comes
+        # back to a session with no saved authorization request, and the login fails with
+        # nothing logged but a redirect to ?error.
+        name: CONSOLESESSION
 
 spring:
   application:

@@ -12,7 +12,8 @@ Layout: the starter, plus `uniauth-examples` — an **aggregator** (`packaging: 
 submodules only join the reactor under `-Pdefault`.
 
 ```
-uniauth-spring-boot-starter/   the library
+uniauth-spring-boot-starter/   the library — an auth CLIENT, nothing else
+uniauth-authserver/            the OAuth2/OIDC provider, its own service
 uniauth-admin/                 standalone console, an app not a library (skipPublishing)
 uniauth-examples/              aggregator, skipPublishing=true
   webapp/                      uniauth-example-webapp   — server-rendered, start here
@@ -195,23 +196,29 @@ lived.
   session to ride and must never be redirected to a login page. An application session is
   *not* accepted by the API, and there is a test for that.
 
-### The example hosts its own OAuth2 provider
+### Cookies are scoped by HOST, not by port
 
-`uniauth-examples/webapp` is both an authorization server and one of its clients, so OAUTH2 is
-demonstrable with no external IdP. Two things make that honest rather than a fudge, and both are
-load-bearing:
+Two Spring services on `localhost:8080` and `localhost:9000` share one `JSESSIONID` and each
+overwrites the other's session. In an OAuth redirect that is fatal and nearly invisible: the
+provider's cookie replaces the client's, the client returns to a session with no saved
+authorization request, and the login dies with a redirect to `?error` and **nothing logged**.
 
-- **The provider's chains use their own `SecurityContextRepository` key.** With the default one,
-  a single session entry is shared, and each side sees the other's login — signing in to the app
-  would silently authorize OAuth flows. Do not "simplify" this away.
-- **`OAuthUserStore` wraps its `InMemoryUserDetailsManager` rather than publishing it.** A second
-  `UserDetailsService` bean satisfies the starter's
-  `@ConditionalOnMissingBean(UserDetailsService.class)` and silently disables the internal store.
+Every service here therefore sets its own `server.servlet.session.cookie.name`. Do not remove
+them, and set one on any new service that will run beside these.
 
-Gotchas met while building it: **PKCE is mandatory** in Authorization Server 7, so a hand-rolled
-authorize request without `code_challenge` fails (the client filter sends it, browsers work); an
-unregistered `redirect_uri` 400s rather than redirecting; and the registered redirect URI is
-browser-facing, so on the cluster it must be the ingress URL while token/JWKS stay on loopback.
+### The provider is its own service (was: hosted by the example)
+
+`uniauth-authserver` is the OAuth2/OIDC provider, and it does **not** depend on the starter —
+a provider is not a client of one, and pulling the starter in would put a provider chooser and
+an approval gate on an identity server.
+
+It used to be co-hosted inside the webapp example, which worked only by giving each chain its
+own `SecurityContextRepository` so the two logins could not see each other. Separate processes
+have separate sessions, so that machinery is gone. If you are ever tempted to co-host them
+again, that is what it costs.
+
+Its accounts are its own, administered through its own token-authenticated admin API — which is
+where such an API belongs, rather than inside a client library.
 
 ### Two extension points, before you replace the chain
 
