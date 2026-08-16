@@ -26,7 +26,7 @@
 					<caption>Pending principals</caption>
 					<thead>
 					<tr>
-						<th scope="col">Principal</th>
+						<th scope="col">Who is waiting</th>
 						<th scope="col">Provider</th>
 						<th scope="col">First seen</th>
 						<th scope="col">Decision</th>
@@ -34,7 +34,28 @@
 					</thead>
 					<tbody>
 					<tr th:each="record : ${waiting}">
-						<td th:text="${record.principal()}">name</td>
+						<td>
+							<!-- Name and address first, because they are what the decision is
+							     actually about. The subject stays visible underneath: it is
+							     what approval is keyed on, and hiding it would mean admitting
+							     something the page never showed. -->
+							<span class="who__name" th:if="${record.displayName()}"
+							      th:text="${record.displayName()}">Name</span>
+							<span class="who__name who__name--unknown" th:unless="${record.displayName()}">
+								(no name given)
+							</span>
+							<span class="who__mail" th:if="${record.email()}">
+								<span th:text="${record.email()}">a@b.c</span>
+								<span class="badge badge--ok" th:if="${record.emailStatus() == 'verified'}">verified</span>
+								<span class="badge badge--warn" th:if="${record.emailStatus() == 'UNVERIFIED'}">
+									unverified
+								</span>
+							</span>
+							<span class="who__mail who__mail--none" th:unless="${record.email()}">
+								no address from this provider
+							</span>
+							<span class="who__sub" th:text="${record.principal()}">subject</span>
+						</td>
 						<td th:text="${record.mechanism()} + ' · ' + ${record.provider()}">LDAP</td>
 						<td th:text="${record.firstSeen()}">when</td>
 						<td>
@@ -53,6 +74,13 @@
 			</div>
 		</section>
 
+		<p class="note">
+			Approval is keyed on the identifier in grey — a subject claim, for an OIDC login —
+			because that is stable and never reassigned, while an address can change hands.
+			The name and address above it are what the provider said at first sighting, kept
+			so the decision is about a person rather than a number. An address marked
+			<em>unverified</em> is one the provider will not stand behind.
+		</p>
 		<p class="note">
 			This queue lives in memory, so it empties on restart — and every approval goes with
 			it. A real deployment supplies its own <code>ApprovalStore</code>.

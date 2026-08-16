@@ -29,10 +29,16 @@ spring:
               authorization-grant-types:
                 - authorization_code
                 - refresh_token
-              # Where this provider is willing to send a user back to. One entry per
-              # application that trusts it.
+              # Where this provider is willing to send a user back to.
+              #
+              # TWO entries, because a client builds its redirect_uri from the request it
+              # was reached on: the same application on http and on https sends two
+              # different URIs, and an unregistered one is refused with a 400 rather than a
+              # redirect. That looks like a broken provider and is really a missing line
+              # here — it went unnoticed until the demo started being used over https.
               redirect-uris:
                 - ${AUTHSERVER_CLIENT_REDIRECT_URI:http://localhost:8080/login/oauth2/code/local}
+                - ${AUTHSERVER_CLIENT_REDIRECT_URI_TLS:https://localhost:8080/login/oauth2/code/local}
               scopes:
                 - openid
                 - profile
@@ -53,6 +59,7 @@ spring:
                 - refresh_token
               redirect-uris:
                 - ${AUTHSERVER_CONSOLE_REDIRECT_URI:http://localhost:8090/login/oauth2/code/local}
+                - ${AUTHSERVER_CONSOLE_REDIRECT_URI_TLS:https://localhost:8090/login/oauth2/code/local}
               scopes:
                 - openid
                 - profile

@@ -40,10 +40,10 @@ public class InMemoryApprovalStore implements ApprovalStore {
 	}
 
 	@Override
-	public ApprovalRecord recordPending(ApprovalKey key, AuthProviderType mechanism) {
+	public ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism) {
 		// computeIfAbsent keeps this idempotent: it runs on every request from an
 		// unapproved principal, and must never reset a decision already taken.
-		return this.records.computeIfAbsent(key, (absent) -> new ApprovalRecord(absent, mechanism,
+		return this.records.computeIfAbsent(key, (absent) -> new ApprovalRecord(absent, identity, mechanism,
 				ApprovalStatus.PENDING, this.clock.instant(), null, null));
 	}
 

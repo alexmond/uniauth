@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpSession;
 import org.alexmond.uniauth.approval.ApprovalKey;
 import org.alexmond.uniauth.approval.ApprovalStatus;
 import org.alexmond.uniauth.approval.ApprovalStore;
+import org.alexmond.uniauth.approval.PrincipalIdentity;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -149,7 +150,7 @@ class SamplePagesTest {
 	private HttpSession signInApproved(String username, String password, String... roles) throws Exception {
 		HttpSession session = signIn(username, password, roles);
 		ApprovalKey key = new ApprovalKey("ldap", username);
-		this.store.recordPending(key, AuthProviderType.LDAP);
+		this.store.recordPending(key, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
 		this.store.decide(key, ApprovalStatus.APPROVED, "test");
 		return session;
 	}

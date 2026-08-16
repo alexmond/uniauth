@@ -40,6 +40,8 @@ public class ApprovalAuthorizationManager implements AuthorizationManager<Reques
 
 	private final UniAuthProperties properties;
 
+	private final PrincipalIdentityResolver identities = new PrincipalIdentityResolver();
+
 	public ApprovalAuthorizationManager(ApprovalStore store, MechanismResolver resolver, UniAuthProperties properties) {
 		this.store = store;
 		this.resolver = resolver;
@@ -62,7 +64,10 @@ public class ApprovalAuthorizationManager implements AuthorizationManager<Reques
 		ApprovalKey key = ApprovalKey.of(mechanism, current);
 		ApprovalStatus status = this.store.statusOf(key);
 		if (status == ApprovalStatus.UNKNOWN) {
-			this.store.recordPending(key, mechanism.type());
+			// Resolved here, at the one moment the principal is present. The queue is
+			// read
+			// later, by someone else, when this session may be long gone.
+			this.store.recordPending(key, this.identities.resolve(current), mechanism.type());
 			status = ApprovalStatus.PENDING;
 		}
 		if (status == ApprovalStatus.APPROVED) {

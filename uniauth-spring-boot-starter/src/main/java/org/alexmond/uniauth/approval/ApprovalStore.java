@@ -37,7 +37,7 @@ public interface ApprovalStore {
 	 * cheap.
 	 * @return the record as it now stands
 	 */
-	ApprovalRecord recordPending(ApprovalKey key, AuthProviderType mechanism);
+	ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
 
 	/** Everyone currently waiting, oldest first. */
 	List<ApprovalRecord> pending();

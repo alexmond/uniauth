@@ -5,6 +5,7 @@ import org.alexmond.uniauth.approval.ApprovalKey;
 import org.alexmond.uniauth.approval.ApprovalRecord;
 import org.alexmond.uniauth.approval.ApprovalStatus;
 import org.alexmond.uniauth.approval.ApprovalStore;
+import org.alexmond.uniauth.approval.PrincipalIdentity;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.alexmond.uniauth.testapp.TestApplication;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,7 +68,7 @@ class UniAuthApprovalTest {
 	@Test
 	void revokingSendsAnApprovedPrincipalBackToTheWaitingRoom() throws Exception {
 		HttpSession session = signIn("bob", "bobspassword");
-		this.store.recordPending(BOB, AuthProviderType.LDAP);
+		this.store.recordPending(BOB, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
 		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin");
 		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(status().isOk());
 
