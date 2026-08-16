@@ -27,8 +27,6 @@
 		   th:attrappend="aria-current=${current == 'session'} ? 'page'">Session</a>
 		<a class="rail__link" th:href="@{/approvals}" sec:authorize="hasRole('ADMIN')"
 		   th:attrappend="aria-current=${current == 'approvals'} ? 'page'">Approvals</a>
-		<a class="rail__link" th:href="@{/admin/users}" sec:authorize="hasRole('ADMIN')"
-		   th:attrappend="aria-current=${current == 'users'} ? 'page'">Users</a>
 		<a class="button" th:href="@{/login}" sec:authorize="!isAuthenticated()">Sign in</a>
 		<form th:action="@{/logout}" method="post" sec:authorize="isAuthenticated()">
 			<button class="button button--ghost" type="submit">Sign out</button>

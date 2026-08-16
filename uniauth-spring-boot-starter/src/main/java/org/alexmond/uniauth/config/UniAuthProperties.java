@@ -46,8 +46,6 @@ public class UniAuthProperties {
 	 */
 	private List<String> publicPaths = new ArrayList<>();
 
-	private AdminApi adminApi = new AdminApi();
-
 	private Approval approval = new Approval();
 
 	private Internal internal = new Internal();
@@ -57,32 +55,6 @@ public class UniAuthProperties {
 	private Oauth2 oauth2 = new Oauth2();
 
 	private Saml saml = new Saml();
-
-	/**
-	 * A read/write API over the application's user stores, for a management console
-	 * running somewhere else.
-	 *
-	 * <p>
-	 * Off by default and deliberately awkward to turn on: this creates accounts, so an
-	 * unprotected instance is a way in for anyone who can reach the port. It refuses to
-	 * start without a token rather than defaulting to something guessable.
-	 */
-	@Data
-	public static class AdminApi {
-
-		private boolean enabled;
-
-		/**
-		 * Shared secret the console presents as {@code Authorization: Bearer <token>}.
-		 * Required whenever the API is enabled; keep it out of configuration files and
-		 * inject it from the environment or a secret.
-		 */
-		private String token;
-
-		/** Base path for the API. Everything under it needs the token. */
-		private String path = "/uniauth/admin";
-
-	}
 
 	/**
 	 * An optional gate between authenticating successfully and being let in.

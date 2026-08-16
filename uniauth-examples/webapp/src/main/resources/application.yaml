@@ -76,13 +76,6 @@ uniauth:
     - /how-it-works
     - /css/**
 
-  # Lets the standalone uniauth-admin console manage this application's stores over HTTP.
-  # A demo token, like the demo passwords — override it anywhere it matters. The API
-  # refuses to start without one rather than defaulting to something guessable.
-  admin-api:
-    enabled: true
-    token: ${UNIAUTH_ADMIN_API_TOKEN:demo-admin-token}
-
   # Authenticating and being let in are separate. Directory accounts wait for an
   # administrator; internal accounts do not, because writing one into this file is
   # already an approval. Sign in as bob to land in the queue, then as alice to clear it.
