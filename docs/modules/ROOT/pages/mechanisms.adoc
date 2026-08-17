@@ -1,0 +1,82 @@
+= Mechanisms
+:description: The four ways in, and the split that governs how they are installed.
+
+UniAuth supports four mechanisms. The distinction that shapes everything is not what they
+are called but *how the user gets to them*.
+
+[cols="1,1,3"]
+|===
+| Mechanism | Kind | How a user reaches it
+
+| Internal store | form-based | the shared username/password form
+| LDAP | form-based | the shared username/password form
+| OAuth2 / OIDC | redirect-based | `/oauth2/authorization/{registrationId}`
+| SAML 2.0 | redirect-based | `/saml2/authenticate/{registrationId}`
+|===
+
+`AuthProviderType` carries which half a mechanism belongs to, via its `formBased` flag.
+
+== Form-based: one form, several providers
+
+The internal store and LDAP share a single form. They are told apart by the
+`AuthenticationProvider` chain: every `AuthenticationProvider` bean is registered onto the
+chain, and Spring Security tries each until one authenticates.
+
+That fall-through is the point. It is what lets a handful of local break-glass accounts sit
+beside a directory, so an outage of the directory does not lock every administrator out of
+the application that depends on it.
+
+== Redirect-based: their own entry points
+
+OAuth2 and SAML keep their own entry-point URLs, so the chooser page only has to render a
+link. Nothing in UniAuth proxies the flow — Spring Security's own filters handle it, and the
+starter's job is to have installed them onto the same chain.
+
+== Asking what is available
+
+`AuthProviderRegistry` is the single answer to "what can a user sign in with right now". The
+chooser page reads it, and so does the JSON endpoint:
+
+[source,bash]
+----
+curl http://localhost:8080/uniauth/providers
+----
+
+[source,json]
+----
+[
+  {"id":"internal","type":"INTERNAL","brand":"GENERIC","displayName":"Local account",
+   "loginUrl":null,"oidc":false,"formBased":true},
+  {"id":"google","type":"OAUTH2","brand":"GOOGLE","displayName":"Google",
+   "loginUrl":"/oauth2/authorization/google","oidc":true,"formBased":false},
+  {"id":"github","type":"OAUTH2","brand":"GITHUB","displayName":"GitHub",
+   "loginUrl":"/oauth2/authorization/github","oidc":false,"formBased":false}
+]
+----
+
+An API-first front end can render its own chooser from this without knowing anything about
+Spring Security.
+
+[NOTE]
+====
+The registry enumerates OAuth2 and SAML entries by testing the repository for `Iterable`,
+which the in-memory implementations Boot produces are. A custom repository — database-backed,
+say — is not iterable, so its mechanism still works in the chain but cannot be *listed*.
+====
+
+== Brand is not a mechanism, and neither is OIDC
+
+Three separate axes, deliberately not merged:
+
+`AuthProviderType`:: The mechanism — how the provider talks, and therefore which filter
+installs it. Adding `GOOGLE` here as a peer of `OAUTH2` would break the form/redirect split
+the chain depends on, and the list would grow without bound.
+
+`AuthProviderBrand`:: Presentation only. Icons and vendor-mandated button treatment.
+
+`AuthProvider.oidc()`:: *Capability*, derived from the `openid` scope. This is the one that
+changes what your code receives: Google yields an `OidcUser` with claims, GitHub yields a
+bare `OAuth2User`. Reach for this whenever you mean "does it have claims", never for brand.
+
+That last distinction is why the examples ship Google and GitHub side by side: it is visible
+rather than asserted.

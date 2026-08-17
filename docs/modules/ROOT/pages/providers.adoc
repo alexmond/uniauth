@@ -1,0 +1,120 @@
+= Provider recipes
+:description: Google, GitHub, Microsoft — the per-provider details that actually cause failures.
+
+Every provider below is configured through Spring Boot's own
+`spring.security.oauth2.client.registration.*`. What follows is only the part that is
+specific to each one, and each entry exists because it caused a real failure.
+
+== Google
+
+[source,yaml]
+----
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+----
+
+Endpoints, scopes and the user-name attribute all come from `CommonOAuth2Provider`. Two
+things to get right:
+
+*The redirect URI must be `https`.* Google rejects `http` for anything that is not
+`localhost`, so a deployment registers the https callback:
+
+----
+https://app.example.com/login/oauth2/code/google
+----
+
+*A client builds its redirect URI from the request it was reached on.* Reach the same
+application over `http` and it sends an `http` URI that Google has never seen, and the login
+dies with `redirect_uri_mismatch`. Behind a TLS-terminating proxy, either make sure forwarded
+headers are honoured, or pin it:
+
+[source,yaml]
+----
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: https://app.example.com/login/oauth2/code/google
+----
+
+*The principal name is the `sub` claim* — a stable, never-reassigned, entirely unreadable
+number. That is the right thing to key on and the wrong thing to show a human; see
+xref:approval.adoc#identity[the approval gate] for how the two are kept apart.
+
+== GitHub
+
+[source,yaml]
+----
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope:
+              - read:user
+              - user:email      # <1>
+uniauth:
+  oauth2:
+    github:
+      fetch-email: true         # <2>
+----
+<1> `CommonOAuth2Provider` defaults to `read:user` alone, which is enough to sign a user in
+    and not enough to learn an address.
+<2> GitHub keeps addresses on a separate endpoint, so there is no email until something asks
+    for one. This switches on `GithubEmailOAuth2UserService`, which makes that second call.
+
+GitHub is *not OpenID Connect*: no ID token, no claims, a bare `OAuth2User`. If your code
+branches on having claims, branch on `AuthProvider.oidc()` rather than on the brand.
+
+[IMPORTANT]
+====
+The adapter takes the account's *primary verified* address and reports it as verified. It
+deliberately prefers that over the `email` field on `/user`, which is the *public profile*
+address — whatever the account chose to display, with nothing said about whether it is still
+theirs, and frequently stale. When there is no verified address to be had, whatever `/user`
+gave survives but is left unmarked, because unmarked is the truth about it.
+====
+
+A GitHub OAuth App allows exactly *one* callback URL, so pick the https one for a deployment
+and use a second app for local development.
+
+== Microsoft (multi-tenant)
+
+[source,yaml]
+----
+uniauth:
+  oauth2:
+    microsoft:
+      multi-tenant: true
+----
+
+A multi-tenant Entra ID application issues ID tokens whose `iss` contains the *caller's*
+tenant, so Spring's exact-issuer check rejects every tenant but the configured one.
+
+`MicrosoftMultiTenantIdTokenValidator` does *not* reimplement validation. It hands Spring's
+own `OidcIdTokenValidator` a registration copy with the issuer removed — Spring skips its
+issuer check when that is null — keeping every other check intact, then applies the
+tenant-template issuer rule itself. It also checks the issuer *before* delegating, because
+reading an unparseable `iss` throws and the delegate reads it first.
+
+The adapter applies only to registrations detected as Microsoft, so switching it on cannot
+weaken a Google or Okta login sharing the same application.
+
+== Apple: unsupported, on purpose
+
+Apple requires a *generated* client secret — an ES256 JWT, signed with a key from the
+developer portal, with a limited lifetime. `ClientRegistration.Builder` takes a `String`.
+Supporting Apple therefore means either a background task rewriting the registration or a
+fork of the client-registration machinery, and both are worse than saying no. This stays
+unsupported until Spring supports a non-static client secret.

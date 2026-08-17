@@ -1,0 +1,17 @@
+name: uniauth
+title: UniAuth
+version: true
+start_page: ROOT:index.adoc
+asciidoc:
+  attributes:
+    # javadoc.io serves versioned API docs for every published artifact. Compose as
+    # {api-starter}/{page-component-version}/<class path>.html in pages, so the version
+    # follows the tag the hub pins and needs no manual bump.
+    api-starter: 'https://javadoc.io/doc/org.alexmond/uniauth-spring-boot-starter'
+    toc: left
+    sectnums: ''
+    keywords: 'Spring Boot, Spring Security, OAuth2, OpenID Connect, SAML, LDAP, authentication, starter'
+    author: 'Alexander Mondshain'
+    email: 'alex.mondshain@gmail.com'
+nav:
+  - modules/ROOT/nav.adoc

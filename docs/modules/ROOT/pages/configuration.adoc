@@ -1,0 +1,104 @@
+= Configuration
+:description: Every uniauth.* property, and the Boot properties UniAuth reads rather than replaces.
+
+== Top level
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+
+| `uniauth.enabled` | `true` | Set false and the starter backs off entirely.
+| `uniauth.login-page` | `/login` | The chooser page.
+| `uniauth.default-success-url` | `/` | Where a successful sign-in lands.
+| `uniauth.logout-success-url` | `/login?logout` | Where a sign-out lands.
+| `uniauth.providers-endpoint` | `/uniauth/providers` | JSON list of enabled providers.
+| `uniauth.public-paths` | _empty_ | Routes reachable without a session.
+|===
+
+The starter already permits its login page, the providers endpoint, `/error` and the pending
+page; `public-paths` is for your own routes.
+
+== Internal store
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+
+| `uniauth.internal.enabled` | `false` |
+| `uniauth.internal.display-name` | `Username & password` | Label on the chooser.
+| `uniauth.internal.users[].username` | | 
+| `uniauth.internal.users[].password` | | Encoded, with a `{noop}` or `{bcrypt}` prefix.
+| `uniauth.internal.users[].roles` | `[USER]` | Without the `ROLE_` prefix.
+|===
+
+== LDAP
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+
+| `uniauth.ldap.enabled` | `false` |
+| `uniauth.ldap.display-name` | `Directory account` | Label on the chooser.
+| `uniauth.ldap.url` | | Server *and* base DN, e.g. `ldap://host:389/dc=example,dc=com`.
+| `uniauth.ldap.user-dn-patterns` | `[uid={0},ou=people]` | Relative to the base DN.
+| `uniauth.ldap.group-search-base` | `ou=groups` |
+| `uniauth.ldap.group-search-filter` | `(member={0})` |
+| `uniauth.ldap.manager-dn` | | Bind account for the group search.
+| `uniauth.ldap.manager-password` | |
+|===
+
+The context source is qualified as `uniAuthLdapContextSource` rather than resolved by type,
+because Boot's own `LdapAutoConfiguration` publishes a `BaseLdapPathContextSource` bound to
+`spring.ldap.*`. Without the qualifier a plain `@ConditionalOnMissingBean` would back off and
+silently ignore `uniauth.ldap.url`.
+
+== OAuth2 / OIDC
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+
+| `uniauth.oauth2.enabled` | `true` | Registrations still have to exist.
+| `uniauth.oauth2.github.fetch-email` | `false` | Second call for an address GitHub will not volunteer.
+| `uniauth.oauth2.github.emails-uri` | `https://api.github.com/user/emails` |
+| `uniauth.oauth2.microsoft.multi-tenant` | `false` | Tenant-template issuer validation.
+|===
+
+Registrations themselves come from Boot:
+`spring.security.oauth2.client.registration.*` and `.provider.*`.
+
+== SAML 2.0
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+| `uniauth.saml.enabled` | `true` | Registrations still have to exist.
+|===
+
+Registrations come from `spring.security.saml2.relyingparty.registration.*`.
+
+== Approval gate
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+
+| `uniauth.approval.enabled` | `false` |
+| `uniauth.approval.require-for` | `[OAUTH2, SAML, LDAP]` | Which mechanisms are held. Internal accounts are excluded by default: writing one into configuration is already an approval.
+| `uniauth.approval.pending-page` | `/pending` | Where a held principal waits.
+|===
+
+See xref:approval.adoc[the approval gate] for the `ApprovalStore` SPI and why the default
+implementation is not production-fit.
+
+== A property trap worth knowing
+
+Binding a *list* entry from an environment variable replaces the whole collection rather than
+merging into it, because the higher-priority source wins outright. Supplying only
+
+----
+UNIAUTH_INTERNAL_USERS_0_PASSWORD=…
+----
+
+therefore blanks that entry's username and roles. When any field of a list entry comes from
+the environment, supply all of them.

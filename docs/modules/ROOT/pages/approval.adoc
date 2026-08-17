@@ -1,0 +1,84 @@
+= Approval gate
+:description: Authenticating and being let in are separate decisions.
+
+An identity provider will happily vouch for anyone who holds an account with it. That is its
+job, and it is not the same question as whether this application should admit them. The
+approval gate makes the second question explicit.
+
+[source,yaml]
+----
+uniauth:
+  approval:
+    enabled: true
+    require-for: [ LDAP, OAUTH2, SAML ]   # <1>
+    pending-page: /pending
+----
+<1> Which mechanisms are held, and already the default. Internal accounts are left out
+    because writing one into configuration is already an approval.
+
+A held principal authenticates successfully and then lands on the pending page until an
+administrator decides. Approving admits them on their next request — no second sign-in.
+
+== Three decisions worth not re-litigating
+
+*It sits in authorization, not authentication.* `ApprovalAuthorizationManager` replaces
+`.authenticated()` in the chain. Failing the login instead would report "pending" as a
+credentials failure, which is both misleading and a disclosure: it confirms a correct guess
+to whoever is guessing.
+
+*First sighting is recorded in the manager, not a success handler.* Four mechanisms would
+mean four success handlers; every request passes authorization exactly once.
+
+*Keys are `(provider, principal)`.* Approving `alice` from the internal store must not admit
+`alice` from Google.
+
+[#identity]
+== Who is waiting
+
+The key is stable and unreadable — for an OIDC login it is the `sub` claim, a long number.
+Approving on that alone is deciding about a stranger, so `PrincipalIdentity` is captured at
+*first sighting* and carried alongside:
+
+[cols="1,3"]
+|===
+| `displayName` | a human name, or absent
+| `email` | the address claimed, or absent
+| `emailVerified` | whether the provider says it *verified* that address — or absent, when it says nothing
+| `subject` | the stable identifier the key is built from
+|===
+
+Three states for verification, never collapsed into two. An unverified address is a claim
+somebody typed, not something the provider stands behind; treating it as identity means
+trusting whoever asserted it rather than the provider. "The provider said nothing" is a third
+answer again, and pretending otherwise would make the queue look more informative than it is.
+
+It is captured at first sighting rather than read live because the queue has to render for a
+principal who is no longer signed in.
+
+== The store
+
+`ApprovalStore` is an SPI, and the gate is the only stateful thing in the library. That is
+deliberate: owning a table would force Spring Data, a schema and migrations onto every
+consumer.
+
+[source,java]
+----
+public interface ApprovalStore {
+    ApprovalStatus statusOf(ApprovalKey key);
+    ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
+    List<ApprovalRecord> pending();
+    Optional<ApprovalRecord> find(ApprovalKey key);
+    void decide(ApprovalKey key, ApprovalStatus outcome, String approver);
+    void remove(ApprovalKey key);
+}
+----
+
+WARNING: `InMemoryApprovalStore` is the default and is *not production-fit*. It empties on
+restart, taking every approval with it, and it is per-instance — two replicas do not agree.
+Supply your own implementation for anything real.
+
+== Two things that bite if changed carelessly
+
+* The pending page is added to the permitted matchers. Without that, the redirect loops.
+* `PendingApprovalAccessDeniedHandler` only redirects requests the manager flagged, so a
+  genuine 403 still looks like one. A *denied* principal gets 403, not the waiting page.

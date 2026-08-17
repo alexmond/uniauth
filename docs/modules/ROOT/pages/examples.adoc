@@ -1,0 +1,74 @@
+= Examples
+:description: A running demo of all four mechanisms, and how administration is done without an admin API in the library.
+
+The repository ships a demo stack under `uniauth-examples/`, plus two services that exist to
+keep the library honest about what it is.
+
+[source,bash]
+----
+./mvnw -Pdefault -DskipTests install                          # <1>
+./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run  # http://localhost:8080
+----
+<1> Not optional: `-pl` resolves the starter from the repository, not the reactor.
+
+== What is in the stack
+
+[cols="1,3"]
+|===
+| Module | What it is
+
+| `uniauth-examples/webapp`
+| Server-rendered demo. Public and protected pages, the chooser, a live view of which
+mechanism answered, and the approval queue. Start here.
+
+| `uniauth-examples/headless`
+| API-first. Answers `401` instead of redirecting, by contributing an
+`AuthenticationEntryPoint` bean — the extension point rather than a replaced chain.
+
+| `uniauth-authserver`
+| An OAuth2/OIDC provider, its own service. It deliberately does *not* depend on the starter:
+a provider is not a client of one, and pulling it in would put a provider chooser and an
+approval gate on an identity server.
+
+| `uniauth-admin`
+| A standalone console. Administers the provider's accounts over its admin API and the
+directory over LDAP.
+|===
+
+== Why the provider and the directory are separate services
+
+They were once embedded in the example — the provider as beans inside the web app, the
+directory as an in-process UnboundID server. Both made the demo lie in the same way: the
+redirect never left the process and the bind never left the JVM, so the failures that matter
+could not happen.
+
+Separating them cost the co-hosting machinery and bought back honesty. Two things only a real
+directory teaches:
+
+* It is not world-readable. A denied search answers `no such object`, not "permission
+  denied" — so a user authenticates and then arrives with no groups.
+* Session cookies are scoped by *host*, not port. Two services on `localhost:8080` and
+  `localhost:9000` share one `JSESSIONID` and overwrite each other. In an OAuth redirect that
+  is fatal and nearly invisible: the provider's cookie replaces the client's, the client
+  returns to a session with no saved authorization request, and the login fails with nothing
+  logged. Every service here sets its own cookie name.
+
+== Administration, without an admin API in the library
+
+The console owns no user store, and administers the two populations that exist independently
+of any application and survive a restart: the provider's accounts, over its
+token-authenticated admin API, and the directory, over LDAP.
+
+It used to administer running applications over an admin API the starter published. Both
+halves of that were wrong — an authentication library has no business exposing a write
+endpoint, and the accounts it reached lived in an application's memory, so "administering"
+them meant editing something that vanished on the next restart.
+
+The token-authenticated API that remains, on the provider, is worth copying if you build one:
+
+* It refuses to start without a token. It creates accounts, so there is no safe default.
+* Token comparison is constant-time. A plain `equals` leaks the credential a character at a
+  time to anyone who can measure the response.
+* Its chain is stateless and CSRF-disabled, ahead of the browser chain. A console has no
+  session to ride and must never be redirected to a login page — and an application session
+  is not accepted by the API.

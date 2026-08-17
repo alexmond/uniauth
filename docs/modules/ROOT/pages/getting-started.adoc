@@ -1,0 +1,128 @@
+= Getting started
+:description: Add the starter, switch on a mechanism, and sign somebody in.
+
+== Add the starter
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>uniauth-spring-boot-starter</artifactId>
+    <version>{page-component-version}</version>
+</dependency>
+----
+
+Nothing is enabled by default beyond the chain itself, because a starter that invented
+accounts would be worse than one that does nothing. Switch on at least one mechanism.
+
+== The smallest thing that works
+
+[source,yaml]
+----
+uniauth:
+  internal:
+    enabled: true
+    users:
+      - username: alice
+        password: "{noop}s3cret"     # <1>
+        roles: [ USER, ADMIN ]
+----
+<1> `{noop}` is a `DelegatingPasswordEncoder` prefix meaning "stored in clear". Fine for a
+    first run; use `{bcrypt}$2a$10$…` anywhere else, and inject it from the environment
+    rather than committing it.
+
+Start the application and everything but the login page needs a session. Sign in at
+`/login`.
+
+== Opening up some pages
+
+[source,yaml]
+----
+uniauth:
+  public-paths:
+    - /
+    - /about
+    - /css/**
+----
+
+The starter already permits its own login page, the providers endpoint, `/error` and — when
+the approval gate is on — the pending page. Anything else you want reachable without a
+session goes here.
+
+TIP: On Kubernetes, remember `/actuator/**`. Probes, Prometheus and Spring Boot Admin send
+no credentials, so requiring authentication there rejects exactly the callers the endpoints
+exist for.
+
+== Adding a directory
+
+[source,yaml]
+----
+uniauth:
+  ldap:
+    enabled: true
+    url: ldap://directory.example.com:389/dc=example,dc=com
+    user-dn-patterns:
+      - uid={0},ou=people
+    group-search-base: ou=groups
+    manager-dn: cn=admin,dc=example,dc=com       # <1>
+    manager-password: ${LDAP_MANAGER_PASSWORD}
+----
+<1> Needed more often than it looks. A real directory is not world-readable — OpenLDAP's
+    default ACL is `by self read … by * none` — and a *denied* search answers
+    `no such object (32)` rather than admitting the entry exists. Without a bind account the
+    user authenticates and then arrives with no groups, and the error points at a missing
+    entry that is plainly there.
+
+The internal store and LDAP share one username/password form. They are told apart by the
+`AuthenticationProvider` chain, which is what lets a couple of local break-glass accounts
+sit beside a directory.
+
+== Adding an OIDC provider
+
+UniAuth does not re-declare OAuth2 configuration. Use Spring Boot's own properties:
+
+[source,yaml]
+----
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+uniauth:
+  oauth2:
+    enabled: true    # the default
+----
+
+That is the whole integration. The endpoints, scopes and user-name attribute come from
+Boot's `CommonOAuth2Provider`, keyed on the registration id; the chooser, the brand and the
+OIDC-versus-plain-OAuth2 detection all follow. See xref:providers.adoc[Provider recipes] for
+the per-provider details that actually bite.
+
+[#saml-repository]
+== If you enable SAML
+
+OpenSAML — pulled in by `spring-security-saml2-service-provider` — is not published to Maven
+Central, so a Central-only build fails to resolve `org.opensaml:*`. Add:
+
+[source,xml]
+----
+<repositories>
+    <repository>
+        <id>shibboleth</id>
+        <url>https://build.shibboleth.net/maven/releases/</url>
+    </repository>
+</repositories>
+----
+
+Registrations then come from `spring.security.saml2.relyingparty.registration.*`, exactly as
+Boot documents them.
+
+== What to reach for next
+
+* xref:approval.adoc[The approval gate], if the answer to "may this person in" is not simply
+  "yes, they authenticated".
+* xref:configuration.adoc[Configuration], for the full property surface.
+* xref:examples.adoc[Examples], for a running demo of all four mechanisms at once.

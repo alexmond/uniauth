@@ -1,0 +1,47 @@
+= UniAuth
+:description: One Spring Security filter chain for an internal user store, OAuth2/OIDC, SAML 2.0 and LDAP — with a login page that lets the user pick, and an optional approval gate between authenticating and being let in.
+
+A Spring Boot starter that puts an internal user store, OAuth2/OpenID Connect, SAML 2.0 and
+LDAP behind a *single* `SecurityFilterChain`, with a chooser login page offering whichever
+mechanisms are switched on.
+
+== Highlights
+
+* Four mechanisms, one chain. Adding a second mechanism does not mean a second chain, and
+  local break-glass accounts can sit alongside a directory.
+* *No re-declared OAuth2 or SAML configuration.* Registrations come from Spring Boot's own
+  `spring.security.oauth2.client.registration.*` and `spring.security.saml2.relyingparty.*`.
+  Two lines of standard config are enough to add Google.
+* A chooser page driven by real state — `AuthProviderRegistry` answers "what can a user sign
+  in with right now", and the same answer is served as JSON at `/uniauth/providers`.
+* An optional *approval gate*: authenticating and being admitted are separate decisions, so
+  a provider that will vouch for anyone does not thereby let anyone in.
+* Provider quirks ship as opt-in adapters, never as new mechanisms — GitHub's second call for
+  an email address, Microsoft's multi-tenant issuer.
+* Every bean is `@ConditionalOnMissingBean`, so an application overrides by declaring its
+  own rather than by excluding the auto-configuration.
+
+== Install
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>uniauth-spring-boot-starter</artifactId>
+    <version>{page-component-version}</version>
+</dependency>
+----
+
+NOTE: SAML support pulls in OpenSAML, which is *not on Maven Central*. A build that enables
+it needs the Shibboleth repository — see xref:getting-started.adoc#saml-repository[Getting
+started].
+
+== Next
+
+* xref:getting-started.adoc[Getting started] — the smallest application that signs somebody in.
+* xref:mechanisms.adoc[Mechanisms] — what each one is, and the split that governs the chain.
+* xref:providers.adoc[Provider recipes] — Google, GitHub, Microsoft, and why Apple is unsupported.
+* xref:approval.adoc[Approval gate] — separating "who are you" from "may you come in".
+* xref:configuration.adoc[Configuration] — every `uniauth.*` property.
+* xref:architecture.adoc[Architecture] — why one chain, and where the extension points are.
+* API reference: {api-starter}/{page-component-version}/index.html[uniauth-spring-boot-starter].

@@ -1,0 +1,57 @@
+= Architecture
+:description: Why one chain, and where to extend without replacing it.
+
+== One chain, not four
+
+`UniAuthAutoConfiguration#uniAuthSecurityFilterChain` installs form login, OAuth2 login and
+SAML login onto a *single* `SecurityFilterChain`.
+
+This is not a simplification waiting to be undone. Chains match in order and the first match
+wins, so one chain per mechanism would mean only the first ever runs. Every mechanism has to
+be installed on the same chain to be reachable at all.
+
+== Conditionals
+
+Every bean is `@ConditionalOnMissingBean`, so an application overrides by declaring its own
+rather than by excluding the auto-configuration. `uniauth.enabled=false` backs off entirely.
+
+The catch-all chain backs off on its own bean *name* — `uniAuthSecurityFilterChain` — not on
+the type. Declaring another `SecurityFilterChain` therefore no longer costs you every
+mechanism.
+
+== Three extension points, before you replace the chain
+
+Declaring your own `SecurityFilterChain` makes the whole starter back off, so these exist to
+avoid that. Each was added because something needed it, never speculatively.
+
+`uniauth.public-paths`:: Open up routes without touching the chain.
+
+An `AuthenticationEntryPoint` bean:: The starter uses it instead of redirecting to the
+chooser. This is how an API-first application answers `401` rather than `302`.
+
+A second `SecurityFilterChain`:: Order it ahead of the starter's and give it a
+`securityMatcher`. Useful for a stateless API alongside a session-based UI.
+
+== Provider adapters
+
+Provider quirks ship as opt-in adapters, never as new mechanism types:
+
+* `uniauth.oauth2.github.fetch-email` → `GithubEmailOAuth2UserService`
+* `uniauth.oauth2.microsoft.multi-tenant` → `MicrosoftMultiTenantIdTokenValidator`
+
+Both are declared as the beans Spring Security already looks for, so they compose with the
+single chain instead of needing their own.
+
+== What is deliberately not here
+
+*Registration properties under `uniauth.*` for OAuth2 and SAML.* Those are a large,
+already-documented configuration surface; forking it would mean maintaining a parallel
+vocabulary that drifts from Boot's. UniAuth exposes only an `enabled` flag for each and
+consumes the repositories Boot's own binding produces.
+
+*A user store.* The internal store exists so a first run is possible and so break-glass
+accounts have somewhere to live. Anything more is a directory or a database, and both are
+somebody else's job.
+
+*An admin API.* An authentication library has no business exposing a write endpoint. See
+xref:examples.adoc[Examples] for how administration is done instead.
