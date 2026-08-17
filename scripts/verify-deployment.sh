@@ -116,6 +116,27 @@ else
   printf '\n\033[1mwebapp -> Google\033[0m\n  \033[33mSKIP\033[0m google profile is off\n'
 fi
 
+# GitHub, when the github profile is on. Note what is NOT checked: whether the callback
+# is registered on the OAuth App. GitHub defers that validation until after sign-in — it
+# serves its login page even for a deliberately invalid redirect_uri — so the only way to
+# confirm it is to complete a login by hand.
+if printf '%s' "$CHOOSER" | grep -q '/oauth2/authorization/github'; then
+  section "webapp -> GitHub"
+  HLOC=$(curl -s -o /dev/null -w '%{redirect_url}' "$WEBAPP/oauth2/authorization/github")
+  check "the chooser offers GitHub"          "$CHOOSER" "/oauth2/authorization/github"
+  check "it redirects to github.com"         "$HLOC" "github.com/login/oauth/authorize"
+  # Without user:email GitHub returns no address at all, leaving an approval row with
+  # nothing but a username to judge.
+  check "asking for user:email"              "$HLOC" "user:email"
+  check "redirect_uri is the HTTPS callback" "$HLOC" "redirect_uri=https://"
+  # GitHub is plain OAuth2. If this ever reports OIDC, the demo has lost the one
+  # provider that makes the distinction visible.
+  check "GitHub is reported as plain OAuth2, not OIDC" \
+    "$(curl -s $WEBAPP/uniauth/providers | tr '}' '\n' | grep github)" '"oidc":false'
+else
+  printf '\n\033[1mwebapp -> GitHub\033[0m\n  \033[33mSKIP\033[0m github profile is off\n'
+fi
+
 section "webapp -> authserver — the OAuth hop across two hosts"
 JO=$(mktemp)
 LOC=$(curl -s -c "$JO" -o /dev/null -w '%{redirect_url}' "$WEBAPP/oauth2/authorization/local")
