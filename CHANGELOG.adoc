@@ -1,6 +1,6 @@
 = Changelog
 
-== 4.1.0.1 (unreleased)
+== 4.1.0.1
 
 First release. The version tracks the Spring Boot line it builds against — `4.1.0` — with a fourth
 segment as this library's own patch counter.
