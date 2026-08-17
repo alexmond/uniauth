@@ -11,6 +11,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -88,12 +89,60 @@ class PrincipalIdentityResolverTest {
 	}
 
 	@Test
+	void aSamlAssertionBringsTheAttributesTheIdpReleased() {
+		PrincipalIdentity identity = this.resolver.resolve(saml("G-abc-123", Map.of("urn:oid:2.5.4.42", List.of("Sam"),
+				"urn:oid:2.5.4.4", List.of("Ortega"), "urn:oid:1.2.840.113549.1.9.1", List.of("sam@example.com"))));
+
+		assertThat(identity.displayName()).isEqualTo("Sam Ortega");
+		assertThat(identity.email()).isEqualTo("sam@example.com");
+		assertThat(identity.subject()).isEqualTo("G-abc-123");
+	}
+
+	@Test
+	void aSamlAddressIsNeverReportedAsVerified() {
+		// SAML's attribute profile has no equivalent of email_verified, so there is
+		// nothing to report. Assuming true is the dangerous direction: it would present
+		// an
+		// address nobody checked as though the provider stood behind it.
+		PrincipalIdentity identity = this.resolver
+			.resolve(saml("G-abc-123", Map.of("urn:oid:1.2.840.113549.1.9.1", List.of("sam@example.com"))));
+
+		assertThat(identity.emailVerified()).isNull();
+	}
+
+	@Test
+	void aSamlIdpThatReleasedNothingLeavesOnlyTheNameId() {
+		// Which is the honest outcome, and the reason an IdP needs attribute mappers
+		// configured before its users can be judged in an approval queue.
+		PrincipalIdentity identity = this.resolver.resolve(saml("G-abc-123", Map.of()));
+
+		assertThat(identity.displayName()).isNull();
+		assertThat(identity.email()).isNull();
+		assertThat(identity.subject()).isEqualTo("G-abc-123");
+	}
+
+	@Test
+	void friendlyAttributeNamesAreAcceptedToo() {
+		// Identity providers differ over whether they send OID URNs or friendly names.
+		PrincipalIdentity identity = this.resolver.resolve(saml("G-abc-123",
+				Map.of("displayName", List.of("Sasha Lindqvist"), "mail", List.of("sasha@example.com"))));
+
+		assertThat(identity.displayName()).isEqualTo("Sasha Lindqvist");
+		assertThat(identity.email()).isEqualTo("sasha@example.com");
+	}
+
+	@Test
 	void anInternalAccountIsJustItsName() {
 		PrincipalIdentity identity = this.resolver
 			.resolve(new UsernamePasswordAuthenticationToken("alice", "n/a", List.of()));
 
 		assertThat(identity.subject()).isEqualTo("alice");
 		assertThat(identity.email()).isNull();
+	}
+
+	private static UsernamePasswordAuthenticationToken saml(String nameId, Map<String, List<Object>> attributes) {
+		DefaultSaml2AuthenticatedPrincipal principal = new DefaultSaml2AuthenticatedPrincipal(nameId, attributes);
+		return new UsernamePasswordAuthenticationToken(principal, "n/a", List.of());
 	}
 
 	private static UsernamePasswordAuthenticationToken oidc(Map<String, Object> claims) {

@@ -1,10 +1,12 @@
 package org.alexmond.uniauth.approval;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
@@ -49,6 +51,9 @@ public class PrincipalIdentityResolver {
 		if (principal instanceof OAuth2User oauth2) {
 			return fromOauth2(oauth2, authentication.getName());
 		}
+		if (principal instanceof Saml2AuthenticatedPrincipal saml2) {
+			return fromSaml2(saml2, authentication.getName());
+		}
 		if (LDAP_PRESENT) {
 			PrincipalIdentity directory = Ldap.identify(principal, authentication.getName());
 			if (directory != null) {
@@ -62,6 +67,51 @@ public class PrincipalIdentityResolver {
 		// Standard OIDC claims, so this works for any conforming provider rather than
 		// only the ones this project has been pointed at.
 		return new PrincipalIdentity(text(oidc.getFullName()), text(oidc.getEmail()), oidc.getEmailVerified(), name);
+	}
+
+	/**
+	 * Reads the assertion's attributes.
+	 *
+	 * <p>
+	 * A SAML principal name is the NameID, which for the persistent format is an opaque
+	 * identifier — stable and correct to key on, and useless to an approver. What makes
+	 * the decision possible is in the attributes, and only if the identity provider was
+	 * configured to release them: an assertion carries whatever the IdP chose to send and
+	 * nothing more.
+	 *
+	 * <p>
+	 * Attribute names are the OID URNs from the SAML X.500 attribute profile, with the
+	 * friendly names accepted as a fallback because identity providers differ over which
+	 * they send. There is no verification claim in that profile — SAML has no equivalent
+	 * of {@code email_verified} — so the address is reported with verification unknown
+	 * rather than assumed true. Assuming would be the dangerous direction.
+	 */
+	private static PrincipalIdentity fromSaml2(Saml2AuthenticatedPrincipal saml2, String name) {
+		String displayName = firstAttribute(saml2, "urn:oid:2.16.840.1.113730.3.1.241", "displayName");
+		if (displayName == null) {
+			String given = firstAttribute(saml2, "urn:oid:2.5.4.42", "givenName");
+			String surname = firstAttribute(saml2, "urn:oid:2.5.4.4", "sn");
+			displayName = join(given, surname);
+		}
+		String email = firstAttribute(saml2, "urn:oid:1.2.840.113549.1.9.1", "email", "mail");
+		return new PrincipalIdentity(displayName, email, null, name);
+	}
+
+	private static String firstAttribute(Saml2AuthenticatedPrincipal principal, String... names) {
+		for (String candidate : names) {
+			List<Object> values = principal.getAttribute(candidate);
+			if (values != null && !values.isEmpty() && StringUtils.hasText(String.valueOf(values.get(0)))) {
+				return String.valueOf(values.get(0));
+			}
+		}
+		return null;
+	}
+
+	private static String join(String given, String surname) {
+		if (given == null && surname == null) {
+			return null;
+		}
+		return (given != null && surname != null) ? given + " " + surname : ((given != null) ? given : surname);
 	}
 
 	private static PrincipalIdentity fromOauth2(OAuth2User oauth2, String name) {

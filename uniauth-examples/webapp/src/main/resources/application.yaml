@@ -202,3 +202,42 @@ uniauth:
       # The second call GitHub requires before any email exists. It takes only the primary
       # verified address, and reports it as verified.
       fetch-email: true
+
+---
+# ---------------------------------------------------------------------------------------
+# SAML 2.0, when an identity provider is configured. Activate with the "saml" profile.
+#
+# Unlike OAuth2 there is no provider to write: Spring Authorization Server is OIDC-only and
+# there is no Spring SAML IdP, so the lab runs Keycloak. This side is the relying party.
+#
+# Every value is required, with no default. A SAML registration needs a signing credential
+# and somewhere to fetch metadata; inventing either would produce a registration that looks
+# configured and fails at the first assertion.
+#
+# NOTE: entity-id and the assertion-consumer-service location are deliberately NOT set here.
+# Spring derives both from the request as {baseUrl}/... which is right for a local run, and
+# a deployment behind TLS must pin them — see the overlay. They are not given placeholder
+# defaults because a default containing {baseUrl} cannot be written: the closing brace ends
+# the property placeholder and the rest is taken literally.
+# ---------------------------------------------------------------------------------------
+spring:
+  config:
+    activate:
+      on-profile: saml
+  security:
+    saml2:
+      relyingparty:
+        registration:
+          keycloak:
+            signing:
+              credentials:
+                # Signs AuthnRequests. The IdP verifies against the certificate registered
+                # with the client, so the two are a pair — replacing one means replacing both.
+                - private-key-location: ${SAML_SP_KEY}
+                  certificate-location: ${SAML_SP_CERT}
+            assertingparty:
+              # Fetched at startup, which makes the IdP a boot-time dependency of this
+              # application: if it is down when this starts, the context fails rather than
+              # degrading. Static assertingparty config avoids that, at the cost of pasting
+              # in the IdP's certificate by hand.
+              metadata-uri: ${SAML_IDP_METADATA_URI}

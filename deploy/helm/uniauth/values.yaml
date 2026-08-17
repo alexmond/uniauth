@@ -14,6 +14,12 @@ replicaCount: 1
 # memory, which is all of these: a rolling update overlaps two pods and splits that state.
 updateStrategy: RollingUpdate
 
+# Arbitrary volumes, for configuration an application reads as a file rather than as an
+# environment variable — a SAML signing credential, for instance, which Spring loads from a
+# resource location. Kept generic: the chart has no opinion about what is mounted.
+extraVolumes: []
+extraVolumeMounts: []
+
 image:
   # Built from uniauth-examples/webapp. See deploy/helm/uniauth/README.md for the publish
   # command, or use scripts/deploy-k8s.sh which builds and pushes for you.

@@ -43,6 +43,19 @@ public class MechanismResolver {
 			if (saml2.getPrincipal() instanceof Saml2AuthenticatedPrincipal principal) {
 				registrationId = principal.getRelyingPartyRegistrationId();
 			}
+			// The fallback is a real limitation, not defensive padding.
+			//
+			// Spring populates the registration id on the principal, but it arrives null
+			// through the ordinary Keycloak login path, so in practice this falls back.
+			// Every SAML identity provider then shares the provider half of the approval
+			// key, which weakens the guarantee the key exists to give: approving a NameID
+			// at one IdP would admit the same NameID at another.
+			//
+			// Harmless with a single SAML registration, which is the common case and the
+			// only one this project runs. Before adding a second, make this resolve the
+			// id
+			// properly — capture it in the success handler, where the callback URL still
+			// carries it — rather than trusting the name below.
 			return new ResolvedMechanism(AuthProviderType.SAML, (registrationId != null) ? registrationId : "saml");
 		}
 		if (authentication != null && authentication.getPrincipal() instanceof LdapUserDetails) {
