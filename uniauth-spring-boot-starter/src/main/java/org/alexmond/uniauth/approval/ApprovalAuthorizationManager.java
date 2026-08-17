@@ -42,6 +42,12 @@ public class ApprovalAuthorizationManager implements AuthorizationManager<Reques
 
 	private final PrincipalIdentityResolver identities = new PrincipalIdentityResolver();
 
+	/**
+	 * Creates the gate.
+	 * @param store where standing is recorded and read
+	 * @param resolver works out which provider answered, since approval is per provider
+	 * @param properties supplies which mechanisms the gate applies to
+	 */
 	public ApprovalAuthorizationManager(ApprovalStore store, MechanismResolver resolver, UniAuthProperties properties) {
 		this.store = store;
 		this.resolver = resolver;

@@ -23,6 +23,11 @@ public class PendingApprovalAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final String pendingPage;
 
+	/**
+	 * Creates the handler.
+	 * @param pendingPage where a held principal is sent; it must also be permitted on the
+	 * chain, or the redirect loops
+	 */
 	public PendingApprovalAccessDeniedHandler(String pendingPage) {
 		this.pendingPage = pendingPage;
 	}

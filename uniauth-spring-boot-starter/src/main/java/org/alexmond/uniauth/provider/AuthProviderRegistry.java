@@ -34,6 +34,12 @@ public class AuthProviderRegistry {
 
 	private final ObjectProvider<RelyingPartyRegistrationRepository> relyingParties;
 
+	/**
+	 * Creates the registry.
+	 * @param properties which mechanisms are switched on
+	 * @param clientRegistrations OAuth2 registrations, absent when none are configured
+	 * @param relyingParties SAML registrations, absent when none are configured
+	 */
 	public AuthProviderRegistry(UniAuthProperties properties,
 			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
 			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties) {
@@ -42,14 +48,21 @@ public class AuthProviderRegistry {
 		this.relyingParties = relyingParties;
 	}
 
-	/** Every selectable provider, form-based ones first. */
+	/**
+	 * Every selectable provider, form-based ones first.
+	 * @return an immutable list, in the order a chooser should render it
+	 */
 	public List<AuthProvider> providers() {
 		List<AuthProvider> all = new ArrayList<>(formProviders());
 		all.addAll(redirectProviders());
 		return List.copyOf(all);
 	}
 
-	/** Providers answering the shared username/password form. */
+	/**
+	 * Providers answering the shared username/password form.
+	 * @return an immutable list; more than one entry means the same form resolves through
+	 * several {@code AuthenticationProvider}s in turn
+	 */
 	public List<AuthProvider> formProviders() {
 		List<AuthProvider> form = new ArrayList<>();
 		if (properties.getInternal().isEnabled()) {
@@ -63,7 +76,11 @@ public class AuthProviderRegistry {
 		return List.copyOf(form);
 	}
 
-	/** Providers rendered as their own button, each starting a redirect flow. */
+	/**
+	 * Providers rendered as their own button, each starting a redirect flow.
+	 * @return an immutable list, one entry per OAuth2 and SAML registration that could be
+	 * enumerated — see the note on this class about non-iterable repositories
+	 */
 	public List<AuthProvider> redirectProviders() {
 		List<AuthProvider> redirect = new ArrayList<>();
 		if (properties.getOauth2().isEnabled()) {
@@ -91,14 +108,18 @@ public class AuthProviderRegistry {
 		return List.copyOf(redirect);
 	}
 
-	/** True when the username/password form should be rendered at all. */
+	/**
+	 * Whether the username/password form should be rendered at all.
+	 * @return {@code true} when at least one form-based mechanism is enabled
+	 */
 	public boolean hasFormProvider() {
 		return !formProviders().isEmpty();
 	}
 
 	/**
-	 * True when nothing is configured — the login page says so rather than showing an
-	 * empty box.
+	 * Whether nothing is configured — the login page says so rather than showing an empty
+	 * box.
+	 * @return {@code true} when no mechanism at all is available
 	 */
 	public boolean isEmpty() {
 		return providers().isEmpty();

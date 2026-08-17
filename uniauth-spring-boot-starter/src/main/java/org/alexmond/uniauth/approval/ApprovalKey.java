@@ -16,6 +16,17 @@ import org.springframework.security.core.Authentication;
  */
 public record ApprovalKey(String provider, String principal) {
 
+	/**
+	 * Builds the key for an authenticated principal.
+	 *
+	 * <p>
+	 * The provider half comes from the resolved mechanism rather than the mechanism type,
+	 * so two OIDC registrations on one application stay distinct: approving somebody at
+	 * one provider must not admit the same name arriving from another.
+	 * @param mechanism which provider answered, as resolved from the authentication
+	 * @param authentication the authenticated principal
+	 * @return the key this principal is approved — or not — under
+	 */
 	public static ApprovalKey of(ResolvedMechanism mechanism, Authentication authentication) {
 		return new ApprovalKey(mechanism.provider(), authentication.getName());
 	}

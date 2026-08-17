@@ -23,6 +23,17 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
  */
 public class MechanismResolver {
 
+	/**
+	 * Works out which provider vouched for a principal.
+	 *
+	 * <p>
+	 * Reads the concrete {@code Authentication} types, because nothing records this
+	 * directly: OAuth2 and SAML carry their own token classes, while internal and LDAP
+	 * both produce a {@code UsernamePasswordAuthenticationToken} and are told apart by
+	 * whether the principal is an {@code LdapUserDetails}.
+	 * @param authentication the authenticated principal
+	 * @return the mechanism and the provider within it, never {@code null}
+	 */
 	public ResolvedMechanism resolve(Authentication authentication) {
 		if (authentication instanceof OAuth2AuthenticationToken oauth2) {
 			return new ResolvedMechanism(AuthProviderType.OAUTH2, oauth2.getAuthorizedClientRegistrationId());

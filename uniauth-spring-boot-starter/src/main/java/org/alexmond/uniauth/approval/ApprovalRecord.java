@@ -20,6 +20,17 @@ import java.time.Instant;
 public record ApprovalRecord(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism,
 		ApprovalStatus status, Instant firstSeen, Instant decidedAt, String decidedBy) {
 
+	/**
+	 * Returns a copy settled with a decision, leaving this record untouched.
+	 *
+	 * <p>
+	 * The first sighting is preserved: how long somebody waited is part of the audit
+	 * trail, and overwriting it with the decision time would lose that.
+	 * @param outcome {@link ApprovalStatus#APPROVED} or {@link ApprovalStatus#DENIED}
+	 * @param approver name of whoever decided, for the audit trail
+	 * @param when the moment of the decision
+	 * @return a new record carrying the decision
+	 */
 	public ApprovalRecord decide(ApprovalStatus outcome, String approver, Instant when) {
 		return new ApprovalRecord(this.key, this.identity, this.mechanism, outcome, this.firstSeen, when, approver);
 	}

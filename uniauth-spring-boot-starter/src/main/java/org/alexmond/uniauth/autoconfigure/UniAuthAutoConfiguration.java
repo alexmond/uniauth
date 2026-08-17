@@ -51,6 +51,14 @@ import java.util.List;
 		ApprovalConfiguration.class })
 public class UniAuthAutoConfiguration {
 
+	/**
+	 * The single answer to what a user can sign in with right now, read by both the
+	 * chooser page and the providers endpoint.
+	 * @param properties which mechanisms are switched on
+	 * @param clientRegistrations OAuth2 registrations, from Spring Boot's own binding
+	 * @param relyingParties SAML registrations, from Spring Boot's own binding
+	 * @return the registry
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public AuthProviderRegistry uniAuthProviderRegistry(UniAuthProperties properties,
@@ -59,12 +67,28 @@ public class UniAuthAutoConfiguration {
 		return new AuthProviderRegistry(properties, clientRegistrations, relyingParties);
 	}
 
+	/**
+	 * Serves the chooser page.
+	 *
+	 * <p>
+	 * Registered as a bean rather than component-scanned, so
+	 * {@code uniauth.enabled=false} genuinely backs off — a scan would pick the
+	 * controller up regardless of the guard.
+	 * @param registry supplies the providers the page offers
+	 * @param properties supplies the paths the page posts to
+	 * @return the controller
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public UniAuthLoginController uniAuthLoginController(AuthProviderRegistry registry, UniAuthProperties properties) {
 		return new UniAuthLoginController(registry, properties);
 	}
 
+	/**
+	 * Serves the same provider list as JSON, for a front end rendering its own chooser.
+	 * @param registry supplies the providers
+	 * @return the controller
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public UniAuthProvidersController uniAuthProvidersController(AuthProviderRegistry registry) {
@@ -74,6 +98,7 @@ public class UniAuthAutoConfiguration {
 	/**
 	 * Available whether or not the approval gate is on: knowing which provider answered
 	 * is useful to any application, not just to an approval decision.
+	 * @return the resolver
 	 */
 	@Bean
 	@ConditionalOnMissingBean
@@ -96,6 +121,21 @@ public class UniAuthAutoConfiguration {
 	 * <p>
 	 * To replace it outright rather than add to it, name your bean
 	 * {@code uniAuthSecurityFilterChain}.
+	 * @param http the builder this chain is assembled on
+	 * @param properties paths, and which mechanisms to install
+	 * @param registry decides whether a form login is installed at all
+	 * @param authenticationProviders every {@code AuthenticationProvider} bean,
+	 * registered in order so the form falls through them — this is what lets local
+	 * break-glass accounts sit beside a directory
+	 * @param clientRegistrations OAuth2 registrations; login is installed only when some
+	 * exist, since a chain with no registration would 404 its own callback
+	 * @param relyingParties SAML registrations, on the same condition
+	 * @param approvalManager the approval gate, replacing {@code .authenticated()} when
+	 * enabled; absent otherwise
+	 * @param entryPoint an application-supplied entry point, used instead of redirecting
+	 * to the chooser — this is how an API-first application answers 401
+	 * @return the chain
+	 * @throws Exception if the chain cannot be built
 	 */
 	@Bean
 	@ConditionalOnMissingBean(name = "uniAuthSecurityFilterChain")

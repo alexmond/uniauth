@@ -41,6 +41,14 @@ public class GithubEmailOAuth2UserService implements OAuth2UserService<OAuth2Use
 
 	private final String emailsUri;
 
+	/**
+	 * Wraps a user service with the address lookup.
+	 * @param delegate the user service that loads the principal first; this one only adds
+	 * an address to what it returns
+	 * @param restClient client for the second call
+	 * @param emailsUri the endpoint listing addresses, from
+	 * {@code uniauth.oauth2.github.emails-uri}
+	 */
 	public GithubEmailOAuth2UserService(OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate,
 			RestClient restClient, String emailsUri) {
 		this.delegate = delegate;

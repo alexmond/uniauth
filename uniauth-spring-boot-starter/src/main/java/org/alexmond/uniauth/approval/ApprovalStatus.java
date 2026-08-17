@@ -10,12 +10,20 @@ package org.alexmond.uniauth.approval;
  */
 public enum ApprovalStatus {
 
+	/** Never seen. The next authenticated request records them as {@link #PENDING}. */
 	UNKNOWN,
 
+	/** Authenticated, waiting on a decision, held at the pending page. */
 	PENDING,
 
+	/** Admitted. Takes effect on the next request, with no second sign-in. */
 	APPROVED,
 
+	/**
+	 * Refused. A denied principal gets a plain 403 rather than the waiting page, because
+	 * they are not waiting for anything — {@code remove} is what puts somebody back in
+	 * the queue.
+	 */
 	DENIED
 
 }

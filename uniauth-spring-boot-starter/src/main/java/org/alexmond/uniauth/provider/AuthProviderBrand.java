@@ -22,16 +22,32 @@ import java.util.Locale;
  */
 public enum AuthProviderBrand {
 
+	/** OpenID Connect. Yields an {@code OidcUser} with claims. */
 	GOOGLE("Google", "accounts.google.com"),
 
+	/**
+	 * OpenID Connect. Multi-tenant deployments need
+	 * {@code uniauth.oauth2.microsoft.multi-tenant}.
+	 */
 	MICROSOFT("Microsoft", "login.microsoftonline.com"),
 
+	/**
+	 * Plain OAuth2 — no id_token, no claims. Volunteers no email address either; see
+	 * {@code uniauth.oauth2.github.fetch-email}.
+	 */
 	GITHUB("GitHub", "github.com"),
 
+	/**
+	 * Recognised for rendering only. Sign in with Apple is <em>not supported</em>: it
+	 * requires a generated ES256 client secret and {@code ClientRegistration} accepts
+	 * only a static one.
+	 */
 	APPLE("Apple", "appleid.apple.com"),
 
+	/** Plain OAuth2. */
 	FACEBOOK("Facebook", "facebook.com"),
 
+	/** OpenID Connect, and the usual stand-in for any discovery-based IdP. */
 	OKTA("Okta", "okta.com"),
 
 	/** Anything unrecognised: a self-hosted Keycloak, an in-house IdP, a SAML party. */
@@ -46,7 +62,10 @@ public enum AuthProviderBrand {
 		this.host = host;
 	}
 
-	/** Official name of the service, or empty for {@link #GENERIC}. */
+	/**
+	 * Official name of the service, spelled as the vendor spells it.
+	 * @return the display name, or an empty string for {@link #GENERIC}
+	 */
 	public String displayName() {
 		return this.displayName;
 	}

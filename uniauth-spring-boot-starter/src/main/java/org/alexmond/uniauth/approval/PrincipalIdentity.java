@@ -26,7 +26,13 @@ package org.alexmond.uniauth.approval;
  */
 public record PrincipalIdentity(String displayName, String email, Boolean emailVerified, String subject) {
 
-	/** For mechanisms that carry nothing beyond a name. */
+	/**
+	 * For mechanisms that carry nothing beyond a name — an internal account, or any
+	 * provider that volunteered neither a display name nor an address.
+	 * @param name the principal name, which doubles as the subject
+	 * @return an identity with no display name and no address, so a queue renders "no
+	 * name given" rather than a blank that reads as missing data
+	 */
 	public static PrincipalIdentity ofName(String name) {
 		return new PrincipalIdentity(null, null, null, name);
 	}

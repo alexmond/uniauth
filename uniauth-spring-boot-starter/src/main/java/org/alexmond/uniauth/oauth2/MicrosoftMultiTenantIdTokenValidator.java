@@ -47,6 +47,12 @@ public final class MicrosoftMultiTenantIdTokenValidator implements OAuth2TokenVa
 
 	private final String expectedHost;
 
+	/**
+	 * Creates a validator for one registration.
+	 * @param registration the Microsoft registration whose issuer check is being widened;
+	 * a copy with the issuer removed is handed to Spring's own validator, so every other
+	 * check it performs stays intact
+	 */
 	public MicrosoftMultiTenantIdTokenValidator(ClientRegistration registration) {
 		this.delegate = new OidcIdTokenValidator(withoutIssuer(registration));
 		this.expectedHost = hostOf(registration.getProviderDetails().getAuthorizationUri());

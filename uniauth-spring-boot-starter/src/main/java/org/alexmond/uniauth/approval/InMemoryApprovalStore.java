@@ -25,10 +25,16 @@ public class InMemoryApprovalStore implements ApprovalStore {
 
 	private final Clock clock;
 
+	/** Uses the system UTC clock. */
 	public InMemoryApprovalStore() {
 		this(Clock.systemUTC());
 	}
 
+	/**
+	 * Creates a store reading time from the given clock.
+	 * @param clock source of the first-seen and decided-at timestamps; injectable so a
+	 * test can assert on them without sleeping
+	 */
 	public InMemoryApprovalStore(Clock clock) {
 		this.clock = clock;
 	}

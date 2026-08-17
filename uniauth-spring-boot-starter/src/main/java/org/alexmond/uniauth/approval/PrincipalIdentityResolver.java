@@ -31,6 +31,13 @@ public class PrincipalIdentityResolver {
 	private static final boolean LDAP_PRESENT = ClassUtils
 		.isPresent("org.springframework.security.ldap.userdetails.LdapUserDetails", null);
 
+	/**
+	 * Works out who a principal is, for somebody about to decide whether to admit them.
+	 * @param authentication the authenticated principal, or {@code null}
+	 * @return what the provider actually said — an absent email is reported as absent and
+	 * an unverified one as unverified, because filling either in would make a queue look
+	 * more informative than it is
+	 */
 	public PrincipalIdentity resolve(Authentication authentication) {
 		if (authentication == null) {
 			return PrincipalIdentity.ofName(null);

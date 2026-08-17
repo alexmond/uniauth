@@ -28,6 +28,8 @@ public interface ApprovalStore {
 	/**
 	 * Where this principal stands. Returns {@link ApprovalStatus#UNKNOWN} for anyone
 	 * never seen before.
+	 * @param key the principal being asked about
+	 * @return their current standing, never {@code null}
 	 */
 	ApprovalStatus statusOf(ApprovalKey key);
 
@@ -35,14 +37,26 @@ public interface ApprovalStore {
 	 * Records a first sighting as pending, and does nothing if the principal is already
 	 * known. Called on the first authenticated request, so it must be idempotent and
 	 * cheap.
-	 * @return the record as it now stands
+	 * @param key the principal being recorded
+	 * @param identity who that is in terms a person can judge, captured now because the
+	 * queue is read later, by somebody else, when this session may be long gone
+	 * @param mechanism which mechanism vouched for them, so a reviewer can tell a
+	 * directory account from a stranger with a Google login
+	 * @return the record as it now stands — the existing one if already known
 	 */
 	ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
 
-	/** Everyone currently waiting, oldest first. */
+	/**
+	 * Everyone currently waiting, oldest first.
+	 * @return the pending records, empty when nobody is waiting
+	 */
 	List<ApprovalRecord> pending();
 
-	/** One principal's record, empty if never seen. */
+	/**
+	 * One principal's record, whatever their standing.
+	 * @param key the principal being looked up
+	 * @return their record, or empty if never seen
+	 */
 	Optional<ApprovalRecord> find(ApprovalKey key);
 
 	/**
@@ -60,6 +74,7 @@ public interface ApprovalStore {
 	 * This is how access is revoked: the next request re-records them as pending, which
 	 * puts a previously approved user back in the waiting room rather than locking them
 	 * out with no route back. It also covers tidying up after someone leaves.
+	 * @param key the principal to forget; forgetting an unknown one is not an error
 	 */
 	void remove(ApprovalKey key);
 

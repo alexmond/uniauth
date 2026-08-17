@@ -102,6 +102,7 @@ public class UniAuthProperties {
 
 		private List<User> users = new ArrayList<>();
 
+		/** One account in the internal store. */
 		@Data
 		public static class User {
 

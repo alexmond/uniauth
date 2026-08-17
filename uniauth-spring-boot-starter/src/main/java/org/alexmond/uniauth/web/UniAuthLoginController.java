@@ -21,11 +21,25 @@ public class UniAuthLoginController {
 
 	private final UniAuthProperties properties;
 
+	/**
+	 * Creates the controller.
+	 * @param registry supplies the providers the page offers
+	 * @param properties supplies the paths the page posts to
+	 */
 	public UniAuthLoginController(AuthProviderRegistry registry, UniAuthProperties properties) {
 		this.registry = registry;
 		this.properties = properties;
 	}
 
+	/**
+	 * Renders the chooser: the shared credentials form when any form-based mechanism is
+	 * enabled, plus one button per redirect-based registration.
+	 * @param model receives the providers and the flags the template renders from
+	 * @param error present when Spring Security bounced a failed sign-in back here
+	 * @param logout present after a successful sign-out
+	 * @return the view name, which an application can override by placing its own
+	 * template earlier on the classpath
+	 */
 	@GetMapping("${uniauth.login-page:/login}")
 	public String login(Model model, @RequestParam(required = false) String error,
 			@RequestParam(required = false) String logout) {

@@ -20,6 +20,15 @@ package org.alexmond.uniauth.provider;
 public record AuthProvider(String id, AuthProviderType type, AuthProviderBrand brand, String displayName,
 		String loginUrl, boolean oidc) {
 
+	/**
+	 * Whether this provider answers the shared username/password form.
+	 *
+	 * <p>
+	 * Delegates to the mechanism, because it is a property of how the provider talks
+	 * rather than of the individual registration. A chooser uses it to decide between
+	 * rendering the form and rendering a button.
+	 * @return {@code true} for internal and LDAP providers
+	 */
 	public boolean isFormBased() {
 		return this.type.isFormBased();
 	}
