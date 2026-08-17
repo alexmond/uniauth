@@ -1,29 +1,33 @@
 = UniAuth
-:toc: preamble
+:toc: macro
 :icons: font
-:uniauth-version: 4.1.0.1-SNAPSHOT
+:uniauth-version: 4.1.0.1
 
-A universal Spring Boot / Spring Security authentication client. It puts an *internal* user store,
-*OAuth2 / OIDC*, *SAML 2.0* and *LDAP* behind a single `SecurityFilterChain`, with a login page
-that lets the user pick between whichever of them you have turned on.
+image:https://img.shields.io/maven-central/v/org.alexmond/uniauth-spring-boot-starter.svg[Maven Central,link=https://central.sonatype.com/artifact/org.alexmond/uniauth-spring-boot-starter]
+image:https://img.shields.io/badge/license-Apache--2.0-blue.svg[License,link=https://www.apache.org/licenses/LICENSE-2.0]
+image:https://github.com/alexmond/uniauth/actions/workflows/maven.yml/badge.svg[Build,link=https://github.com/alexmond/uniauth/actions/workflows/maven.yml]
+image:https://img.shields.io/badge/Java-21%2B-blue.svg[Java 21+]
+image:https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen.svg[Spring Boot 4.1]
 
-WARNING: Pre-1.0 and moving. Treat the configuration surface as unstable.
+A *Spring Boot starter* that puts an internal user store, OAuth2/OpenID Connect, SAML 2.0 and LDAP
+behind a *single* `SecurityFilterChain`, with a login page that lets the user pick whichever
+mechanisms are switched on.
 
-== Why one filter chain
+== Why UniAuth
 
-The obvious way to support four mechanisms is four `SecurityFilterChain` beans. That does not work:
-chains are matched in order and the first match wins, so the rest never run. UniAuth instead builds
-*one* chain carrying form login, OAuth2 login and SAML login together.
+* *Four mechanisms, one chain.* Chains match in order and the first match wins, so one chain per
+  mechanism would mean only the first ever runs. Adding a second way in does not mean a second chain.
+* *No re-declared OAuth2 or SAML configuration.* Registrations come from Spring Boot's own
+  `spring.security.oauth2.client.registration.*` and `spring.security.saml2.relyingparty.*` — two
+  lines of standard config add Google, and the chooser, brand and OIDC detection follow from it.
+* *Local accounts beside a directory.* Form-based mechanisms share one form and are told apart by the
+  `AuthenticationProvider` chain, so break-glass accounts survive a directory outage.
+* *An optional approval gate.* Authenticating and being admitted are separate decisions — a provider
+  will vouch for anyone holding an account with it, which is not the same as letting them in.
+* *Provider quirks as opt-in adapters, never new mechanisms* — GitHub's second call for an email
+  address, Microsoft's multi-tenant issuer.
 
-* *Internal and LDAP are form-based.* They share one username/password form and are told apart by
-  the `AuthenticationProvider` chain — each contributes a provider, and Spring Security tries them
-  in turn. That is what lets you keep a couple of local break-glass accounts next to a directory.
-* *OAuth2 and SAML are redirect-based.* Each registration keeps its own entry-point URL, so the
-  chooser page only has to render a link per registration.
-
-== Quick start
-
-Add the starter:
+== Get started
 
 [source,xml,subs="attributes+"]
 ----
@@ -34,23 +38,7 @@ Add the starter:
 </dependency>
 ----
 
-IMPORTANT: OpenSAML — pulled in transitively by `spring-security-saml2-service-provider` — is *not
-published to Maven Central*. Your build needs the Shibboleth repository or dependency resolution
-will fail:
-+
-[source,xml]
-----
-<repositories>
-    <repository>
-        <id>shibboleth-releases</id>
-        <url>https://build.shibboleth.net/maven/releases/</url>
-        <snapshots><enabled>false</enabled></snapshots>
-    </repository>
-</repositories>
-----
-
-Then enable whichever mechanisms you want. Nothing is on by default except the two that need no
-configuration of their own:
+Nothing is enabled by default beyond the chain itself, so switch on at least one mechanism:
 
 [source,yaml]
 ----
@@ -59,275 +47,62 @@ uniauth:
     enabled: true
     users:
       - username: alice
-        password: "{noop}s3cret"   # delegating encoder — prefix the algorithm
+        password: "{noop}s3cret"     # use {bcrypt}… anywhere real
         roles: [ USER, ADMIN ]
-  ldap:
-    enabled: true
-    url: ldap://directory.example.com:389/dc=example,dc=com
-    user-dn-patterns: [ "uid={0},ou=people" ]
-    group-search-base: ou=groups
-
-# OAuth2 and SAML reuse Spring Boot's own binding — UniAuth consumes the repositories
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ...
-            client-secret: ...
-    saml2:
-      relyingparty:
-        registration:
-          okta:
-            ...
 ----
 
-That last part is deliberate: UniAuth does *not* re-declare registration properties for OAuth2 and
-SAML. It reads the `ClientRegistrationRepository` and `RelyingPartyRegistrationRepository` that Boot
-already builds, so the whole upstream configuration surface stays available and stays documented by
-Spring Boot.
+Everything but the login page now needs a session. Adding a directory, an OIDC provider or the
+approval gate is a few more lines each — see the
+https://www.alexmond.org/uniauth/current/getting-started.html[getting started guide].
 
-== Try it
+NOTE: Enabling SAML pulls in OpenSAML, which is *not published to Maven Central*. That build needs
+the https://build.shibboleth.net/maven/releases/[Shibboleth repository], or it fails to resolve
+`org.opensaml:*`.
 
-`uniauth-examples` holds runnable applications, one per way of consuming the starter. Both boot
-the internal store and an in-process LDAP directory, so sign-in works with nothing else running.
+== Documentation
 
-[cols="1,3"]
-|===
-|Module |What it shows
+https://www.alexmond.org/uniauth/current/index.html[Full documentation] —
+https://www.alexmond.org/uniauth/current/mechanisms.html[mechanisms] ·
+https://www.alexmond.org/uniauth/current/providers.html[provider recipes] ·
+https://www.alexmond.org/uniauth/current/approval.html[approval gate] ·
+https://www.alexmond.org/uniauth/current/configuration.html[configuration] ·
+https://www.alexmond.org/uniauth/current/architecture.html[architecture]
 
-|`webapp` |*Start here.* Server-rendered pages, the provider chooser, and the approval queue.
-|`headless` |API-first: no templates, providers as JSON, 401 instead of a redirect.
-|===
+API reference:
+https://javadoc.io/doc/org.alexmond/uniauth-spring-boot-starter/latest/index.html[uniauth-spring-boot-starter]
+
+== Examples
+
+The repository ships a demo stack under `uniauth-examples/`, plus the two services that keep it
+honest — an OAuth2/OIDC provider and an admin console, each its own process.
 
 [source,bash]
 ----
-./mvnw -Pdefault -DskipTests install                            # once — publishes the starter
-./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run
+./mvnw -Pdefault -DskipTests install                          # the -pl below resolves from the repo
+./mvnw -Pdefault -pl uniauth-examples/webapp spring-boot:run  # http://localhost:8080
 ----
 
-Then open http://localhost:8080. The `install` step is required: `-pl` resolves the starter
-from the local repository, not the reactor. See `uniauth-examples/README.adoc` for the rest.
-
-[cols="2,3"]
 |===
-|Sign in as |What it shows
+| Module | What it is
 
-|`alice` / `s3cret` |Internal store, `ROLE_USER` + `ROLE_ADMIN`
-|`breakglass` / `local-only` |Internal store, a local account beside the directory
-|`bob` / `bobspassword` |LDAP, with `ROLE_DEVELOPERS` resolved from a group
+| `uniauth-examples/webapp` | Server-rendered demo: chooser, public and protected pages, approval queue.
+| `uniauth-examples/headless` | API-first — answers `401` instead of redirecting.
+| `uniauth-authserver` | An OAuth2/OIDC provider, its own service. Deliberately does not depend on the starter.
+| `uniauth-admin` | A standalone console that administers the provider and the directory.
 |===
 
-`/` and `/how-it-works` are public; `/dashboard` and `/session` are not. The dashboard names
-the mechanism that actually authenticated you and lights it on the provider panel — sign in
-as `alice` and then as `bob` to watch the same form resolve through different providers.
-
-The sample also re-skins the chooser by dropping its own `templates/uniauth/login.html`,
-which is the supported way to restyle it: an application's templates come before the
-starter's on the classpath.
-
-== What you get
-
-`GET /login`:: A chooser page — the shared credentials form when any form-based provider is on, plus
-one button per OAuth2/SAML registration.
-`GET /uniauth/providers`:: The same information as JSON, for a single-page or mobile front end that
-wants to render its own chooser.
-
-== Approval: authenticating is not the same as being let in
-
-"Anyone with a Google account" and "anyone in the corporate directory" are both much larger sets
-than "people who should use this application". Turn approval on and a principal nobody has
-approved yet lands on a waiting page instead of the app.
-
-[source,yaml]
-----
-uniauth:
-  approval:
-    enabled: true
-    require-for: [ LDAP, OAUTH2, SAML ]   # default
-    pending-page: /pending
-----
-
-Internal accounts are ungated by default, on the grounds that writing one into configuration is
-already a deliberate act of approval.
-
-The gate sits in *authorization*, not authentication. Failing the login instead would report
-"waiting for approval" as a credentials failure — misleading, and a small information leak, since
-it tells an attacker their guess was right.
-
-=== The store is yours to provide
-
-UniAuth ships `InMemoryApprovalStore` so the flow works out of the box, and it is deliberately
-unfit for production: state is lost on restart, so every approved user goes back to pending, and
-nothing is shared between instances, so behind a load balancer a user's standing depends on which
-node they hit.
-
-Supply your own `ApprovalStore` bean backed by whatever database you already have. Keeping
-persistence behind that interface is what stops this starter from dragging Spring Data, a schema
-and a migration story onto an application that only wanted a login page.
-
-[source,java]
-----
-public interface ApprovalStore {
-    ApprovalStatus statusOf(ApprovalKey key);
-    ApprovalRecord recordPending(ApprovalKey key, AuthProviderType mechanism);
-    List<ApprovalRecord> pending();
-    Optional<ApprovalRecord> find(ApprovalKey key);
-    void decide(ApprovalKey key, ApprovalStatus outcome, String approver);
-    void remove(ApprovalKey key);   // revoking: back to the waiting room, not locked out
-}
-----
-
-Keys are `(provider, principal)`, never the principal alone: "alice" in the internal store and
-"alice" at some OIDC provider are different people who happen to share a string.
-
-*Who may approve is your decision, not UniAuth's.* The library answers "is this principal
-approved"; it has no opinion on who gets to say so. The sample restricts its queue to
-`ROLE_ADMIN` with method security — see `ApprovalController`.
-
-== Provider notes
-
-Spring Boot fills in well-known providers from `CommonOAuth2Provider`, matched on the
-*registration id*, so `registration.google` needs only a client id and secret. That enum covers
-Google, GitHub, Facebook, X and Okta — **not Microsoft, and not Apple**.
-
-[cols="1,1,3"]
-|===
-|Provider |OIDC |What to know
-
-|Google |Yes |Works from a client id and secret alone.
-|Okta / Auth0 / Keycloak |Yes |Generic. Set `issuer-uri` and discovery does the rest.
-|GitHub |*No* |Plain OAuth2, so no id_token, no claims, and nothing to support RP-initiated
-logout. `email` is null for private addresses — see `uniauth.oauth2.github.fetch-email`.
-|Microsoft Entra ID |Yes |Not in `CommonOAuth2Provider`; write the provider block by hand.
-Multi-tenant needs `uniauth.oauth2.microsoft.multi-tenant`.
-|Apple |Yes |*Not supported.* The client secret must be a generated ES256 JWT, and Spring's
-`ClientRegistration` only accepts a static one.
-|===
-
-The distinction that changes your code is **OIDC or not**, not the brand — `AuthProvider.oidc()`
-carries it. Google gives you an `OidcUser` with claims; GitHub gives you a bare `OAuth2User`
-assembled from a userinfo call. `AuthProvider.brand()` is for icons and button treatment only.
-
-=== GitHub: getting an email address
-
-[source,yaml]
-----
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          github:
-            client-id: ...
-            client-secret: ...
-            scope: [ read:user, user:email ]   # user:email is required
-uniauth:
-  oauth2:
-    github:
-      fetch-email: true
-----
-
-This adds the second call to `/user/emails` that Spring's default user service has no reason to
-make, and merges the primary verified address into the principal. Without the `user:email` scope
-the call is refused; the sign-in still succeeds, just without an address.
-
-=== Microsoft Entra ID
-
-[source,yaml]
-----
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          microsoft:
-            client-id: ...
-            client-secret: ...
-            scope: [ openid, profile, email ]
-            authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-        provider:
-          microsoft:
-            authorization-uri: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
-            token-uri: https://login.microsoftonline.com/common/oauth2/v2.0/token
-            jwk-set-uri: https://login.microsoftonline.com/common/discovery/v2.0/keys
-            user-name-attribute: sub
-uniauth:
-  oauth2:
-    microsoft:
-      multi-tenant: true      # only for the common/organizations endpoints
-----
-
-Single-tenant needs no flag: put your tenant id in the URIs and set `issuer-uri`.
-
-Multi-tenant does. OpenID Connect requires the `iss` claim to match discovery exactly, but Entra's
-`common` discovery document advertises an issuer containing a literal `{tenantid}` placeholder
-while every id_token carries the caller's real tenant, so the exact-match rule rejects everything.
-The flag substitutes a check that the issuer is a GUID tenant on the same host.
-
-WARNING: That is a genuine loosening — with it on, **any** Entra tenant can sign in, not only
-yours. Authorize on the `tid` claim if that is not what you want.
-
-== Configuration reference
-
-[cols="2,1,3"]
-|===
-|Property |Default |Notes
-
-|`uniauth.enabled` |`true` |Master switch. When false UniAuth backs off entirely.
-|`uniauth.login-page` |`/login` |Path of the chooser page.
-|`uniauth.default-success-url` |`/` |Where to land after signing in.
-|`uniauth.logout-success-url` |`/login?logout` |
-|`uniauth.providers-endpoint` |`/uniauth/providers` |
-|`uniauth.approval.enabled` |`false` |Hold unapproved principals at a waiting page.
-|`uniauth.approval.require-for` |`OAUTH2, SAML, LDAP` |Which mechanisms are gated.
-|`uniauth.approval.pending-page` |`/pending` |Permitted automatically when approval is on.
-|`uniauth.public-paths` |empty |Extra ant-style paths served without a session. Use this for
-public pages and static assets instead of declaring your own `SecurityFilterChain`, which would
-make the starter back off entirely.
-|`uniauth.internal.enabled` |`false` |
-|`uniauth.internal.users[].password` |— |Carries an algorithm prefix, e.g. `{noop}` or `{bcrypt}`.
-|`uniauth.ldap.enabled` |`false` |
-|`uniauth.ldap.url` |— |Full provider URL including the base DN.
-|`uniauth.ldap.user-dn-patterns` |`uid={0},ou=people` |
-|`uniauth.ldap.group-search-base` |`ou=groups` |
-|`uniauth.ldap.manager-dn` / `.manager-password` |— |Omit for an anonymous bind.
-|`uniauth.oauth2.enabled` |`true` |Only takes effect if a `ClientRegistrationRepository` exists.
-|`uniauth.oauth2.github.fetch-email` |`false` |Fetch the primary verified address from
-`/user/emails` when userinfo has none. Needs the `user:email` scope.
-|`uniauth.oauth2.microsoft.multi-tenant` |`false` |Accept id_tokens from any Entra tenant rather
-than one fixed issuer. Required for the `common`/`organizations` endpoints; loosens issuer
-validation.
-|`uniauth.saml.enabled` |`true` |Only takes effect if a `RelyingPartyRegistrationRepository` exists.
-|===
-
-== Overriding
-
-Every bean is `@ConditionalOnMissingBean`, so declaring your own `SecurityFilterChain`,
-`AuthProviderRegistry` or login controller replaces the starter's without excluding the
-auto-configuration.
-
-Two hooks are worth knowing before you reach for a whole filter chain, because replacing it
-means giving up all the wiring:
-
-`uniauth.public-paths`:: Opens up routes without touching the chain.
-`AuthenticationEntryPoint` bean:: Declare one and the starter uses it instead of redirecting to
-the chooser. An API-first application returns 401 this way — see the `headless` example.
+Only `uniauth-spring-boot-starter` is published to Maven Central; the rest are demonstrations.
 
 == Building
 
 [source,bash]
 ----
-scripts/dev-verify.sh                     # format + full verify (what CI runs)
-scripts/dev-test.sh UniAuthLdapLoginTest  # one test class
-./mvnw spring-javaformat:apply            # auto-format before committing
+./mvnw clean verify -Pdefault
 ----
 
-Java 21, Spring Boot 4.1.x. Every `verify` runs four gates, all of which fail the build:
-spring-javaformat (tabs, Spring conventions), Checkstyle, PMD, and JaCoCo at ≥80% line coverage.
+Java 21, Spring Boot 4.1. The build enforces spring-javaformat, Checkstyle, PMD and a JaCoCo
+coverage floor.
 
 == Licence
 
-Apache License 2.0.
+Apache License 2.0 — see link:LICENSE[LICENSE].

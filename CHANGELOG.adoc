@@ -1,0 +1,56 @@
+= Changelog
+
+== 4.1.0.1 (unreleased)
+
+First release. The version tracks the Spring Boot line it builds against — `4.1.0` — with a fourth
+segment as this library's own patch counter.
+
+=== Authentication
+
+* *One `SecurityFilterChain` for four mechanisms.* Form login, OAuth2/OIDC login and SAML login are
+  installed onto a single chain. Chains match in order and the first match wins, so a chain per
+  mechanism would leave all but the first unreachable.
+* *Internal user store* (`uniauth.internal.*`) — accounts declared in configuration, for a first run
+  and for break-glass access beside a directory.
+* *LDAP* (`uniauth.ldap.*`) — bind authentication with a group search, including
+  `manager-dn`/`manager-password` for directories that are not world-readable.
+* *OAuth2 / OpenID Connect and SAML 2.0* — consumed from Spring Boot's own
+  `spring.security.oauth2.client.registration.*` and `spring.security.saml2.relyingparty.*` rather
+  than re-declared under `uniauth.*`.
+* *Provider chooser* — `AuthProviderRegistry` answers what a user can sign in with right now; served
+  as a page and as JSON at `uniauth.providers-endpoint`.
+* *`AuthProvider.oidc()`* distinguishes OpenID Connect from plain OAuth2, derived from the `openid`
+  scope. This is the capability that changes what an application receives — an `OidcUser` with claims
+  versus a bare `OAuth2User` — and is separate from brand.
+
+=== Approval gate
+
+* *`uniauth.approval.*`* inserts a decision between authenticating and being admitted. It sits in
+  authorization rather than authentication, so a held principal is not reported as a credentials
+  failure — which would be misleading and would confirm a correct guess to an attacker.
+* *`ApprovalStore` SPI*, so the only stateful thing in the library does not force a schema on every
+  consumer. `InMemoryApprovalStore` is the default and is not production-fit: it empties on restart
+  and is per-instance.
+* *`PrincipalIdentity` captured at first sighting* — display name, email, and whether the provider
+  says it *verified* that address. Approval is keyed on the stable subject, which for an OIDC login
+  is an unreadable number; the identity is what makes the decision about a person rather than about
+  a key. Verification has three states, never collapsed into two: verified, unverified, and "the
+  provider said nothing".
+
+=== Provider adapters
+
+* *`uniauth.oauth2.github.fetch-email`* — GitHub does not volunteer an email address, so this makes
+  the second call that fetches one. It takes the account's *primary verified* address in preference
+  to the public profile field, and reports it as verified.
+* *`uniauth.oauth2.microsoft.multi-tenant`* — accepts tenant-template issuers without reimplementing
+  ID token validation: Spring's own validator is given a registration copy with the issuer removed,
+  keeping every other check intact, and the issuer rule is applied separately.
+* Apple is deliberately unsupported while Spring requires a static client secret.
+
+=== Extension points
+
+* `uniauth.public-paths` for routes reachable without a session.
+* An `AuthenticationEntryPoint` bean, used in place of redirecting to the chooser — this is how an
+  API-first application answers `401`.
+* A second `SecurityFilterChain`: the starter's catch-all backs off on its own bean *name*, so adding
+  a chain no longer costs every mechanism.
