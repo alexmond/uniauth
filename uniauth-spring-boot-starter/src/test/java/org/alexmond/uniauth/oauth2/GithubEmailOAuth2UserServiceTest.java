@@ -2,6 +2,7 @@ package org.alexmond.uniauth.oauth2;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
@@ -80,12 +82,37 @@ class GithubEmailOAuth2UserServiceTest {
 	}
 
 	@Test
-	void leavesAnExistingEmailAlone() {
+	void theVerifiedAddressBeatsThePublicProfileOne() {
+		// /user returns the PUBLIC PROFILE email — whatever the account chose to display,
+		// with nothing said about whether it is still theirs, and often stale. The
+		// primary
+		// verified address is the account's actual identity. This test used to assert the
+		// opposite and was encoding the bug: a real GitHub login showed the public
+		// address
+		// with no badge, which is both the wrong address and no hint that it was
+		// unchecked.
+		this.server.expect(requestTo(EMAILS_URI)).andRespond(withSuccess("""
+				[{"email":"real@example.com","primary":true,"verified":true}]
+				""", MediaType.APPLICATION_JSON));
+
+		OAuth2User user = service(githubUser("public@example.com")).loadUser(request("github"));
+
+		assertThat(user.<String>getAttribute("email")).isEqualTo("real@example.com");
+		assertThat(user.<Boolean>getAttribute("email_verified")).isTrue();
+		this.server.verify();
+	}
+
+	@Test
+	void thePublicAddressSurvivesWhenThereIsNoVerifiedOne() {
+		// No user:email scope, or no verified address on the account. Keeping what /user
+		// gave is better than showing nothing — but it stays unmarked, because unmarked
+		// is the truth about it.
+		this.server.expect(requestTo(EMAILS_URI)).andRespond(withStatus(HttpStatus.FORBIDDEN));
+
 		OAuth2User user = service(githubUser("public@example.com")).loadUser(request("github"));
 
 		assertThat(user.<String>getAttribute("email")).isEqualTo("public@example.com");
-		// No second call was made — a public address is already the answer.
-		this.server.verify();
+		assertThat(user.<Boolean>getAttribute("email_verified")).isNull();
 	}
 
 	@Test

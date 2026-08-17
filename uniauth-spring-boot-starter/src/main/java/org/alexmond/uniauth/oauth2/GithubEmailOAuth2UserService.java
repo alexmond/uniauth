@@ -54,11 +54,17 @@ public class GithubEmailOAuth2UserService implements OAuth2UserService<OAuth2Use
 		if (AuthProviderBrand.detect(userRequest.getClientRegistration()) != AuthProviderBrand.GITHUB) {
 			return user;
 		}
-		if (user.getAttribute("email") != null) {
-			return user;
-		}
+		// Asked for even when /user already returned one. That field is the PUBLIC
+		// PROFILE email — whatever the account chose to display — and GitHub says nothing
+		// about whether it still belongs to them; it is frequently an old address. The
+		// primary verified address is the account's actual identity, so it wins when both
+		// exist. Preferring the public one is how this shipped showing the wrong address
+		// with no badge to hint that it was unchecked.
 		String email = primaryVerifiedEmail(userRequest);
 		if (email == null) {
+			// Nothing verified to be had — no user:email scope, or no verified address on
+			// the account. Whatever /user gave stays, unmarked, because unmarked is the
+			// truth about it.
 			return user;
 		}
 		Map<String, Object> attributes = new LinkedHashMap<>(user.getAttributes());
