@@ -137,6 +137,31 @@ else
   printf '\n\033[1mwebapp -> GitHub\033[0m\n  \033[33mSKIP\033[0m github profile is off\n'
 fi
 
+# SAML, when the saml profile is on.
+if printf '%s' "$CHOOSER" | grep -q '/saml2/authenticate/'; then
+  section "webapp -> SAML"
+  check "the chooser offers SAML" "$CHOOSER" "/saml2/authenticate/"
+  # Not a redirect: the POST binding returns an auto-submitting form, and its action is
+  # the URL the browser posts the AuthnRequest to.
+  SLOC=$(curl -s "$WEBAPP/saml2/authenticate/keycloak" | grep -oE 'action="[^"]*"' | head -1)
+  # The SP redirects the browser to whatever the IdP metadata advertised. If that is http,
+  # the POST binding then submits the assertion from an https page to an http action and
+  # the browser blocks it with a mixed-content interstitial — which a headless browser
+  # submits silently, so only a real one notices. Assert the scheme rather than the flow.
+  check "the AuthnRequest form posts to the IdP over HTTPS" "$SLOC" "https://"
+  check "SAML is reported as SAML, not OIDC" \
+    "$(curl -s $WEBAPP/uniauth/providers | tr '}' '\n' | grep saml2)" '"type":"SAML"'
+  # Metadata is read once at startup, so an IdP that advertises http leaves the SP holding
+  # it until the SP restarts. Check the source too, not only what the SP now believes —
+  # and derive its address from the form action rather than naming a host, so this script
+  # carries no deployment of its own.
+  IDP_ORIGIN=$(printf '%s' "$SLOC" | sed 's|action="||;s|"||' | cut -d/ -f1-3)
+  IDP=$(curl -s "$IDP_ORIGIN/realms/uniauth/protocol/saml/descriptor" 2>/dev/null)
+  check "the IdP advertises HTTPS endpoints" "$IDP" 'Location="https://'
+else
+  printf '\n\033[1mwebapp -> SAML\033[0m\n  \033[33mSKIP\033[0m saml profile is off\n'
+fi
+
 section "webapp -> authserver — the OAuth hop across two hosts"
 JO=$(mktemp)
 LOC=$(curl -s -c "$JO" -o /dev/null -w '%{redirect_url}' "$WEBAPP/oauth2/authorization/local")
