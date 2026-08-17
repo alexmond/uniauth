@@ -37,9 +37,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
+        <!--
+          Boot's SAML starter, NOT spring-security-saml2-service-provider on its own.
+        
+          Boot 4 moved SAML autoconfiguration out of spring-boot-autoconfigure into its own
+          module. The Spring Security artifact alone gives you the filters and no binding, so
+          spring.security.saml2.relyingparty.* is read by nobody: no repository is created, the
+          chooser lists no SAML provider, and saml2Login never installs — silently, because
+          nothing is missing as far as the classpath is concerned. This starter mirrors what
+          the OAuth2 side already does with spring-boot-starter-oauth2-client.
+        -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-saml2-service-provider</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-saml2</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
