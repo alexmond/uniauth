@@ -1,5 +1,15 @@
 = Changelog
 
+== 4.1.0.2 (unreleased)
+
+* *Fix — the LDAP jars are optional again* (#2). They were compile-scope, so every consumer
+  carried them; their presence activates Boot's own `LdapAutoConfiguration`, which health-checks
+  `ldap://localhost:389` and reports `DOWN`. An application using Google and a local admin, with
+  no directory at all, failed its Kubernetes readiness probe because of an authentication
+  library — and neither `uniauth.ldap.enabled=false` nor `uniauth.enabled=false` could switch it
+  off, because the indicator is Boot's and keys off the jar. Applications that use LDAP now add
+  `spring-boot-starter-ldap` themselves, which is the ordinary starter pattern.
+
 == 4.1.0.1
 
 First release. The version tracks the Spring Boot line it builds against — `4.1.0` — with a fourth

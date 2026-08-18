@@ -33,6 +33,10 @@ page; `public-paths` is for your own routes.
 
 == LDAP
 
+NOTE: Needs `spring-boot-starter-ldap` and `spring-security-ldap` on the classpath — they are
+optional dependencies of the starter. See xref:getting-started.adoc#_adding_a_directory[Adding
+a directory] for why.
+
 [cols="2,1,3"]
 |===
 | Property | Default | What it does

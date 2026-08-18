@@ -1,7 +1,7 @@
 package org.alexmond.uniauth.provider;
 
 import org.springframework.security.core.Authentication;
-import org.springframework.security.ldap.userdetails.LdapUserDetails;
+import org.springframework.util.ClassUtils;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
@@ -14,7 +14,7 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
  * types Spring Security leaves behind. The redirect-based mechanisms each have their own
  * token class and carry a registration id. The two form-based ones both produce a
  * {@code UsernamePasswordAuthenticationToken} and are told apart by their principal: only
- * {@code LdapAuthenticationProvider} returns an {@link LdapUserDetails}.
+ * {@code LdapAuthenticationProvider} returns an {@code LdapUserDetails}.
  *
  * <p>
  * This started in the sample app, kept out of the library until something depended on it.
@@ -22,6 +22,12 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
  * particular provider</em>, so the decision cannot be made without this.
  */
 public class MechanismResolver {
+
+	// spring-security-ldap is an optional dependency: an application that never enables
+	// LDAP should not have to carry it, and carrying it is not free — Boot's own
+	// LdapAutoConfiguration then health-checks localhost:389 and reports DOWN.
+	private static final boolean LDAP_PRESENT = ClassUtils
+		.isPresent("org.springframework.security.ldap.userdetails.LdapUserDetails", null);
 
 	/**
 	 * Works out which provider vouched for a principal.
@@ -58,10 +64,23 @@ public class MechanismResolver {
 			// carries it — rather than trusting the name below.
 			return new ResolvedMechanism(AuthProviderType.SAML, (registrationId != null) ? registrationId : "saml");
 		}
-		if (authentication != null && authentication.getPrincipal() instanceof LdapUserDetails) {
+		if (LDAP_PRESENT && authentication != null && Ldap.isDirectoryPrincipal(authentication.getPrincipal())) {
 			return new ResolvedMechanism(AuthProviderType.LDAP, "ldap");
 		}
 		return new ResolvedMechanism(AuthProviderType.INTERNAL, "internal");
+	}
+
+	/**
+	 * Kept in its own class so the LDAP type is only loaded when the jar is present. An
+	 * {@code instanceof} against an absent type in the enclosing method can fail
+	 * verification before the guard above ever runs.
+	 */
+	private static final class Ldap {
+
+		static boolean isDirectoryPrincipal(Object principal) {
+			return principal instanceof org.springframework.security.ldap.userdetails.LdapUserDetails;
+		}
+
 	}
 
 }

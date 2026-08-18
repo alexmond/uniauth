@@ -23,6 +23,22 @@
         </dependency>
 
         <!--
+          Declared here because the starter marks the LDAP jars optional: an application
+          that never enables a directory should not carry them, since Boot's own
+          LdapAutoConfiguration then health-checks localhost:389 and reports DOWN. This
+          example does enable one, so it asks for them — which is the same line any
+          consumer using LDAP has to add.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-ldap</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-ldap</artifactId>
+        </dependency>
+
+        <!--
           Health endpoints for the container probes. The webapp example learned this the
           hard way: without actuator the app starts cleanly, no management port opens, and
           the pod never goes Ready.

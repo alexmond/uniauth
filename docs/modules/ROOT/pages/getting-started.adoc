@@ -55,6 +55,26 @@ exist for.
 
 == Adding a directory
 
+The LDAP jars are an *optional* dependency, so add them alongside the starter:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-ldap</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.security</groupId>
+    <artifactId>spring-security-ldap</artifactId>
+</dependency>
+----
+
+They are optional rather than transitive because carrying them is not free: their presence
+activates Boot's own `LdapAutoConfiguration`, which builds a context source for
+`ldap://localhost:389` and whose health indicator then reports `DOWN`. An application that
+never wanted a directory would fail its readiness probe, and no `uniauth.*` property can
+switch that off — the indicator is Boot's, and it keys off the jar.
+
 [source,yaml]
 ----
 uniauth:

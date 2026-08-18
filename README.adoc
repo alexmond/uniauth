@@ -73,7 +73,7 @@ uniauth:
         password: "{noop}s3cret"   # delegating encoder — prefix the algorithm
         roles: [ USER, ADMIN ]
   ldap:
-    enabled: true
+    enabled: true    # also add spring-boot-starter-ldap — it is an optional dependency
     url: ldap://directory.example.com:389/dc=example,dc=com
     user-dn-patterns: [ "uid={0},ou=people" ]
     group-search-base: ou=groups

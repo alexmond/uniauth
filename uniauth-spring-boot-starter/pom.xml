@@ -51,13 +51,29 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-saml2</artifactId>
         </dependency>
+        <!--
+          OPTIONAL. An application that never enables LDAP should not have to carry the
+          jars, and carrying them is not free: spring-boot-starter-ldap activates Boot's
+          own LdapAutoConfiguration, which builds a ContextSource for ldap://localhost:389
+          and whose health indicator then reports DOWN. On Kubernetes that is a failed
+          readiness probe and a rollout that never completes, in an application that never
+          asked for a directory — and neither uniauth.ldap.enabled=false nor
+          uniauth.enabled=false can switch it off, because the indicator is Boot's and keys
+          off the jar rather than off any property of ours.
+        
+          Using LDAP? Add spring-boot-starter-ldap to your own build. LdapAuthConfiguration
+          is @ConditionalOnClass, and MechanismResolver isolates the one type it needs, so
+          the starter backs off cleanly when they are absent.
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-ldap</artifactId>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-ldap</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
