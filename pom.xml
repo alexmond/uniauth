@@ -146,9 +146,23 @@
                         </rulesets>
                     </configuration>
                     <executions>
+                        <!--
+                          process-classes, NOT validate. PMD's type-resolution rules — the
+                          ones that need to know what a symbol actually is, like
+                          LambdaCanBeMethodReference — resolve against target/classes. Bound
+                          to validate they run BEFORE compile, so on a clean checkout there
+                          are no classes, those rules silently never fire, and the gate is
+                          weaker on CI than it is locally.
+
+                          That is not theoretical: a violation shipped to master, passed CI
+                          on a clean build, and was reported by a consumer whose target/
+                          happened to be populated from an earlier build. A gate that only
+                          fires on incremental builds is worse than no gate, because it
+                          looks green.
+                        -->
                         <execution>
                             <id>pmd-check</id>
-                            <phase>validate</phase>
+                            <phase>process-classes</phase>
                             <goals>
                                 <goal>check</goal>
                             </goals>
