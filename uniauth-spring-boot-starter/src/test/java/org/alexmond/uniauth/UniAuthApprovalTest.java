@@ -34,8 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(classes = TestApplication.class)
 @AutoConfigureMockMvc
-@TestPropertySource(properties = { "uniauth.approval.enabled=true", "uniauth.approval.require-for=LDAP",
-		"uniauth.approval.pending-page=/pending",
+@TestPropertySource(properties = { "uniauth.enabled=true", "uniauth.approval.enabled=true",
+		"uniauth.approval.require-for=LDAP", "uniauth.approval.pending-page=/pending",
 
 		"spring.ldap.embedded.base-dn=dc=example,dc=com", "spring.ldap.embedded.ldif=classpath:test-directory.ldif",
 		"spring.ldap.embedded.port=13390",

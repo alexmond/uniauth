@@ -20,14 +20,17 @@ accounts would be worse than one that does nothing. Switch on at least one mecha
 [source,yaml]
 ----
 uniauth:
+  enabled: true          # <1>
   internal:
     enabled: true
     users:
       - username: alice
-        password: "{noop}s3cret"     # <1>
+        password: "{noop}s3cret"     # <2>
         roles: [ USER, ADMIN ]
 ----
-<1> `{noop}` is a `DelegatingPasswordEncoder` prefix meaning "stored in clear". Fine for a
+<1> Required. The starter installs nothing until asked — it decides authorization, so being
+    on the classpath is not consent.
+<2> `{noop}` is a `DelegatingPasswordEncoder` prefix meaning "stored in clear". Fine for a
     first run; use `{bcrypt}$2a$10$…` anywhere else, and inject it from the environment
     rather than committing it.
 

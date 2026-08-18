@@ -85,6 +85,10 @@ management:
       enabled: false
 
 uniauth:
+  # Explicit: the starter installs nothing unless asked. It decides who may reach
+  # what, so being on the classpath is not consent.
+  enabled: true
+
   # The console signs its own administrators in with UniAuth. These are a separate
   # population from the users being administered — an account here grants no access to any
   # managed application, and vice versa.

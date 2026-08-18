@@ -2,6 +2,14 @@
 
 == 4.1.0.2 (unreleased)
 
+* *Breaking — `uniauth.enabled` now defaults to `false`* (#6). The starter installed its
+  catch-all chain on the strength of being on the classpath, so adding the dependency changed
+  an application's authorization in every profile and every test before any integration was
+  written — and since the chain's default is `anyRequest().authenticated()`, the symptom was a
+  broadly-locked application rather than an obviously broken one. Set `uniauth.enabled: true`
+  to opt in, consistent with `internal`, `ldap` and `approval`, which already defaulted to off.
+  When the chain installs it now logs so at INFO, naming its default rule and permitted paths.
+
 * *Fix — the LDAP jars are optional again* (#2). They were compile-scope, so every consumer
   carried them; their presence activates Boot's own `LdapAutoConfiguration`, which health-checks
   `ldap://localhost:389` and reports `DOWN`. An application using Google and a local admin, with

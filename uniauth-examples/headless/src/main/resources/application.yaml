@@ -4,6 +4,10 @@ spring:
 
 
 uniauth:
+  # Explicit: the starter installs nothing unless asked. It decides who may reach
+  # what, so being on the classpath is not consent.
+  enabled: true
+
   # No public pages here — the only thing served without a session is the providers
   # endpoint, which the starter permits already. A real front end is static files
   # hosted elsewhere, so there is nothing else to open up.

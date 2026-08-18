@@ -32,10 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * That distinction, not the brand, is what changes application-visible behaviour.
  */
 @SpringBootTest(classes = TestApplication.class)
-@TestPropertySource(properties = { "spring.security.oauth2.client.registration.google.client-id=demo-id",
-		"spring.security.oauth2.client.registration.google.client-secret=demo-secret",
-		"spring.security.oauth2.client.registration.github.client-id=demo-id",
-		"spring.security.oauth2.client.registration.github.client-secret=demo-secret" })
+@TestPropertySource(
+		properties = { "uniauth.enabled=true", "spring.security.oauth2.client.registration.google.client-id=demo-id",
+				"spring.security.oauth2.client.registration.google.client-secret=demo-secret",
+				"spring.security.oauth2.client.registration.github.client-id=demo-id",
+				"spring.security.oauth2.client.registration.github.client-secret=demo-secret" })
 class UniAuthOauth2ProvidersTest {
 
 	@Autowired

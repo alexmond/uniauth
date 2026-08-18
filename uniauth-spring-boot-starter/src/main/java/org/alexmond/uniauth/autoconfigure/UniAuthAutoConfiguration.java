@@ -21,6 +21,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.ArrayList;
@@ -45,11 +47,21 @@ import java.util.List;
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(SecurityFilterChain.class)
-@ConditionalOnProperty(prefix = "uniauth", name = "enabled", havingValue = "true", matchIfMissing = true)
+// Off unless asked for. This library decides who may reach what, so installing a
+// catch-all chain on the strength of being on the classpath is too strong a default:
+// merely adding the dependency used to override an application's own authorization, in
+// every profile and every test, before a line of integration was written. The symptom is
+// a broadly-locked application rather than an obviously broken one, which is worse.
+//
+// It also matches the rest of the starter, where nothing acts without being asked:
+// internal, ldap and approval all default to off.
+@ConditionalOnProperty(prefix = "uniauth", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(UniAuthProperties.class)
 @Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class, Oauth2AdaptersConfiguration.class,
 		ApprovalConfiguration.class })
 public class UniAuthAutoConfiguration {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(UniAuthAutoConfiguration.class);
 
 	/**
 	 * The single answer to what a user can sign in with right now, read by both the
@@ -208,7 +220,32 @@ public class UniAuthAutoConfiguration {
 
 		http.logout((logout) -> logout.logoutSuccessUrl(properties.getLogoutSuccessUrl()).permitAll());
 
-		return http.build();
+		SecurityFilterChain chain = http.build();
+		logInstalled(properties, registry, approval != null);
+		return chain;
+	}
+
+	/**
+	 * Says, once, in the boot log, that this library is now deciding authorization.
+	 *
+	 * <p>
+	 * Installing a catch-all chain is a large thing to do quietly. Even with
+	 * {@code uniauth.enabled} now explicit, the default rule is worth stating: an
+	 * application whose own rules stopped applying should be able to find out why by
+	 * reading its startup log rather than by bisecting its dependencies.
+	 */
+	private static void logInstalled(UniAuthProperties properties, AuthProviderRegistry registry,
+			boolean approvalEnabled) {
+		String mechanisms = registry.providers()
+			.stream()
+			.map((provider) -> provider.id())
+			.collect(java.util.stream.Collectors.joining(", "));
+		LOGGER.info(
+				"UniAuth installed a SecurityFilterChain: every request needs {}, except {} which are permitted. "
+						+ "Providers: [{}]. Set uniauth.enabled=false to back off entirely.",
+				approvalEnabled ? "authentication and approval" : "authentication",
+				properties.getPublicPaths().isEmpty() ? "none" : properties.getPublicPaths(),
+				mechanisms.isEmpty() ? "none configured" : mechanisms);
 	}
 
 }

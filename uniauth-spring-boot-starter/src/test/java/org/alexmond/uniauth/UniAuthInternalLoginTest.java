@@ -25,8 +25,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(classes = TestApplication.class)
 @AutoConfigureMockMvc
-@TestPropertySource(properties = { "uniauth.internal.enabled=true", "uniauth.internal.users[0].username=alice",
-		"uniauth.internal.users[0].password={noop}s3cret", "uniauth.internal.users[0].roles[0]=USER" })
+@TestPropertySource(properties = { "uniauth.enabled=true", "uniauth.internal.enabled=true",
+		"uniauth.internal.users[0].username=alice", "uniauth.internal.users[0].password={noop}s3cret",
+		"uniauth.internal.users[0].roles[0]=USER" })
 class UniAuthInternalLoginTest {
 
 	@Autowired

@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * disappears from the chooser with nothing logged.
  */
 @SpringBootTest(classes = org.alexmond.uniauth.testapp.TestApplication.class)
-@TestPropertySource(properties = {
+@TestPropertySource(properties = { "uniauth.enabled=true",
 		"spring.security.saml2.relyingparty.registration.testidp.assertingparty.entity-id=https://idp.example.com",
 		"spring.security.saml2.relyingparty.registration.testidp.assertingparty.singlesignon.url=https://idp.example.com/sso",
 		"spring.security.saml2.relyingparty.registration.testidp.assertingparty.singlesignon.sign-request=false",

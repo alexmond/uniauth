@@ -66,6 +66,7 @@ configuration of their own:
 [source,yaml]
 ----
 uniauth:
+  enabled: true      # required — the starter installs nothing until asked
   internal:
     enabled: true
     users:

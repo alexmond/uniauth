@@ -47,6 +47,10 @@ spring:
             user-name-attribute: sub
 
 uniauth:
+  # Explicit: the starter installs nothing unless asked. It decides who may reach
+  # what, so being on the classpath is not consent.
+  enabled: true
+
   # Where a successful sign-in lands. The default is "/", which is this application's
   # PUBLIC overview — so authenticating dropped you on a page that said nothing about
   # having authenticated, and you had to go looking for the dashboard to find out whether

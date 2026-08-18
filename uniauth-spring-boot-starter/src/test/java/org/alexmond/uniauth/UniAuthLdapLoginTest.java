@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(classes = TestApplication.class)
 @AutoConfigureMockMvc
-@TestPropertySource(properties = { "spring.ldap.embedded.base-dn=dc=example,dc=com",
+@TestPropertySource(properties = { "uniauth.enabled=true", "spring.ldap.embedded.base-dn=dc=example,dc=com",
 		"spring.ldap.embedded.ldif=classpath:test-directory.ldif", "spring.ldap.embedded.port=13389",
 
 		"uniauth.ldap.enabled=true", "uniauth.ldap.url=ldap://localhost:13389/dc=example,dc=com",

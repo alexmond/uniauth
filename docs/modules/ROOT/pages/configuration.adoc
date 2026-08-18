@@ -7,7 +7,7 @@
 |===
 | Property | Default | What it does
 
-| `uniauth.enabled` | `true` | Set false and the starter backs off entirely.
+| `uniauth.enabled` | `false` | *Must be set to `true`.* The starter installs nothing unless asked — see below.
 | `uniauth.login-page` | `/login` | The chooser page.
 | `uniauth.default-success-url` | `/` | Where a successful sign-in lands.
 | `uniauth.logout-success-url` | `/login?logout` | Where a sign-out lands.
@@ -17,6 +17,25 @@
 
 The starter already permits its login page, the providers endpoint, `/error` and the pending
 page; `public-paths` is for your own routes.
+
+[IMPORTANT]
+====
+`uniauth.enabled` defaults to *false*. This library decides who may reach what, so being on
+the classpath is not consent: adding the dependency used to install a catch-all chain in
+every profile and every test, overriding an application's own rules before a line of
+integration was written. The symptom was a broadly-locked application rather than an
+obviously broken one.
+
+When it does install, it says so once at INFO, naming the default rule and the permitted
+paths, so an application whose rules stopped applying can find out why from its startup log:
+
+[source]
+----
+UniAuth installed a SecurityFilterChain: every request needs authentication and approval,
+except [/, /how-it-works, /css/**] which are permitted. Providers: [internal, ldap, google].
+Set uniauth.enabled=false to back off entirely.
+----
+====
 
 == Internal store
 
