@@ -48,8 +48,14 @@ There is **no `mvn` on this machine** — use the wrapper, or the scripts (which
 scripts/dev-verify.sh                     # format + whole-reactor verify — green here = green PR
 scripts/dev-test.sh UniAuthLdapLoginTest  # targeted -Dtest run
 scripts/dev-test.sh 'UniAuth*Test'        # patterns work too
+scripts/verify-optional-deps.sh           # proves LDAP + SAML stay optional, from outside
 ./mvnw spring-javaformat:apply            # auto-format (run before committing)
 ```
+
+`dev-verify.sh` takes `-Pdefault` to include the examples; without it the reactor stops at the
+starter, the auth server and the admin console. `verify-optional-deps.sh` generates a Central-only
+consumer and boots it — the only check that can catch an optional dependency slipping back to
+compile scope, which has happened once already.
 
 Java 21, Spring Boot 4.1.0, Spring Security 7.0.x. CI (`.github/workflows/maven.yml`) runs
 `./mvnw -B verify -Pdefault` on JDK 21 — the same gates as `dev-verify.sh`.
@@ -69,9 +75,14 @@ trailing comma in annotation arrays; **RedundantFieldInitializer** rejects `= fa
 Tests are named `*Test` (the sibling convention), which is why `SpringTestFileName` — it wants
 `*Tests` — is suppressed.
 
-**The Shibboleth repository is mandatory.** OpenSAML, pulled in by
-`spring-security-saml2-service-provider`, is not on Maven Central. It is declared in the parent POM
-and called out in the README — a bare Central-only build fails to resolve `org.opensaml:*`.
+**The Shibboleth repository is mandatory *here*, and deliberately not for consumers.** OpenSAML,
+needed by `spring-security-saml2-service-provider`, is not on Maven Central, so this reactor
+declares the repository in the parent POM — the starter compiles against SAML even though it does
+not ship it. `spring-boot-starter-security-saml2` is `<optional>true</optional>`, precisely so that
+obligation stops at this repo: a consumer resolves the starter from Central alone, and only an
+application that actually speaks SAML adds the dependency and the repository (README and
+`getting-started.adoc` both say so). The regression to watch for is anything that makes a SAML type
+loadable from a general code path — see `RedirectMechanism` below.
 
 ## Architecture
 
@@ -98,8 +109,21 @@ run. The split that matters is a different one:
 UniAuth consumes the resulting repositories. Don't add registration properties under `uniauth.*` —
 it would fork a large, already-documented configuration surface.
 
+**`RedirectMechanism` is why nothing general names a SAML or OAuth2 type.** `SamlMechanism` and
+`Oauth2Mechanism` (both package-private, both behind `@ConditionalOnClass` in
+`RedirectMechanismConfiguration`) own their repository type, their registration type and their
+`http.*Login` call; `AuthProviderRegistry` and `uniAuthSecurityFilterChain` only aggregate over the
+beans. Keep it that way — the moment a general class does `instanceof Saml2Authentication` or takes
+a `RelyingPartyRegistrationRepository` in a signature, the jar stops being optional and the
+Shibboleth repository is back in every consumer's build. Where a type genuinely has to be read off
+a principal (`MechanismResolver`, `PrincipalIdentityResolver`, `Authentications`), it goes in a
+nested class guarded by `ClassUtils.isPresent` — an `instanceof` against an absent type in the
+enclosing method can fail verification before the guard runs. `Oauth2MechanismTest` covers
+enumeration; `AuthProviderRegistryTest` covers only aggregation and ordering, and names no
+mechanism type at all, which is the property to preserve.
+
 **`AuthProviderRegistry`** is the single answer to "what can a user sign in with right now", read by
-both the chooser page and `/uniauth/providers`. It enumerates OAuth2/SAML entries by testing the
+both the chooser page and `/uniauth/providers`. Mechanisms enumerate their entries by testing the
 repository for `Iterable` — which the in-memory implementations Boot produces are. A custom
 repository (database-backed, say) is not iterable, so its mechanism still works in the chain but
 cannot be listed; that limitation is documented on the class.

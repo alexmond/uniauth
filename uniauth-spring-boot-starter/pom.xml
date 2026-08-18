@@ -29,27 +29,38 @@
         </dependency>
 
         <!--
-          The three federated mechanisms ship with the starter so it works out of the box as a
-          runnable example. Every auto-configuration is still @ConditionalOnClass-guarded, so an
-          app that excludes one of these degrades gracefully instead of failing to start.
+          OAuth2/OIDC ships with the starter: it is on Maven Central, it needs no extra
+          repository, and its autoconfiguration stays inert until registrations are
+          configured. Carrying it therefore costs a consumer nothing they can observe.
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
         <!--
-          Boot's SAML starter, NOT spring-security-saml2-service-provider on its own.
-        
-          Boot 4 moved SAML autoconfiguration out of spring-boot-autoconfigure into its own
-          module. The Spring Security artifact alone gives you the filters and no binding, so
-          spring.security.saml2.relyingparty.* is read by nobody: no repository is created, the
-          chooser lists no SAML provider, and saml2Login never installs — silently, because
-          nothing is missing as far as the classpath is concerned. This starter mirrors what
-          the OAuth2 side already does with spring-boot-starter-oauth2-client.
+          OPTIONAL, and the cost of getting this wrong is unusually high: OpenSAML, which
+          spring-security-saml2-service-provider needs, is NOT published to Maven Central. A
+          compile-scope dependency here therefore breaks every consumer's build until they add
+          the Shibboleth repository — including consumers who will never speak SAML, and who
+          have no way to know from the error message why an authentication library is asking
+          them to trust a third-party Maven repository.
+
+          Using SAML? Add this to your own build, together with the Shibboleth repository (see
+          the README). It must be Boot's SAML STARTER, not spring-security-saml2-service-provider
+          on its own: Boot 4 moved SAML autoconfiguration into its own module, and the Spring
+          Security artifact alone gives you the filters with no binding — so
+          spring.security.saml2.relyingparty.* is read by nobody, no repository is created, the
+          chooser lists no SAML provider, and saml2Login never installs, silently, because
+          nothing is missing as far as the classpath is concerned.
+
+          SamlMechanism is the only class naming a SAML type, behind @ConditionalOnClass, and
+          MechanismResolver / PrincipalIdentityResolver isolate the two they read off a
+          principal — so the starter backs off cleanly when the jars are absent.
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-saml2</artifactId>
+            <optional>true</optional>
         </dependency>
         <!--
           OPTIONAL. An application that never enables LDAP should not have to carry the

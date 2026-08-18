@@ -2,10 +2,6 @@ package org.alexmond.uniauth.provider;
 
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,22 +26,19 @@ public class AuthProviderRegistry {
 
 	private final UniAuthProperties properties;
 
-	private final ObjectProvider<ClientRegistrationRepository> clientRegistrations;
-
-	private final ObjectProvider<RelyingPartyRegistrationRepository> relyingParties;
+	private final ObjectProvider<RedirectMechanism> redirectMechanisms;
 
 	/**
 	 * Creates the registry.
 	 * @param properties which mechanisms are switched on
-	 * @param clientRegistrations OAuth2 registrations, absent when none are configured
-	 * @param relyingParties SAML registrations, absent when none are configured
+	 * @param redirectMechanisms the redirect-based mechanisms present on the classpath.
+	 * Passed as contributors rather than as their own repository types, so that this
+	 * class names nothing mechanism-specific and OAuth2 and SAML can both be optional
+	 * dependencies
 	 */
-	public AuthProviderRegistry(UniAuthProperties properties,
-			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties) {
+	public AuthProviderRegistry(UniAuthProperties properties, ObjectProvider<RedirectMechanism> redirectMechanisms) {
 		this.properties = properties;
-		this.clientRegistrations = clientRegistrations;
-		this.relyingParties = relyingParties;
+		this.redirectMechanisms = redirectMechanisms;
 	}
 
 	/**
@@ -83,37 +76,8 @@ public class AuthProviderRegistry {
 	 */
 	public List<AuthProvider> redirectProviders() {
 		List<AuthProvider> redirect = new ArrayList<>();
-		if (properties.getOauth2().isEnabled()) {
-			ClientRegistrationRepository repository = clientRegistrations.getIfAvailable();
-			if (repository instanceof Iterable<?> iterable) {
-				for (Object candidate : iterable) {
-					ClientRegistration registration = (ClientRegistration) candidate;
-					redirect.add(new AuthProvider(registration.getRegistrationId(), AuthProviderType.OAUTH2,
-							AuthProviderBrand.detect(registration), displayNameOf(registration),
-							"/oauth2/authorization/" + registration.getRegistrationId(), isOidc(registration)));
-				}
-			}
-		}
-		if (properties.getSaml().isEnabled()) {
-			RelyingPartyRegistrationRepository repository = relyingParties.getIfAvailable();
-			if (repository instanceof Iterable<?> iterable) {
-				for (Object candidate : iterable) {
-					RelyingPartyRegistration registration = (RelyingPartyRegistration) candidate;
-					redirect.add(new AuthProvider(registration.getRegistrationId(), AuthProviderType.SAML,
-							AuthProviderBrand.GENERIC, capitalize(registration.getRegistrationId()),
-							"/saml2/authenticate/" + registration.getRegistrationId(), false));
-				}
-			}
-		}
+		this.redirectMechanisms.orderedStream().forEach((mechanism) -> redirect.addAll(mechanism.providers()));
 		return List.copyOf(redirect);
-	}
-
-	/**
-	 * Whether the username/password form should be rendered at all.
-	 * @return {@code true} when at least one form-based mechanism is enabled
-	 */
-	public boolean hasFormProvider() {
-		return !formProviders().isEmpty();
 	}
 
 	/**
@@ -126,34 +90,11 @@ public class AuthProviderRegistry {
 	}
 
 	/**
-	 * Whether the provider issues an id_token, which decides whether the principal
-	 * arrives as an {@code OidcUser} carrying claims or as a bare {@code OAuth2User}
-	 * assembled from a userinfo call. The {@code openid} scope is the request for one,
-	 * and its absence is why GitHub logins carry no claims and have nothing to support
-	 * RP-initiated logout.
+	 * Whether the username/password form should be rendered at all.
+	 * @return {@code true} when at least one form-based mechanism is enabled
 	 */
-	private static boolean isOidc(ClientRegistration registration) {
-		return registration.getScopes() != null && registration.getScopes().contains("openid");
-	}
-
-	/**
-	 * {@code ClientRegistration} already defaults an unset client name to the
-	 * registration id, so an id-equal name means nothing was configured — capitalize it
-	 * rather than render a bare lowercase slug as a button label.
-	 */
-	private static String displayNameOf(ClientRegistration registration) {
-		String name = registration.getClientName();
-		if (name == null || name.isBlank() || name.equals(registration.getRegistrationId())) {
-			return capitalize(registration.getRegistrationId());
-		}
-		return name;
-	}
-
-	private static String capitalize(String value) {
-		if (value == null || value.isEmpty()) {
-			return value;
-		}
-		return Character.toUpperCase(value.charAt(0)) + value.substring(1);
+	public boolean hasFormProvider() {
+		return !formProviders().isEmpty();
 	}
 
 }

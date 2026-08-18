@@ -7,6 +7,7 @@ import org.alexmond.uniauth.config.UniAuthAuthorizationCustomizer;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProvider;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
+import org.alexmond.uniauth.provider.RedirectMechanism;
 import org.alexmond.uniauth.provider.MechanismResolver;
 import org.alexmond.uniauth.web.UniAuthLoginController;
 import org.alexmond.uniauth.web.UniAuthProvidersController;
@@ -21,8 +22,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +65,7 @@ import java.util.List;
 @ConditionalOnProperty(prefix = "uniauth", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(UniAuthProperties.class)
 @Import({ InternalAuthConfiguration.class, LdapAuthConfiguration.class, Oauth2AdaptersConfiguration.class,
-		ApprovalConfiguration.class })
+		RedirectMechanismConfiguration.class, ApprovalConfiguration.class })
 public class UniAuthAutoConfiguration {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(UniAuthAutoConfiguration.class);
@@ -75,16 +74,14 @@ public class UniAuthAutoConfiguration {
 	 * The single answer to what a user can sign in with right now, read by both the
 	 * chooser page and the providers endpoint.
 	 * @param properties which mechanisms are switched on
-	 * @param clientRegistrations OAuth2 registrations, from Spring Boot's own binding
-	 * @param relyingParties SAML registrations, from Spring Boot's own binding
+	 * @param redirectMechanisms whichever redirect-based mechanisms are on the classpath
 	 * @return the registry
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public AuthProviderRegistry uniAuthProviderRegistry(UniAuthProperties properties,
-			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties) {
-		return new AuthProviderRegistry(properties, clientRegistrations, relyingParties);
+			ObjectProvider<RedirectMechanism> redirectMechanisms) {
+		return new AuthProviderRegistry(properties, redirectMechanisms);
 	}
 
 	/**
@@ -147,9 +144,11 @@ public class UniAuthAutoConfiguration {
 	 * @param authenticationProviders every {@code AuthenticationProvider} bean,
 	 * registered in order so the form falls through them — this is what lets local
 	 * break-glass accounts sit beside a directory
-	 * @param clientRegistrations OAuth2 registrations; login is installed only when some
-	 * exist, since a chain with no registration would 404 its own callback
-	 * @param relyingParties SAML registrations, on the same condition
+	 * @param redirectMechanisms the redirect-based mechanisms present. Each installs its
+	 * own login, and only when it has a registration behind it — a login with none would
+	 * 404 its own callback. Passed as contributors rather than as repository types so
+	 * this signature names nothing mechanism-specific, which is what lets those jars be
+	 * optional
 	 * @param approvalManager the approval gate, replacing {@code .authenticated()} when
 	 * enabled; absent otherwise
 	 * @param authorizationCustomizers application-supplied rules, applied in order before
@@ -163,8 +162,7 @@ public class UniAuthAutoConfiguration {
 	@ConditionalOnMissingBean(name = "uniAuthSecurityFilterChain")
 	public SecurityFilterChain uniAuthSecurityFilterChain(HttpSecurity http, UniAuthProperties properties,
 			AuthProviderRegistry registry, ObjectProvider<AuthenticationProvider> authenticationProviders,
-			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties,
+			ObjectProvider<RedirectMechanism> redirectMechanisms,
 			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
 			ObjectProvider<ApprovalAuthoritiesFilter> approvalAuthorities,
 			ObjectProvider<UniAuthAuthorizationCustomizer> authorizationCustomizers,
@@ -209,16 +207,13 @@ public class UniAuthAutoConfiguration {
 				.permitAll());
 		}
 
-		if (properties.getOauth2().isEnabled() && clientRegistrations.getIfAvailable() != null) {
-			http.oauth2Login((oauth2) -> oauth2.loginPage(properties.getLoginPage())
-				.defaultSuccessUrl(properties.getDefaultSuccessUrl(), true));
-		}
-
-		if (properties.getSaml().isEnabled() && relyingParties.getIfAvailable() != null) {
-			http.saml2Login((saml2) -> saml2.loginPage(properties.getLoginPage())
-				.defaultSuccessUrl(properties.getDefaultSuccessUrl(), true));
-			http.saml2Logout((withDefaults) -> {
-			});
+		// Each mechanism installs its own login, and only when it has a registration
+		// behind it: a login with none would 404 its own callback. The chain does not
+		// know which mechanisms exist, which is what lets their jars be optional.
+		for (RedirectMechanism mechanism : redirectMechanisms.orderedStream().toList()) {
+			if (!mechanism.providers().isEmpty()) {
+				mechanism.install(http, properties.getLoginPage(), properties.getDefaultSuccessUrl());
+			}
 		}
 
 		http.logout((logout) -> logout.logoutSuccessUrl(properties.getLogoutSuccessUrl()).permitAll());

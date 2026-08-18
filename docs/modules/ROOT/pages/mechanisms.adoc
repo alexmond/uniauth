@@ -59,9 +59,11 @@ Spring Security.
 
 [NOTE]
 ====
-The registry enumerates OAuth2 and SAML entries by testing the repository for `Iterable`,
-which the in-memory implementations Boot produces are. A custom repository — database-backed,
-say — is not iterable, so its mechanism still works in the chain but cannot be *listed*.
+The registry does not read those repositories itself — each redirect-based mechanism
+contributes its own entries, which is what lets both jars be optional. A mechanism enumerates
+its repository by testing it for `Iterable`, which the in-memory implementations Boot produces
+are. A custom repository — database-backed, say — is not iterable, so its mechanism still works
+in the chain but cannot be *listed*.
 ====
 
 == HTTP Basic, for callers that are not browsers

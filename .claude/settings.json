@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(scripts/dev-verify.sh:*)",
-      "Bash(scripts/dev-test.sh:*)"
+      "Bash(scripts/dev-test.sh:*)",
+      "Bash(scripts/verify-optional-deps.sh:*)"
     ]
   },
   "enabledPlugins": {

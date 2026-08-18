@@ -29,6 +29,12 @@ public class MechanismResolver {
 	private static final boolean LDAP_PRESENT = ClassUtils
 		.isPresent("org.springframework.security.ldap.userdetails.LdapUserDetails", null);
 
+	// SAML is optional for a sharper reason than LDAP: OpenSAML is not on Maven Central,
+	// so depending on it transitively would force the Shibboleth repository into every
+	// consumer's build whether or not they ever intend to speak SAML.
+	private static final boolean SAML_PRESENT = ClassUtils
+		.isPresent("org.springframework.security.saml2.provider.service.authentication.Saml2Authentication", null);
+
 	/**
 	 * Works out which provider vouched for a principal.
 	 *
@@ -44,7 +50,28 @@ public class MechanismResolver {
 		if (authentication instanceof OAuth2AuthenticationToken oauth2) {
 			return new ResolvedMechanism(AuthProviderType.OAUTH2, oauth2.getAuthorizedClientRegistrationId());
 		}
-		if (authentication instanceof Saml2Authentication saml2) {
+		if (SAML_PRESENT) {
+			ResolvedMechanism assertion = Saml.resolve(authentication);
+			if (assertion != null) {
+				return assertion;
+			}
+		}
+		if (LDAP_PRESENT && authentication != null && Ldap.isDirectoryPrincipal(authentication.getPrincipal())) {
+			return new ResolvedMechanism(AuthProviderType.LDAP, "ldap");
+		}
+		return new ResolvedMechanism(AuthProviderType.INTERNAL, "internal");
+	}
+
+	/**
+	 * Kept in its own class so the SAML types are only loaded when the jar is present,
+	 * for the same reason as {@link Ldap} below.
+	 */
+	private static final class Saml {
+
+		static ResolvedMechanism resolve(Authentication authentication) {
+			if (!(authentication instanceof Saml2Authentication saml2)) {
+				return null;
+			}
 			String registrationId = null;
 			if (saml2.getPrincipal() instanceof Saml2AuthenticatedPrincipal principal) {
 				registrationId = principal.getRelyingPartyRegistrationId();
@@ -58,16 +85,12 @@ public class MechanismResolver {
 			// at one IdP would admit the same NameID at another.
 			//
 			// Harmless with a single SAML registration, which is the common case and the
-			// only one this project runs. Before adding a second, make this resolve the
-			// id
-			// properly — capture it in the success handler, where the callback URL still
-			// carries it — rather than trusting the name below.
+			// only one this project runs. Before adding a second, make this resolve
+			// the id properly — capture it in the success handler, where the callback
+			// URL still carries it — rather than trusting the name below.
 			return new ResolvedMechanism(AuthProviderType.SAML, (registrationId != null) ? registrationId : "saml");
 		}
-		if (LDAP_PRESENT && authentication != null && Ldap.isDirectoryPrincipal(authentication.getPrincipal())) {
-			return new ResolvedMechanism(AuthProviderType.LDAP, "ldap");
-		}
-		return new ResolvedMechanism(AuthProviderType.INTERNAL, "internal");
+
 	}
 
 	/**

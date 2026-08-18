@@ -92,6 +92,10 @@ Registrations themselves come from Boot:
 
 == SAML 2.0
 
+NOTE: Needs `spring-boot-starter-security-saml2` on the classpath — an optional dependency of
+the starter, and the one that also obliges a build to declare the Shibboleth repository. See
+xref:getting-started.adoc#saml-repository[Adding SAML 2.0] for why it is not transitive.
+
 [cols="2,1,3"]
 |===
 | Property | Default | What it does

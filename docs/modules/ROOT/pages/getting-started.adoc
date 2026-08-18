@@ -125,10 +125,18 @@ OIDC-versus-plain-OAuth2 detection all follow. See xref:providers.adoc[Provider 
 the per-provider details that actually bite.
 
 [#saml-repository]
-== If you enable SAML
+== Adding SAML 2.0
 
-OpenSAML — pulled in by `spring-security-saml2-service-provider` — is not published to Maven
-Central, so a Central-only build fails to resolve `org.opensaml:*`. Add:
+SAML is an *optional* dependency, and it asks more of a build than the others — which is
+exactly why it is not transitive. Add both the starter and the Shibboleth repository:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security-saml2</artifactId>
+</dependency>
+----
 
 [source,xml]
 ----
@@ -140,8 +148,26 @@ Central, so a Central-only build fails to resolve `org.opensaml:*`. Add:
 </repositories>
 ----
 
-Registrations then come from `spring.security.saml2.relyingparty.registration.*`, exactly as
-Boot documents them.
+OpenSAML, which `spring-security-saml2-service-provider` needs, is not published to Maven
+Central, so a Central-only build fails to resolve `org.opensaml:*`. Carrying it transitively
+would push that repository onto every consumer of an authentication library, including the
+ones that will never speak SAML and have nothing in the error message to tell them why.
+
+It has to be Boot's SAML *starter*, not `spring-security-saml2-service-provider` alone. Boot 4
+moved SAML autoconfiguration into its own module; the Spring Security artifact gives you the
+filters with no property binding, so `spring.security.saml2.relyingparty.*` is read by nobody,
+no repository is built, the chooser lists nothing, and `saml2Login` never installs — silently,
+because as far as the classpath is concerned nothing is missing.
+
+[source,yaml]
+----
+uniauth:
+  saml:
+    enabled: true    # the default
+----
+
+Registrations themselves come from `spring.security.saml2.relyingparty.registration.*`, exactly
+as Boot documents them.
 
 == What to reach for next
 

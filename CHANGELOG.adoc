@@ -38,6 +38,20 @@
   off, because the indicator is Boot's and keys off the jar. Applications that use LDAP now add
   `spring-boot-starter-ldap` themselves, which is the ordinary starter pattern.
 
+* *Breaking — SAML is an optional dependency too* (#2). It was the more expensive half: OpenSAML
+  is not published to Maven Central, so a transitive dependency on
+  `spring-boot-starter-security-saml2` obliged *every* consumer to declare the Shibboleth
+  repository — including the ones who would never speak SAML, and with nothing in the resolution
+  failure to explain why an authentication library wanted them to trust a third-party Maven
+  repository. Making it optional meant nothing general could name a SAML type, so the redirect
+  mechanisms now sit behind an internal `RedirectMechanism` contributor resolved by
+  `@ConditionalOnClass`: `AuthProviderRegistry` and the filter chain aggregate, and
+  `SamlMechanism` owns the repository, the registration type and `saml2Login`/`saml2Logout`.
+  `MechanismResolver` and `PrincipalIdentityResolver` isolate the two types they read off a
+  principal in nested classes, the same technique LDAP already used. *Breaking* for applications
+  that use SAML: add `spring-boot-starter-security-saml2` and the Shibboleth repository to your
+  own build.
+
 == 4.1.0.1
 
 First release. The version tracks the Spring Boot line it builds against — `4.1.0` — with a fourth

@@ -32,9 +32,10 @@ mechanisms are switched on.
 </dependency>
 ----
 
-NOTE: SAML support pulls in OpenSAML, which is *not on Maven Central*. A build that enables
-it needs the Shibboleth repository — see xref:getting-started.adoc#saml-repository[Getting
-started].
+The starter itself resolves entirely from Maven Central. LDAP and SAML are *optional*
+dependencies, added only by applications that use them — which for SAML also spares everyone
+else the Shibboleth repository, since OpenSAML is not published to Central. See
+xref:getting-started.adoc#saml-repository[Getting started].
 
 == Next
 

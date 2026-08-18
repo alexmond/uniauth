@@ -38,6 +38,19 @@
             <artifactId>spring-security-ldap</artifactId>
         </dependency>
 
+        <!--
+          Same story for SAML, and with a sharper edge: OpenSAML is not on Maven Central, so
+          this dependency is what obliges a build to declare the Shibboleth repository (the
+          parent POM does it for the reactor). An application that never speaks SAML should
+          not inherit that obligation from an authentication library, so the starter leaves
+          the choice here. Boot's SAML starter, not spring-security-saml2-service-provider on
+          its own — the Security artifact alone brings the filters with no property binding.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-saml2</artifactId>
+        </dependency>
+
         <!-- sec:authorize in the templates, so the nav reflects the session. -->
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>
