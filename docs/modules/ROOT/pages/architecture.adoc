@@ -19,7 +19,7 @@ The catch-all chain backs off on its own bean *name* — `uniAuthSecurityFilterC
 the type. Declaring another `SecurityFilterChain` therefore no longer costs you every
 mechanism.
 
-== Three extension points, before you replace the chain
+== Four extension points, before you replace the chain
 
 Declaring your own `SecurityFilterChain` makes the whole starter back off, so these exist to
 avoid that. Each was added because something needed it, never speculatively.
@@ -29,8 +29,31 @@ avoid that. Each was added because something needed it, never speculatively.
 An `AuthenticationEntryPoint` bean:: The starter uses it instead of redirecting to the
 chooser. This is how an API-first application answers `401` rather than `302`.
 
+A `UniAuthAuthorizationCustomizer` bean:: Contributes authorization rules to *this* chain,
+applied in `Ordered` order after the permitted paths and before the catch-all. This is the
+one to reach for when the application's rules are a different shape from
+"permitted or authenticated" — a role on an admin area, a method-scoped rule, or anything
+keyed on something other than a path string:
++
+[source,java]
+----
+@Bean
+UniAuthAuthorizationCustomizer adminRules() {
+    return (rules) -> rules
+        .requestMatchers("/dev", "/review.html").hasRole("ADMIN")
+        .requestMatchers(HttpMethod.POST, "/api/feedback").authenticated()
+        .requestMatchers((request) -> request.getLocalPort() == 9090).permitAll();
+}
+----
++
+Order is the design: the first matching rule wins, so a rule contributed after
+`anyRequest()` would never be reached.
+
 A second `SecurityFilterChain`:: Order it ahead of the starter's and give it a
-`securityMatcher`. Useful for a stateless API alongside a session-based UI.
+`securityMatcher`. Still available, but a customizer is usually better — a second chain
+separates an application's rules from the mechanisms that satisfy them, and forces per-chain
+settings like CSRF and cache-control to be repeated, where any drift between the copies is a
+bug nobody notices.
 
 == Provider adapters
 

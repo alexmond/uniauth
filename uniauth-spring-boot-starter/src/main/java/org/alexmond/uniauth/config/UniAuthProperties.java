@@ -48,6 +48,8 @@ public class UniAuthProperties {
 
 	private Approval approval = new Approval();
 
+	private HttpBasic httpBasic = new HttpBasic();
+
 	private Internal internal = new Internal();
 
 	private Ldap ldap = new Ldap();
@@ -64,6 +66,37 @@ public class UniAuthProperties {
 	 * much larger sets than "people who should use this application". With this on, a
 	 * principal nobody has approved yet lands on a waiting page instead of the app.
 	 */
+	/**
+	 * HTTP Basic, for callers that are not browsers.
+	 *
+	 * <p>
+	 * The three login mechanisms all assume a browser and a session, which leaves no way
+	 * in for a smoke check, a polling worker or a line of {@code curl}: none can perform
+	 * an OAuth redirect, and a form login means scraping a CSRF token and holding a
+	 * cookie jar to fetch a health page.
+	 *
+	 * <p>
+	 * Off by default, because a credential prompt is a surprising thing for a library to
+	 * add to an application that did not ask for one.
+	 */
+	@Data
+	public static class HttpBasic {
+
+		private boolean enabled;
+
+		/**
+		 * Where Basic is offered. Empty means everywhere this chain covers.
+		 *
+		 * <p>
+		 * Scoping it to {@code /api/**} keeps the credential challenge where machines
+		 * call and away from the pages humans visit, which matters because a browser that
+		 * receives one gets a native dialog instead of the chooser — defeating the point
+		 * of having OAuth at all.
+		 */
+		private List<String> paths = new ArrayList<>();
+
+	}
+
 	@Data
 	public static class Approval {
 

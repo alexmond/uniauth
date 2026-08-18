@@ -2,6 +2,17 @@
 
 == 4.1.0.2 (unreleased)
 
+* *New — `UniAuthAuthorizationCustomizer`* (#3). The single chain offered exactly one
+  authorization shape — permitted paths, then authenticated — so an application whose rules
+  used roles, HTTP methods, or anything not expressible as a path string had no way in. The
+  escapes were replacing the chain, which costs every mechanism, or adding a second one, which
+  separates the rules from the mechanisms that satisfy them. Contribute a bean instead; it is
+  applied before the catch-all, since the first matching rule wins.
+* *New — HTTP Basic* (#4), `uniauth.http-basic.enabled`. The three login mechanisms all assume
+  a browser and a session, leaving smoke checks, polling workers and `curl` with no way to
+  authenticate. Off by default. A browser still gets the chooser rather than a native
+  credential dialog, and `paths` scopes the challenge to where machines call.
+
 * *Approving now grants roles* (#5). Approval was a boolean, so a federated principal cleared
   the gate and was then refused by every `hasRole(...)` rule in the application — it arrives
   with `OIDC_USER` and `SCOPE_*` and no `ROLE_` at all, while an internal account had roles

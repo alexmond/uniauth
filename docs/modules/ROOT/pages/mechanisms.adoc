@@ -64,6 +64,36 @@ which the in-memory implementations Boot produces are. A custom repository — d
 say — is not iterable, so its mechanism still works in the chain but cannot be *listed*.
 ====
 
+== HTTP Basic, for callers that are not browsers
+
+All three login mechanisms assume a browser and a session, which leaves no way in for a
+smoke check, a polling worker or a line of `curl`: none can perform an OAuth redirect, and a
+form login means scraping a CSRF token and holding a cookie jar to fetch a health page.
+
+[source,yaml]
+----
+uniauth:
+  http-basic:
+    enabled: true          # off by default
+    paths: [ /api/** ]     # optional: where the challenge is offered
+----
+
+Basic answers the *form-based* mechanisms — the internal store and LDAP. The redirect-based
+ones have no password to present, so the question does not arise for them.
+
+[IMPORTANT]
+====
+A browser still gets the chooser. Installed naively, Basic answers an unauthenticated
+browser with a native credential dialog instead of the login page, which defeats the point
+of offering OAuth at all. The challenge is therefore issued only to requests that look like
+a program's — one presenting an `Authorization` header, or asking for something other than
+HTML — and everything else falls through to the chooser.
+
+`paths` scopes the *challenge*, not whether credentials are accepted. Scoping acceptance
+would mean narrowing this chain, and it is the catch-all: it would stop UniAuth protecting
+everything outside those paths, which is far more than the property appears to ask for.
+====
+
 == Brand is not a mechanism, and neither is OIDC
 
 Three separate axes, deliberately not merged:

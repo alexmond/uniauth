@@ -3,6 +3,7 @@ package org.alexmond.uniauth.autoconfigure;
 import org.alexmond.uniauth.approval.ApprovalAuthoritiesFilter;
 import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
+import org.alexmond.uniauth.config.UniAuthAuthorizationCustomizer;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProvider;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
@@ -25,6 +26,10 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
@@ -147,6 +152,8 @@ public class UniAuthAutoConfiguration {
 	 * @param relyingParties SAML registrations, on the same condition
 	 * @param approvalManager the approval gate, replacing {@code .authenticated()} when
 	 * enabled; absent otherwise
+	 * @param authorizationCustomizers application-supplied rules, applied in order before
+	 * the catch-all so the chain can express more than "permitted or authenticated"
 	 * @param entryPoint an application-supplied entry point, used instead of redirecting
 	 * to the chooser — this is how an API-first application answers 401
 	 * @return the chain
@@ -160,6 +167,7 @@ public class UniAuthAutoConfiguration {
 			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties,
 			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
 			ObjectProvider<ApprovalAuthoritiesFilter> approvalAuthorities,
+			ObjectProvider<UniAuthAuthorizationCustomizer> authorizationCustomizers,
 			ObjectProvider<AuthenticationEntryPoint> entryPoint) throws Exception {
 
 		List<String> permitted = new ArrayList<>(
@@ -173,17 +181,8 @@ public class UniAuthAutoConfiguration {
 			permitted.add(properties.getApproval().getPendingPage());
 		}
 
-		http.authorizeHttpRequests((requests) -> {
-			requests.requestMatchers(permitted.toArray(String[]::new)).permitAll();
-			if (approval != null) {
-				// Replaces .authenticated(): the manager refuses anonymous requests too,
-				// so the entry point still redirects to the chooser as before.
-				requests.anyRequest().access(approval);
-			}
-			else {
-				requests.anyRequest().authenticated();
-			}
-		});
+		authorize(http, permitted, authorizationCustomizers, approval);
+		httpBasic(http, properties);
 
 		AuthenticationEntryPoint customEntryPoint = entryPoint.getIfAvailable();
 		if (approval != null || customEntryPoint != null) {
@@ -246,6 +245,96 @@ public class UniAuthAutoConfiguration {
 	 * application whose own rules stopped applying should be able to find out why by
 	 * reading its startup log rather than by bisecting its dependencies.
 	 */
+	/**
+	 * Installs HTTP Basic for callers that are not browsers.
+	 *
+	 * <p>
+	 * Basic answers the form-based mechanisms only. The redirect-based ones have no
+	 * password to present, so the question does not arise for them — a caller sending
+	 * {@code Authorization: Basic} is presenting credentials the internal store or a
+	 * directory can check.
+	 *
+	 * <p>
+	 * The entry point is the part worth getting right. Installed naively, an
+	 * unauthenticated browser receives a native credential dialog instead of the chooser,
+	 * which defeats the point of offering OAuth. So the Basic challenge is delegated: it
+	 * answers requests that look like a program's — an explicit {@code Authorization}
+	 * header, or an {@code Accept} that does not ask for HTML — and everything else falls
+	 * through to whatever the chain would otherwise have done.
+	 */
+	private static void httpBasic(HttpSecurity http, UniAuthProperties properties) throws Exception {
+		UniAuthProperties.HttpBasic basic = properties.getHttpBasic();
+		if (!basic.isEnabled()) {
+			return;
+		}
+		http.httpBasic((configurer) -> configurer.authenticationEntryPoint(apiOnlyBasicEntryPoint(properties)));
+	}
+
+	/**
+	 * Challenges programs, redirects browsers.
+	 */
+	private static AuthenticationEntryPoint apiOnlyBasicEntryPoint(UniAuthProperties properties) {
+		BasicAuthenticationEntryPoint basic = new BasicAuthenticationEntryPoint();
+		basic.setRealmName("UniAuth");
+		LoginUrlAuthenticationEntryPoint chooser = new LoginUrlAuthenticationEntryPoint(properties.getLoginPage());
+		List<String> paths = properties.getHttpBasic().getPaths();
+		return (request, response, exception) -> {
+			if (challengeFor(request, paths)) {
+				basic.commence(request, response, exception);
+			}
+			else {
+				chooser.commence(request, response, exception);
+			}
+		};
+	}
+
+	/**
+	 * Whether to answer with a Basic challenge rather than the chooser.
+	 *
+	 * <p>
+	 * {@code paths} scopes the <em>challenge</em>, not whether credentials are accepted.
+	 * Scoping acceptance would mean narrowing the chain itself, and this chain is the
+	 * catch-all — it would stop UniAuth protecting everything outside those paths, which
+	 * is a far larger change than the property appears to ask for. Presenting valid
+	 * credentials anywhere is harmless; what the setting is for is keeping the browser's
+	 * native dialog away from the pages humans visit.
+	 */
+	private static boolean challengeFor(HttpServletRequest request, List<String> paths) {
+		if (!paths.isEmpty() && paths.stream()
+			.noneMatch((pattern) -> PathPatternRequestMatcher.withDefaults().matcher(pattern).matches(request))) {
+			return false;
+		}
+		// A program either presents credentials or does not ask for HTML. A browser
+		// asking for a page gets the chooser, which is the point of offering OAuth.
+		return request.getHeader("Authorization") != null
+				|| !String.valueOf(request.getHeader("Accept")).contains("text/html");
+	}
+
+	/**
+	 * Permitted paths, then the application's own rules, then the catch-all.
+	 *
+	 * <p>
+	 * Order is the whole design here: the first matching rule wins, so a rule contributed
+	 * after {@code anyRequest()} would never be reached, and one contributed before the
+	 * permitted paths could lock a login page.
+	 */
+	private static void authorize(HttpSecurity http, List<String> permitted,
+			ObjectProvider<UniAuthAuthorizationCustomizer> customizers, ApprovalAuthorizationManager approval)
+			throws Exception {
+		http.authorizeHttpRequests((requests) -> {
+			requests.requestMatchers(permitted.toArray(String[]::new)).permitAll();
+			customizers.orderedStream().forEach((customizer) -> customizer.customize(requests));
+			if (approval != null) {
+				// Replaces .authenticated(): the manager refuses anonymous requests too,
+				// so the entry point still redirects to the chooser as before.
+				requests.anyRequest().access(approval);
+			}
+			else {
+				requests.anyRequest().authenticated();
+			}
+		});
+	}
+
 	private static void logInstalled(UniAuthProperties properties, AuthProviderRegistry registry,
 			boolean approvalEnabled) {
 		String mechanisms = registry.providers()
