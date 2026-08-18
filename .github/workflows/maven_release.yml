@@ -1,5 +1,15 @@
 name: Maven Release
 
+# Publishes uniauth-spring-boot-starter to Maven Central and cuts the GitHub release.
+# Everything else in the reactor sets skipPublishing: the provider, the console and the
+# examples are demonstrations, not libraries.
+#
+#   gh workflow run maven_release.yml --ref master \
+#     -f releaseVersion=X.Y.Z.N -f nextVersion=X.Y.Z.(N+1)-SNAPSHOT
+#
+# Run the release-prep checklist first: this tags whatever is on the branch, and the tag
+# freezes the docs, the README version and the changelog exactly as they are.
+
 on:
   workflow_dispatch:
     inputs:
