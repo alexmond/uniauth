@@ -1,8 +1,10 @@
 package org.alexmond.uniauth.autoconfigure;
 
+import org.alexmond.uniauth.approval.ApprovalAuthoritiesFilter;
 import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
 import org.alexmond.uniauth.config.UniAuthProperties;
+import org.alexmond.uniauth.provider.AuthProvider;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
 import org.alexmond.uniauth.provider.MechanismResolver;
 import org.alexmond.uniauth.web.UniAuthLoginController;
@@ -24,6 +26,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -156,6 +159,7 @@ public class UniAuthAutoConfiguration {
 			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
 			ObjectProvider<RelyingPartyRegistrationRepository> relyingParties,
 			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
+			ObjectProvider<ApprovalAuthoritiesFilter> approvalAuthorities,
 			ObjectProvider<AuthenticationEntryPoint> entryPoint) throws Exception {
 
 		List<String> permitted = new ArrayList<>(
@@ -220,6 +224,14 @@ public class UniAuthAutoConfiguration {
 
 		http.logout((logout) -> logout.logoutSuccessUrl(properties.getLogoutSuccessUrl()).permitAll());
 
+		// Before AuthorizationFilter, or the roles arrive after the decision that needed
+		// them. The authentication is already on the context by this point — it is loaded
+		// near the start of the chain — so this only has to add to it.
+		ApprovalAuthoritiesFilter authorities = approvalAuthorities.getIfAvailable();
+		if (authorities != null) {
+			http.addFilterBefore(authorities, AuthorizationFilter.class);
+		}
+
 		SecurityFilterChain chain = http.build();
 		logInstalled(properties, registry, approval != null);
 		return chain;
@@ -238,7 +250,7 @@ public class UniAuthAutoConfiguration {
 			boolean approvalEnabled) {
 		String mechanisms = registry.providers()
 			.stream()
-			.map((provider) -> provider.id())
+			.map(AuthProvider::id)
 			.collect(java.util.stream.Collectors.joining(", "));
 		LOGGER.info(
 				"UniAuth installed a SecurityFilterChain: every request needs {}, except {} which are permitted. "

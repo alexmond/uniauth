@@ -64,8 +64,12 @@ public interface ApprovalStore {
 	 * @param key who is being decided about
 	 * @param outcome {@link ApprovalStatus#APPROVED} or {@link ApprovalStatus#DENIED}
 	 * @param approver name of whoever decided, for the audit trail
+	 * @param roles what the approver granted. An approver looking at "Jane Smith,
+	 * verified, via Google" is deciding what she may do, not merely whether she exists —
+	 * and a federated principal has no roles of its own, so this is the only place they
+	 * can come from
 	 */
-	void decide(ApprovalKey key, ApprovalStatus outcome, String approver);
+	void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles);
 
 	/**
 	 * Forgets a principal entirely, so they read as {@link ApprovalStatus#UNKNOWN} again.

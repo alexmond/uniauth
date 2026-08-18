@@ -50,7 +50,7 @@ public class InMemoryApprovalStore implements ApprovalStore {
 		// computeIfAbsent keeps this idempotent: it runs on every request from an
 		// unapproved principal, and must never reset a decision already taken.
 		return this.records.computeIfAbsent(key, (absent) -> new ApprovalRecord(absent, identity, mechanism,
-				ApprovalStatus.PENDING, this.clock.instant(), null, null));
+				ApprovalStatus.PENDING, this.clock.instant(), null, null, List.of()));
 	}
 
 	@Override
@@ -68,11 +68,12 @@ public class InMemoryApprovalStore implements ApprovalStore {
 	}
 
 	@Override
-	public void decide(ApprovalKey key, ApprovalStatus outcome, String approver) {
+	public void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles) {
 		if (outcome != ApprovalStatus.APPROVED && outcome != ApprovalStatus.DENIED) {
 			throw new IllegalArgumentException("A decision must be APPROVED or DENIED, not " + outcome);
 		}
-		this.records.computeIfPresent(key, (unused, record) -> record.decide(outcome, approver, this.clock.instant()));
+		this.records.computeIfPresent(key,
+				(unused, record) -> record.decide(outcome, approver, this.clock.instant(), roles));
 	}
 
 	@Override

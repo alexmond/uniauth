@@ -2,6 +2,15 @@
 
 == 4.1.0.2 (unreleased)
 
+* *Approving now grants roles* (#5). Approval was a boolean, so a federated principal cleared
+  the gate and was then refused by every `hasRole(...)` rule in the application — it arrives
+  with `OIDC_USER` and `SCOPE_*` and no `ROLE_` at all, while an internal account had roles
+  from configuration all along. `ApprovalStore.decide` takes the roles the approver granted,
+  `uniauth.approval.default-roles` supplies a default, and the sample's queue offers a field
+  for them. They reach the principal on the next request, without a second sign-in, and the
+  authentication is rebuilt keeping its concrete type so mechanism resolution still works.
+  *Breaking* for anyone implementing `ApprovalStore`.
+
 * *Breaking — `uniauth.enabled` now defaults to `false`* (#6). The starter installed its
   catch-all chain on the strength of being on the classpath, so adding the dependency changed
   an application's authorization in every profile and every test before any integration was

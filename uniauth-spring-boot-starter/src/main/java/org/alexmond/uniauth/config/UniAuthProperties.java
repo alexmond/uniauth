@@ -80,6 +80,16 @@ public class UniAuthProperties {
 		/** Where an unapproved principal is sent. Served without approval, naturally. */
 		private String pendingPage = "/pending";
 
+		/**
+		 * Roles granted when an approver approves without naming any.
+		 *
+		 * <p>
+		 * A federated principal arrives with no {@code ROLE_} at all, so without this an
+		 * approved user is admitted and then refused by every role-based rule in the
+		 * application. The {@code ROLE_} prefix is added if absent.
+		 */
+		private List<String> defaultRoles = new ArrayList<>(List.of("USER"));
+
 	}
 
 	/**

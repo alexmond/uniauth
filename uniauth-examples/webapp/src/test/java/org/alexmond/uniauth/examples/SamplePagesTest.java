@@ -151,7 +151,7 @@ class SamplePagesTest {
 		HttpSession session = signIn(username, password, roles);
 		ApprovalKey key = new ApprovalKey("ldap", username);
 		this.store.recordPending(key, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
-		this.store.decide(key, ApprovalStatus.APPROVED, "test");
+		this.store.decide(key, ApprovalStatus.APPROVED, "test", java.util.List.of("USER"));
 		return session;
 	}
 

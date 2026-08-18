@@ -109,6 +109,7 @@ Registrations come from `spring.security.saml2.relyingparty.registration.*`.
 | `uniauth.approval.enabled` | `false` |
 | `uniauth.approval.require-for` | `[OAUTH2, SAML, LDAP]` | Which mechanisms are held. Internal accounts are excluded by default: writing one into configuration is already an approval.
 | `uniauth.approval.pending-page` | `/pending` | Where a held principal waits.
+| `uniauth.approval.default-roles` | `[USER]` | Granted when an approver approves without naming roles. A federated principal has none of its own.
 |===
 
 See xref:approval.adoc[the approval gate] for the `ApprovalStore` SPI and why the default

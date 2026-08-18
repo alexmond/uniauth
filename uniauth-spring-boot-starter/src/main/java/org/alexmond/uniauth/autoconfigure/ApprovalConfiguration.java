@@ -1,5 +1,6 @@
 package org.alexmond.uniauth.autoconfigure;
 
+import org.alexmond.uniauth.approval.ApprovalAuthoritiesFilter;
 import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.ApprovalStore;
 import org.alexmond.uniauth.approval.InMemoryApprovalStore;
@@ -38,6 +39,21 @@ class ApprovalConfiguration {
 	ApprovalAuthorizationManager uniAuthApprovalAuthorizationManager(ApprovalStore store, MechanismResolver resolver,
 			UniAuthProperties properties) {
 		return new ApprovalAuthorizationManager(store, resolver, properties);
+	}
+
+	/**
+	 * Grants what the approver decided, on the request after the decision.
+	 *
+	 * <p>
+	 * Separate from the authorization manager because they answer different questions:
+	 * the manager decides whether to let the request through at all, this decides what
+	 * the principal may then do.
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	ApprovalAuthoritiesFilter uniAuthApprovalAuthoritiesFilter(ApprovalStore store, MechanismResolver resolver,
+			UniAuthProperties properties) {
+		return new ApprovalAuthoritiesFilter(store, resolver, properties);
 	}
 
 }

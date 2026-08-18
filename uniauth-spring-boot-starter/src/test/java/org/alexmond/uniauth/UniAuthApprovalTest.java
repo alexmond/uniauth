@@ -16,6 +16,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
@@ -69,7 +70,7 @@ class UniAuthApprovalTest {
 	void revokingSendsAnApprovedPrincipalBackToTheWaitingRoom() throws Exception {
 		HttpSession session = signIn("bob", "bobspassword");
 		this.store.recordPending(BOB, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
-		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin");
+		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin", java.util.List.of("USER"));
 		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(status().isOk());
 
 		this.store.remove(BOB);
@@ -113,7 +114,7 @@ class UniAuthApprovalTest {
 		HttpSession session = signIn("bob", "bobspassword");
 		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(redirectedUrl("/pending"));
 
-		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin");
+		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin", java.util.List.of("USER"));
 
 		// Same session, no re-authentication needed.
 		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(status().isOk());
@@ -125,7 +126,7 @@ class UniAuthApprovalTest {
 		HttpSession session = signIn("bob", "bobspassword");
 		this.mockMvc.perform(get("/").session((MockHttpSession) session));
 
-		this.store.decide(BOB, ApprovalStatus.DENIED, "admin");
+		this.store.decide(BOB, ApprovalStatus.DENIED, "admin", java.util.List.of("USER"));
 
 		// 403, not a redirect — telling someone already refused to keep waiting is a lie.
 		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(status().isForbidden());
@@ -150,6 +151,57 @@ class UniAuthApprovalTest {
 			.andReturn()
 			.getRequest()
 			.getSession();
+	}
+
+	@Test
+	void theRolesAnApproverGrantedReachThePrincipal() throws Exception {
+		// The gap this closes: approval used to be a boolean, so a principal cleared the
+		// gate and was then refused by every hasRole() rule in the application. Driven
+		// through a real request so the filter that grants them actually runs — a mock
+		// authentication would bypass it and prove nothing.
+		HttpSession session = signIn("bob", "bobspassword");
+		this.store.recordPending(BOB, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
+		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin", java.util.List.of("ADMIN"));
+
+		MvcResult result = this.mockMvc.perform(get("/").session((MockHttpSession) session))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		assertThat(authoritiesFrom(result)).contains("ROLE_ADMIN");
+	}
+
+	@Test
+	void theMechanismSurvivesTheRolesBeingAdded() throws Exception {
+		// The authentication is rebuilt to carry the new authorities, and its concrete
+		// type is how MechanismResolver knows which provider answered. Flattening it
+		// would silently break the approval key on the next request.
+		HttpSession session = signIn("bob", "bobspassword");
+		this.store.recordPending(BOB, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
+		this.store.decide(BOB, ApprovalStatus.APPROVED, "admin", java.util.List.of("ADMIN"));
+
+		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(status().isOk());
+
+		// Still approved, not re-pended — which only holds if the key still resolves.
+		assertThat(this.store.statusOf(BOB)).isEqualTo(ApprovalStatus.APPROVED);
+	}
+
+	private static java.util.List<String> authoritiesFrom(MvcResult result) {
+		org.springframework.security.core.context.SecurityContext context = (org.springframework.security.core.context.SecurityContext) result
+			.getRequest()
+			.getSession()
+			.getAttribute("SPRING_SECURITY_CONTEXT");
+		return context.getAuthentication()
+			.getAuthorities()
+			.stream()
+			.map(org.springframework.security.core.GrantedAuthority::getAuthority)
+			.toList();
+	}
+
+	@Test
+	void aPendingRecordCarriesNoRoles() {
+		this.store.recordPending(BOB, PrincipalIdentity.ofName("bob"), AuthProviderType.LDAP);
+
+		assertThat(this.store.find(BOB)).get().extracting(ApprovalRecord::roles).isEqualTo(java.util.List.of());
 	}
 
 }

@@ -2,7 +2,11 @@ package org.alexmond.uniauth.examples.web;
 
 import org.alexmond.uniauth.approval.ApprovalKey;
 import org.alexmond.uniauth.approval.ApprovalStatus;
+import java.util.Arrays;
+import java.util.List;
+
 import org.alexmond.uniauth.approval.ApprovalStore;
+import org.alexmond.uniauth.config.UniAuthProperties;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -27,8 +31,11 @@ public class ApprovalController {
 
 	private final ApprovalStore store;
 
-	public ApprovalController(ApprovalStore store) {
+	private final UniAuthProperties properties;
+
+	public ApprovalController(ApprovalStore store, UniAuthProperties properties) {
 		this.store = store;
+		this.properties = properties;
 	}
 
 	@GetMapping("/pending")
@@ -47,15 +54,26 @@ public class ApprovalController {
 	@PostMapping("/approvals")
 	@PreAuthorize("hasRole('ADMIN')")
 	public String decide(@RequestParam String provider, @RequestParam String principal, @RequestParam String outcome,
-			Authentication approver) {
+			@RequestParam(required = false) String roles, Authentication approver) {
 		ApprovalKey key = new ApprovalKey(provider, principal);
 		if ("revoke".equals(outcome)) {
 			this.store.remove(key);
 		}
 		else {
-			this.store.decide(key, ApprovalStatus.valueOf(outcome), approver.getName());
+			// What the approver grants, not merely whether they let them in. A federated
+			// principal arrives with no ROLE_ of its own, so this is the only place its
+			// roles can come from — approve with nothing and it falls back to the
+			// configured default rather than admitting somebody who can do nothing.
+			this.store.decide(key, ApprovalStatus.valueOf(outcome), approver.getName(), parseRoles(roles));
 		}
 		return "redirect:/approvals";
+	}
+
+	private List<String> parseRoles(String roles) {
+		if (roles == null || roles.isBlank()) {
+			return this.properties.getApproval().getDefaultRoles();
+		}
+		return Arrays.stream(roles.split(",")).map(String::trim).filter((role) -> !role.isEmpty()).toList();
 	}
 
 }

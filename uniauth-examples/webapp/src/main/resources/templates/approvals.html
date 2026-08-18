@@ -62,6 +62,11 @@
 							<form th:action="@{/approvals}" method="post" style="display: flex; gap: .5rem">
 								<input type="hidden" name="provider" th:value="${record.provider()}"/>
 								<input type="hidden" name="principal" th:value="${record.principal()}"/>
+								<!-- What they may do, not merely whether they are admitted. A federated
+								     principal has no roles of its own, so an empty box falls back to
+								     uniauth.approval.default-roles rather than granting nothing. -->
+								<input class="field__input field__input--tight" type="text" name="roles"
+								       placeholder="USER, ADMIN" style="width:9rem"/>
 								<button class="button" type="submit" name="outcome" value="APPROVED">Approve</button>
 								<button class="button button--ghost" type="submit" name="outcome" value="DENIED">
 									Deny

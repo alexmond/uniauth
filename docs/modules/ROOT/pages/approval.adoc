@@ -55,6 +55,42 @@ answer again, and pretending otherwise would make the queue look more informativ
 It is captured at first sighting rather than read live because the queue has to render for a
 principal who is no longer signed in.
 
+== Approving grants roles
+
+Approval is not only "may this principal in". A federated sign-in arrives with
+`OIDC_USER` and a `SCOPE_*` per scope and *no* `ROLE_` at all, so without this an approved
+user clears the gate, reaches the application, and is refused by every `hasRole(...)` rule
+in it — while an internal account has had roles all along, from configuration. The two
+mechanisms were not equivalent in what they could express, and the federated one needs it
+more.
+
+So the decision carries them:
+
+[source,java]
+----
+void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles);
+----
+
+[source,yaml]
+----
+uniauth:
+  approval:
+    default-roles: [ USER ]   # granted when an approver approves without naming any
+----
+
+The `ROLE_` prefix is added if absent, so an approver types `ADMIN` and `hasRole("ADMIN")`
+matches. They are granted on the request *after* the decision, which is the same promise the
+gate itself makes — approval takes effect without a second sign-in.
+
+NOTE: This is why a `GrantedAuthoritiesMapper` bean cannot do the job. It receives the
+authorities and not the principal, and roles are stored per principal, so it has nothing to
+look them up by. The authorities are attached by a filter that has both.
+
+The authentication is rebuilt to carry them, keeping its concrete type: that type is how
+`MechanismResolver` knows which provider answered, so flattening every principal into a
+`UsernamePasswordAuthenticationToken` would quietly break the approval key on the next
+request. A type UniAuth does not recognise is left exactly as it was.
+
 == The store
 
 `ApprovalStore` is an SPI, and the gate is the only stateful thing in the library. That is
