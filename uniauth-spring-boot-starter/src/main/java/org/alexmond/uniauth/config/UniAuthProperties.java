@@ -22,10 +22,17 @@ import java.util.List;
 public class UniAuthProperties {
 
 	/**
-	 * Master switch. When false, UniAuth backs off entirely and Boot's default security
-	 * applies.
+	 * Master switch, off by default: the starter installs nothing until an application
+	 * sets {@code uniauth.enabled: true}. Landing on the classpath is not consent — this
+	 * library decides who may reach what.
+	 * <p>
+	 * The gate that actually backs the starter off is the {@code @ConditionalOnProperty}
+	 * on {@code UniAuthAutoConfiguration}, which does not match when the property is
+	 * missing, so this field is only ever bound once an application has asked for the
+	 * chain. It carries the same default so the generated configuration metadata — and
+	 * therefore IDE completion — agrees with the documentation.
 	 */
-	private boolean enabled = true;
+	private boolean enabled;
 
 	/** Path of the provider-chooser login page served by this starter. */
 	private String loginPage = "/login";
