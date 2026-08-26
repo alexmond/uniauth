@@ -1,7 +1,7 @@
 = UniAuth
 :toc: preamble
 :icons: font
-:uniauth-version: 4.1.0.1
+:uniauth-version: 4.1.0.2
 
 image:https://img.shields.io/maven-central/v/org.alexmond/uniauth-spring-boot-starter.svg[Maven Central,link=https://central.sonatype.com/artifact/org.alexmond/uniauth-spring-boot-starter]
 image:https://img.shields.io/badge/license-Apache--2.0-blue.svg[License,link=https://www.apache.org/licenses/LICENSE-2.0]
@@ -320,13 +320,16 @@ yours. Authorize on the `tid` claim if that is not what you want.
 |===
 |Property |Default |Notes
 
-|`uniauth.enabled` |`true` |Master switch. When false UniAuth backs off entirely.
+|`uniauth.enabled` |`false` |Master switch. *Must be set to `true`* — the starter installs
+nothing until asked.
 |`uniauth.login-page` |`/login` |Path of the chooser page.
 |`uniauth.default-success-url` |`/` |Where to land after signing in.
 |`uniauth.logout-success-url` |`/login?logout` |
 |`uniauth.providers-endpoint` |`/uniauth/providers` |
 |`uniauth.approval.enabled` |`false` |Hold unapproved principals at a waiting page.
 |`uniauth.approval.require-for` |`OAUTH2, SAML, LDAP` |Which mechanisms are gated.
+|`uniauth.approval.default-roles` |`[USER]` |Granted when an approver approves without naming
+roles. A federated principal has none of its own.
 |`uniauth.approval.pending-page` |`/pending` |Permitted automatically when approval is on.
 |`uniauth.public-paths` |empty |Extra ant-style paths served without a session. Use this for
 public pages and static assets instead of declaring your own `SecurityFilterChain`, which would
@@ -345,6 +348,10 @@ make the starter back off entirely.
 than one fixed issuer. Required for the `common`/`organizations` endpoints; loosens issuer
 validation.
 |`uniauth.saml.enabled` |`true` |Only takes effect if a `RelyingPartyRegistrationRepository` exists.
+|`uniauth.http-basic.enabled` |`false` |Offers Basic to non-browser callers, over the form-based
+mechanisms.
+|`uniauth.http-basic.paths` |empty |Where the challenge is offered; empty means everywhere. Scopes
+the challenge, not credential acceptance.
 |===
 
 == Overriding
@@ -353,10 +360,14 @@ Every bean is `@ConditionalOnMissingBean`, so declaring your own `SecurityFilter
 `AuthProviderRegistry` or login controller replaces the starter's without excluding the
 auto-configuration.
 
-Two hooks are worth knowing before you reach for a whole filter chain, because replacing it
+Three hooks are worth knowing before you reach for a whole filter chain, because replacing it
 means giving up all the wiring:
 
 `uniauth.public-paths`:: Opens up routes without touching the chain.
+`UniAuthAuthorizationCustomizer` bean:: Contributes authorization rules to this chain, applied
+after the permitted paths and before the catch-all. Reach for it when the application's rules
+are a different shape from "permitted or authenticated" — a role on an admin area, or a
+method-scoped rule.
 `AuthenticationEntryPoint` bean:: Declare one and the starter uses it instead of redirecting to
 the chooser. An API-first application returns 401 this way — see the `headless` example.
 

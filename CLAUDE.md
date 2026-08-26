@@ -326,12 +326,16 @@ Two things bite the moment the directory is real, and neither shows up against t
   symlink tree beside the file, osixia's bootstrap `find`s both copies, and the second pass dies
   with **status 68 (already exists)** on a database that was empty a second ago.
 
-### Two extension points, before you replace the chain
+### Extension points, before you replace the chain
 
 Declaring your own `SecurityFilterChain` makes the whole starter back off, so these exist to
-avoid that — and each was added because an example needed it, never speculatively:
+avoid that — and each was added because an example needed it, never speculatively. Do not put
+a count in this heading; it has gone stale twice.
 
 - `uniauth.public-paths` — open up routes (the webapp example needed public pages).
+- A **`UniAuthAuthorizationCustomizer`** bean — contributes authorization rules to the one
+  chain, applied after the permitted paths and before the catch-all, for rules that are not
+  shaped like "permitted or authenticated" (#3).
 - An `AuthenticationEntryPoint` bean — the starter uses it instead of redirecting to the
   chooser (the headless example needed 401).
 - **A second `SecurityFilterChain`** — the catch-all now backs off on its own bean *name*

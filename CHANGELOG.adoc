@@ -1,6 +1,6 @@
 = Changelog
 
-== 4.1.0.2 (unreleased)
+== 4.1.0.2
 
 * *New — `UniAuthAuthorizationCustomizer`* (#3). The single chain offered exactly one
   authorization shape — permitted paths, then authenticated — so an application whose rules
