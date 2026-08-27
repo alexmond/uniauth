@@ -283,14 +283,20 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <!--
-                              Without this the plugin uploads, validates, and then stops: the
-                              deployment sits in the Portal marked VALIDATED until somebody
-                              clicks Publish. Maven reports BUILD SUCCESS either way, so the
-                              release workflow goes green, the tag is pushed and the GitHub
-                              release is cut while nothing reaches Central — which is exactly
-                              how 4.1.0.1 went. The sibling projects all set it.
+                              Deliberately false: the plugin uploads and validates, then stops
+                              with the deployment marked VALIDATED in the Portal until somebody
+                              clicks Publish. That click is the point — a version on Central can
+                              never be withdrawn, so this is the last reversible moment.
+
+                              The cost is real and is how 4.1.0.1 went: Maven reports BUILD
+                              SUCCESS either way, so the workflow goes green, the tag is pushed
+                              and the GitHub release is cut while nothing has reached Central.
+                              A green release run is NOT a published release. Finish every
+                              release at https://central.sonatype.com/publishing/deployments.
+
+                              The sibling projects set this true; this one gates on purpose.
                             -->
-                            <autoPublish>true</autoPublish>
+                            <autoPublish>false</autoPublish>
                         </configuration>
                     </plugin>
                 </plugins>
