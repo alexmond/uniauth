@@ -372,7 +372,7 @@ Every bean is `@ConditionalOnMissingBean`, so declaring your own `SecurityFilter
 `AuthProviderRegistry` or login controller replaces the starter's without excluding the
 auto-configuration.
 
-Three hooks are worth knowing before you reach for a whole filter chain, because replacing it
+A few hooks are worth knowing before you reach for a whole filter chain, because replacing it
 means giving up all the wiring:
 
 `uniauth.public-paths`:: Opens up routes without touching the chain.
@@ -380,6 +380,10 @@ means giving up all the wiring:
 after the permitted paths and before the catch-all. Reach for it when the application's rules
 are a different shape from "permitted or authenticated" — a role on an admin area, or a
 method-scoped rule.
+`UniAuthBasicEntryPoint` bean:: The rule that decides whether a caller gets a Basic challenge,
+the chooser, or a bare `401`. Inject it into a chain of your own and hand it to
+`.httpBasic(...)`, so a second chain keeps the browser's native dialog shut instead of
+reproducing the decision.
 `AuthenticationEntryPoint` bean:: Declare one and the starter uses it instead of redirecting to
 the chooser. An API-first application returns 401 this way — see the `headless` example.
 
