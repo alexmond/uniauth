@@ -21,7 +21,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -143,6 +145,40 @@ class UniAuthApprovalTest {
 	@Test
 	void anonymousRequestsStillGoToTheChooser() throws Exception {
 		this.mockMvc.perform(get("/")).andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void probeHeldPrincipalGetLogout() throws Exception {
+		HttpSession session = signIn("bob", "bobspassword");
+		this.mockMvc.perform(get("/").session((MockHttpSession) session));
+		this.mockMvc.perform(get("/logout").session((MockHttpSession) session))
+			.andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print());
+	}
+
+	@Test
+	void aHeldPrincipalCanStillSignOut() throws Exception {
+		HttpSession session = signIn("bob", "bobspassword");
+		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(redirectedUrl("/pending"));
+
+		// The only people who need a way out are the only people the gate keeps in. This
+		// works without the logout URL being permitted, because LogoutFilter sits ahead
+		// of AuthorizationFilter and answers before the gate is ever consulted.
+		this.mockMvc.perform(post("/logout").session((MockHttpSession) session).with(csrf()))
+			.andExpect(redirectedUrl("/login?logout"));
+	}
+
+	@Test
+	void signingOutByLinkSendsAHeldPrincipalBackToTheWaitingPage() throws Exception {
+		HttpSession session = signIn("bob", "bobspassword");
+		this.mockMvc.perform(get("/").session((MockHttpSession) session));
+
+		// Records a dead end rather than endorsing it (see #11). Spring's logout matcher
+		// is POST-only while CSRF is on, so a GET never reaches LogoutFilter; it falls
+		// through to the gate, which sends it to the waiting page. An application whose
+		// sign-out is a link therefore has no way out except the back button. Permitting
+		// the logout URL would not help — the request has to reach LogoutFilter to log
+		// anyone out. Whoever fixes this should change this expectation deliberately.
+		this.mockMvc.perform(get("/logout").session((MockHttpSession) session)).andExpect(redirectedUrl("/pending"));
 	}
 
 	private HttpSession signIn(String username, String password) throws Exception {

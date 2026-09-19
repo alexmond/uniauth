@@ -69,6 +69,36 @@ class UniAuthExtensionPointsTest {
 	}
 
 	@Test
+	void aBrowserXhrGetsABare401() throws Exception {
+		// fetch() does not ask for HTML either, so Accept alone cannot tell it from a
+		// program. Challenged, the browser opens its native dialog above the page, where
+		// the application's own 401 handling can never reach it.
+		this.mockMvc
+			.perform(get("/api/thing").accept(MediaType.ALL)
+				.header("Sec-Fetch-Mode", "cors")
+				.header("Sec-Fetch-Site", "same-origin"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
+	}
+
+	@Test
+	void aBrowserNavigationStillGetsTheChooser() throws Exception {
+		this.mockMvc.perform(get("/api/thing").accept(MediaType.TEXT_HTML).header("Sec-Fetch-Mode", "navigate"))
+			.andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	void aBrowserXhrIsNotChallengedEvenWhenItPresentsCredentials() throws Exception {
+		// Credentials the page supplied itself and got wrong would otherwise re-open the
+		// native dialog, which is the one thing its JavaScript cannot suppress.
+		this.mockMvc
+			.perform(get("/api/thing").header(HttpHeaders.AUTHORIZATION, "Basic YWxpY2U6d3Jvbmc=")
+				.header("Sec-Fetch-Mode", "cors"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(header().doesNotExist(HttpHeaders.WWW_AUTHENTICATE));
+	}
+
+	@Test
 	void basicIsNotChallengedOutsideItsPaths() throws Exception {
 		// paths scopes the challenge, so a page a human visits never prompts.
 		this.mockMvc.perform(get("/somewhere").accept(MediaType.APPLICATION_JSON))
