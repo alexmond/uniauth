@@ -85,11 +85,18 @@ ones have no password to present, so the question does not arise for them.
 
 [IMPORTANT]
 ====
-A browser still gets the chooser. Installed naively, Basic answers an unauthenticated
+A browser never gets the challenge — not when it navigates, and not when a page it is
+already showing calls in the background. Installed naively, Basic answers an unauthenticated
 browser with a native credential dialog instead of the login page, which defeats the point
-of offering OAuth at all. The challenge is therefore issued only to requests that look like
-a program's — one presenting an `Authorization` header, or asking for something other than
-HTML — and everything else falls through to the chooser.
+of offering OAuth at all; and that dialog opens *above* the page, so a front end cannot
+suppress it.
+
+Browsers say so themselves. Every current one labels its requests with `Sec-Fetch-*`
+headers, which `curl` and the usual HTTP libraries do not send. So a navigation falls
+through to the chooser, a `fetch()` or XHR gets a bare `401` with no `WWW-Authenticate` —
+the answer a front end can act on, by sending the user to the chooser itself — and only a
+caller that did not identify itself is challenged. Programs that present credentials up
+front, as `curl -u` and most HTTP libraries do, never waited for a challenge anyway.
 
 `paths` scopes the *challenge*, not whether credentials are accepted. Scoping acceptance
 would mean narrowing this chain, and it is the catch-all: it would stop UniAuth protecting

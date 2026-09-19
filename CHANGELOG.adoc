@@ -1,5 +1,17 @@
 = Changelog
 
+== 4.1.0.3
+
+* *Fix — the Basic challenge no longer reaches a browser's XHR* (#13). `Accept` cannot tell a
+  page's `fetch()` from a program, because neither asks for HTML. Every background request from
+  an expired session was therefore answered with `WWW-Authenticate: Basic`, and the browser
+  opened its native credential dialog *above* the page — where the application's own 401
+  handling could never reach it, which is the opposite of what `uniauth.http-basic.paths`
+  exists to prevent. Browsers are now identified by the `Sec-Fetch-*` headers they send on
+  every request and programs do not: a navigation gets the chooser, an XHR gets a bare `401`,
+  and only a caller that did not identify itself is challenged. `curl -u` and HTTP libraries
+  that present credentials up front are unaffected, since they never waited for a challenge.
+
 == 4.1.0.2
 
 * *New — `UniAuthAuthorizationCustomizer`* (#3). The single chain offered exactly one
