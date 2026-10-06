@@ -80,6 +80,16 @@
             <plugins>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <!-- JDK 23+ no longer runs annotation processors found on the classpath by default.
+                             Lombok and spring-boot-configuration-processor are plain dependencies here, so
+                             opt back in; without this the build fails to compile on JDK 23 and later. -->
+                        <proc>full</proc>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <argLine>@{argLine} -Xmx512m</argLine>
