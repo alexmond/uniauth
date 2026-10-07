@@ -15,10 +15,22 @@ that lets the user pick between whichever of them you have turned on.
 WARNING: Pre-1.0 and moving. Treat the configuration surface as unstable.
 
 https://www.alexmond.org/uniauth/current/index.html[*Full documentation*] —
-https://www.alexmond.org/uniauth/current/getting-started.html[getting started] ·
-https://www.alexmond.org/uniauth/current/providers.html[provider recipes] ·
-https://www.alexmond.org/uniauth/current/approval.html[approval gate] ·
-https://www.alexmond.org/uniauth/current/configuration.html[configuration]
+https://www.alexmond.org/uniauth/current/getting-started/[getting started] ·
+https://www.alexmond.org/uniauth/current/providers/[provider recipes] ·
+https://www.alexmond.org/uniauth/current/approval/[approval gate] ·
+https://www.alexmond.org/uniauth/current/configuration/[configuration]
+
+== Spring Boot compatibility
+
+The starter version tracks the Spring Boot version it is built against:
+`<boot-version>.<revision>`. Pick the line that matches your application.
+
+[cols="1,1,1",options="header"]
+|===
+| Starter | Spring Boot | Branch
+
+| 4.1.1.x | 4.1.x | `main`
+|===
 
 == Why one filter chain
 
