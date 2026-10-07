@@ -399,14 +399,14 @@ Boot 4 relocated things; verify against the jars rather than assuming 3.x layout
 
 Reference implementation: `~/IdeaProjects/spring-boot-config-json-schema`.
 
-- **Branching** — one long-lived branch per maintained Boot minor (`3.5`, `4.0`, …); `master`
-  tracks the current Boot release (4.1 today). When Boot ships a new minor, `master` rolls forward
+- **Branching** — one long-lived branch per maintained Boot minor (`3.5`, `4.0`, …); `main`
+  tracks the current Boot release (4.1 today). When Boot ships a new minor, `main` rolls forward
   and the outgoing line is cut to its own branch.
 - **Versioning** — the project version tracks the Boot version it builds against
   (`4.1.1.1-SNAPSHOT` → Boot 4.1.1), 4th segment being this library's own patch counter. The global
   numeric-only release rule does not apply here.
 - **Publishing** — Maven Central via `-Prelease` (GPG signing + sources/javadoc), driven by
-  `.github/workflows/maven_release.yml` (`workflow_dispatch` with release + next versions). Never
+  `.github/workflows/maven_release.yml` (`workflow_dispatch` with branch + release + next versions). Never
   run that profile locally without signing keys. Docs are an Antora site under `docs/` published to
   the alexmond.org hub; see the `release-prep` and `update-docs-hub` skills.
 - **Shared config files** — `checkstyle.xml`, `checkstyle-suppressions.xml`, `pmd-ruleset.xml`,

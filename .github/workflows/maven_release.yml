@@ -4,8 +4,11 @@ name: Maven Release
 # Everything else in the reactor sets skipPublishing: the provider, the console and the
 # examples are demonstrations, not libraries.
 #
-#   gh workflow run maven_release.yml --ref master \
-#     -f releaseVersion=X.Y.Z.N -f nextVersion=X.Y.Z.(N+1)-SNAPSHOT
+# Release one Spring Boot line. `branch` selects the line: main = the latest Boot line,
+# or a <major>.<minor> maintenance branch.
+#
+#   gh workflow run maven_release.yml \
+#     -f branch=main -f releaseVersion=X.Y.Z.N -f nextVersion=X.Y.Z.(N+1)-SNAPSHOT
 #
 # Run the release-prep checklist first: this tags whatever is on the branch, and the tag
 # freezes the docs, the README version and the changelog exactly as they are.
@@ -13,8 +16,12 @@ name: Maven Release
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Branch to release from (main = latest Boot line)'
+        required: true
+        default: 'main'
       releaseVersion:
-        description: 'Release version'
+        description: 'Release version (<boot-version>.<revision>, e.g. 4.1.1.2)'
         required: true
       nextVersion:
         description: 'Next development version (with -SNAPSHOT suffix)'
@@ -25,10 +32,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write   # push the release commit + tag, create the GitHub release
+    # Inputs go through env, never inline in a `run` script.
+    env:
+      BRANCH: ${{ github.event.inputs.branch }}
+      RELEASE_VERSION: ${{ github.event.inputs.releaseVersion }}
+      NEXT_VERSION: ${{ github.event.inputs.nextVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
       - name: Set up JDK
@@ -49,8 +62,6 @@ jobs:
           git config user.email "actions@github.com"
 
       - name: Set Release Version
-        env:
-          RELEASE_VERSION: ${{ github.event.inputs.releaseVersion }}
         run: |
           ./mvnw versions:set -DnewVersion="$RELEASE_VERSION" -Pdefault --no-transfer-progress
           # Keep the README install snippet in sync with the release (versions:set only
@@ -62,8 +73,6 @@ jobs:
         run: ./mvnw --batch-mode verify -Pdefault --no-transfer-progress
 
       - name: Commit and Tag Release
-        env:
-          RELEASE_VERSION: ${{ github.event.inputs.releaseVersion }}
         run: |
           git commit -am "Prepare release $RELEASE_VERSION"
           git tag -a "$RELEASE_VERSION" -m "Release $RELEASE_VERSION"
@@ -76,14 +85,12 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Set Next Development Version
-        env:
-          NEXT_VERSION: ${{ github.event.inputs.nextVersion }}
         run: |
           ./mvnw versions:set -DnewVersion="$NEXT_VERSION" -Pdefault --no-transfer-progress
           git commit -am "Prepare for next development iteration: $NEXT_VERSION"
 
       - name: Push Changes
-        run: git push && git push --tags
+        run: git push origin "$BRANCH" && git push origin --tags
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

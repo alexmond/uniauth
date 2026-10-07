@@ -9,9 +9,9 @@ name: lab-scan
 # unset the scan skips, so the gate can be added before the secret.
 on:
   push:
-    branches: [ "master" ]
+    branches: [ main, "[0-9]+.[0-9]+" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "**" ]
 
 permissions:
   contents: read
