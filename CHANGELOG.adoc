@@ -1,5 +1,10 @@
 = Changelog
 
+== 4.1.1.1
+
+* *Spring Boot 4.1.1* (was 4.1.0). The version follows the Boot patch, so the fourth segment
+  restarts at 1. No change to the starter's own behaviour.
+
 == 4.1.0.3
 
 * *Fix — the Basic challenge no longer reaches a browser's XHR* (#13). `Accept` cannot tell a
