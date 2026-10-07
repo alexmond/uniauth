@@ -1,7 +1,7 @@
 = UniAuth
 :toc: preamble
 :icons: font
-:uniauth-version: 4.1.0.3
+:uniauth-version: 4.1.1.1
 
 image:https://img.shields.io/maven-central/v/org.alexmond/uniauth-spring-boot-starter.svg[Maven Central,link=https://central.sonatype.com/artifact/org.alexmond/uniauth-spring-boot-starter]
 image:https://img.shields.io/badge/license-Apache--2.0-blue.svg[License,link=https://www.apache.org/licenses/LICENSE-2.0]
