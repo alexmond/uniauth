@@ -21,7 +21,7 @@ on:
         required: true
         default: 'main'
       releaseVersion:
-        description: 'Release version (<boot-version>.<revision>, e.g. 4.1.1.2)'
+        description: 'Release version (<boot-version>.<revision>, e.g. 4.0.8.1)'
         required: true
       nextVersion:
         description: 'Next development version (with -SNAPSHOT suffix)'
@@ -68,6 +68,9 @@ jobs:
           # touches the POMs). README.adoc carries the version in the :uniauth-version:
           # attribute, so one substitution covers the whole document.
           sed -i -E "s#^:uniauth-version:.*#:uniauth-version: $RELEASE_VERSION#" README.adoc
+          # The example chart's appVersion (default image tag + version label) tracks the
+          # project version too.
+          sed -i -E "s#^appVersion:.*#appVersion: \"$RELEASE_VERSION\"#" deploy/helm/uniauth/Chart.yaml
 
       - name: Verify Build
         run: ./mvnw --batch-mode verify -Pdefault --no-transfer-progress
@@ -87,6 +90,7 @@ jobs:
       - name: Set Next Development Version
         run: |
           ./mvnw versions:set -DnewVersion="$NEXT_VERSION" -Pdefault --no-transfer-progress
+          sed -i -E "s#^appVersion:.*#appVersion: \"$NEXT_VERSION\"#" deploy/helm/uniauth/Chart.yaml
           git commit -am "Prepare for next development iteration: $NEXT_VERSION"
 
       - name: Push Changes

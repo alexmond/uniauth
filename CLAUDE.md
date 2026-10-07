@@ -57,7 +57,7 @@ starter, the auth server and the admin console. `verify-optional-deps.sh` genera
 consumer and boots it — the only check that can catch an optional dependency slipping back to
 compile scope, which has happened once already.
 
-Java 21, Spring Boot 4.1.1, Spring Security 7.0.x. CI (`.github/workflows/maven.yml`) runs
+Java 21, Spring Boot 4.0.8, Spring Security 7.0.x. CI (`.github/workflows/maven.yml`) runs
 `./mvnw -B verify -Pdefault` on JDK 21 — the same gates as `dev-verify.sh`.
 
 ### Quality gates (all fail the build; the first three at `validate`)
@@ -402,8 +402,11 @@ Reference implementation: `~/IdeaProjects/spring-boot-config-json-schema`.
 - **Branching** — one long-lived branch per maintained Boot minor (`3.5`, `4.0`, …); `main`
   tracks the current Boot release (4.1 today). When Boot ships a new minor, `main` rolls forward
   and the outgoing line is cut to its own branch.
+- **This branch is `4.0`, the Spring Boot 4.0 maintenance line.** It takes fixes and Boot 4.0.x
+  patch bumps only — no new features; those go to `main` and are ported here only as fixes.
+  PRs for this line target `4.0`, and releases pass `-f branch=4.0`.
 - **Versioning** — the project version tracks the Boot version it builds against
-  (`4.1.1.1-SNAPSHOT` → Boot 4.1.1), 4th segment being this library's own patch counter. The global
+  (`4.0.8.1-SNAPSHOT` → Boot 4.0.8), 4th segment being this library's own patch counter. The global
   numeric-only release rule does not apply here.
 - **Publishing** — Maven Central via `-Prelease` (GPG signing + sources/javadoc), driven by
   `.github/workflows/maven_release.yml` (`workflow_dispatch` with branch + release + next versions). Never

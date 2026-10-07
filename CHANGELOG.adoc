@@ -1,5 +1,11 @@
 = Changelog
 
+== 4.0.8.1
+
+* *First release of the Spring Boot 4.0 line*, built on Spring Boot 4.0.8 from the `4.0`
+  maintenance branch. Same starter behaviour as `4.1.1.1`; only the Spring Boot version it is
+  built against differs. Use this line if your application is on Spring Boot 4.0.x.
+
 == 4.1.1.1
 
 * *Spring Boot 4.1.1* (was 4.1.0). The version follows the Boot patch, so the fourth segment

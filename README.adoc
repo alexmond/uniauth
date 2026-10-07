@@ -1,7 +1,7 @@
 = UniAuth
 :toc: preamble
 :icons: font
-:uniauth-version: 4.1.1.1
+:uniauth-version: 4.0.8.1
 
 image:https://img.shields.io/maven-central/v/org.alexmond/uniauth-spring-boot-starter.svg[Maven Central,link=https://central.sonatype.com/artifact/org.alexmond/uniauth-spring-boot-starter]
 image:https://img.shields.io/badge/license-Apache--2.0-blue.svg[License,link=https://www.apache.org/licenses/LICENSE-2.0]
@@ -15,10 +15,27 @@ that lets the user pick between whichever of them you have turned on.
 WARNING: Pre-1.0 and moving. Treat the configuration surface as unstable.
 
 https://www.alexmond.org/uniauth/current/index.html[*Full documentation*] —
-https://www.alexmond.org/uniauth/current/getting-started.html[getting started] ·
-https://www.alexmond.org/uniauth/current/providers.html[provider recipes] ·
-https://www.alexmond.org/uniauth/current/approval.html[approval gate] ·
-https://www.alexmond.org/uniauth/current/configuration.html[configuration]
+https://www.alexmond.org/uniauth/current/getting-started/[getting started] ·
+https://www.alexmond.org/uniauth/current/providers/[provider recipes] ·
+https://www.alexmond.org/uniauth/current/approval/[approval gate] ·
+https://www.alexmond.org/uniauth/current/configuration/[configuration]
+
+NOTE: This is the `4.0` branch: the *Spring Boot 4.0 maintenance line*. It takes fixes and
+Spring Boot 4.0.x patch bumps only; new features land on `main` (Spring Boot 4.1). Its first
+release, `4.0.8.1`, has not been cut yet.
+
+== Spring Boot compatibility
+
+The starter version tracks the Spring Boot version it is built against:
+`<boot-version>.<revision>`. Pick the line that matches your application.
+
+[cols="1,1,1",options="header"]
+|===
+| Starter | Spring Boot | Branch
+
+| 4.1.1.x | 4.1.x | `main`
+| 4.0.8.x | 4.0.x | `4.0`
+|===
 
 == Why one filter chain
 
@@ -380,7 +397,7 @@ scripts/dev-test.sh UniAuthLdapLoginTest  # one test class
 ./mvnw spring-javaformat:apply            # auto-format before committing
 ----
 
-Java 21, Spring Boot 4.1.x. Every `verify` runs four gates, all of which fail the build:
+Java 21, Spring Boot 4.0.x. Every `verify` runs four gates, all of which fail the build:
 spring-javaformat (tabs, Spring conventions), Checkstyle, PMD, and JaCoCo at ≥80% line coverage.
 
 == Licence
