@@ -6,7 +6,10 @@ description: |
   demo, not the library; the library itself is a jar and deploys nothing.
 type: application
 version: 0.1.0
-appVersion: "4.1.0.1-SNAPSHOT"
+# Tracks the project version: it is the default image tag (scripts/deploy-k8s.sh tags the
+# image with the project version) and the app.kubernetes.io/version label. The release
+# workflow rewrites it together with the POM versions - do not bump it by hand.
+appVersion: "4.1.1.2-SNAPSHOT"
 home: https://github.com/alexmond/uniauth
 sources:
   - https://github.com/alexmond/uniauth
