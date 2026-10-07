@@ -47,7 +47,7 @@ cat > "$WORK/pom.xml" <<EOF
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.0</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
     <groupId>probe</groupId>
