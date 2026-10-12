@@ -103,6 +103,29 @@ would mean narrowing this chain, and it is the catch-all: it would stop UniAuth 
 everything outside those paths, which is far more than the property appears to ask for.
 ====
 
+=== Reusing the decision on your own chain
+
+Declaring a second, more specific chain is ordinary Spring Security. That chain gets none of
+the starter's Basic wiring, so ask for the rule by name rather than reproducing it — a bare
+`BasicAuthenticationEntryPoint` brings the dialog straight back, for exactly the paths an
+API-first front end calls:
+
+[source,java]
+----
+@Bean
+@Order(Ordered.HIGHEST_PRECEDENCE + 10)
+SecurityFilterChain apiChain(HttpSecurity http, UniAuthBasicEntryPoint entryPoint) throws Exception {
+    return http.securityMatcher("/api/**")
+        .authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
+        .httpBasic(basic -> basic.authenticationEntryPoint(entryPoint))
+        .build();
+}
+----
+
+The bean is published whether or not `uniauth.http-basic.enabled` is set: that property
+governs whether the starter's *own* chain installs Basic, while this is the rule your chain
+asks for.
+
 == Brand is not a mechanism, and neither is OIDC
 
 Three separate axes, deliberately not merged:

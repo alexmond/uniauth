@@ -341,6 +341,16 @@ a count in this heading; it has gone stale twice.
 - **A second `SecurityFilterChain`** — the catch-all now backs off on its own bean *name*
   (`uniAuthSecurityFilterChain`), not on the type, so adding a chain no longer costs you every
   mechanism. The local OAuth provider needed this.
+- A **`UniAuthBasicEntryPoint`** bean — the three-way Basic decision (challenge a program,
+  redirect a navigating browser, answer a browser's XHR with a bare 401), published so a
+  *second chain* can reuse it instead of reproducing it (#14). Consumers reached for a bare
+  `BasicAuthenticationEntryPoint` and the native dialog came back on every expired-session
+  XHR, for exactly the paths an API-first front end calls — while both chains were installed,
+  both correct, and every test on both sides passed.
+
+Because that bean *is* an `AuthenticationEntryPoint`, the chain filters it out when looking
+for the application's own — taking it would replace the chooser redirect for every browser
+navigation. Publishing any bean whose type an `ObjectProvider` already scans needs that check.
 
 That is the pattern to keep following: build the example first, and let it prove the gap.
 

@@ -4,6 +4,7 @@ import org.alexmond.uniauth.approval.ApprovalAuthoritiesFilter;
 import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
 import org.alexmond.uniauth.config.UniAuthAuthorizationCustomizer;
+import org.alexmond.uniauth.config.UniAuthBasicEntryPoint;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProvider;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
@@ -22,15 +23,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
-import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
@@ -168,7 +163,8 @@ public class UniAuthAutoConfiguration {
 			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
 			ObjectProvider<ApprovalAuthoritiesFilter> approvalAuthorities,
 			ObjectProvider<UniAuthAuthorizationCustomizer> authorizationCustomizers,
-			ObjectProvider<AuthenticationEntryPoint> entryPoint) throws Exception {
+			ObjectProvider<AuthenticationEntryPoint> entryPoint, UniAuthBasicEntryPoint basicEntryPoint)
+			throws Exception {
 
 		List<String> permitted = new ArrayList<>(
 				List.of(properties.getLoginPage(), properties.getProvidersEndpoint(), "/error"));
@@ -182,9 +178,16 @@ public class UniAuthAutoConfiguration {
 		}
 
 		authorize(http, permitted, authorizationCustomizers, approval);
-		httpBasic(http, properties);
+		httpBasic(http, properties, basicEntryPoint);
 
-		AuthenticationEntryPoint customEntryPoint = entryPoint.getIfAvailable();
+		// Our own Basic entry point is an AuthenticationEntryPoint too, and it is not the
+		// application's answer to "what should a missing session get" — it is the answer
+		// for callers that reached a chain with Basic on it. Taking it here would replace
+		// the chooser redirect for every browser navigation.
+		AuthenticationEntryPoint customEntryPoint = entryPoint.orderedStream()
+			.filter((candidate) -> !(candidate instanceof UniAuthBasicEntryPoint))
+			.findFirst()
+			.orElse(null);
 		if (approval != null || customEntryPoint != null) {
 			http.exceptionHandling((exceptions) -> {
 				if (approval != null) {
@@ -259,106 +262,31 @@ public class UniAuthAutoConfiguration {
 	 * delegated, and only a caller that does not identify itself as a browser can receive
 	 * one; see {@link #entryPointFor}.
 	 */
-	private static void httpBasic(HttpSecurity http, UniAuthProperties properties) throws Exception {
+	private static void httpBasic(HttpSecurity http, UniAuthProperties properties, UniAuthBasicEntryPoint entryPoint)
+			throws Exception {
 		UniAuthProperties.HttpBasic basic = properties.getHttpBasic();
 		if (!basic.isEnabled()) {
 			return;
 		}
-		http.httpBasic((configurer) -> configurer.authenticationEntryPoint(apiOnlyBasicEntryPoint(properties)));
+		http.httpBasic((configurer) -> configurer.authenticationEntryPoint(entryPoint));
 	}
 
 	/**
-	 * Challenges programs, redirects navigating browsers, and answers a browser's own
-	 * background requests with a bare 401.
+	 * The rule that keeps the browser's native credential dialog shut.
 	 *
 	 * <p>
-	 * The third case is the one that is easy to miss. A {@code fetch()} from a page does
-	 * not ask for HTML either, so {@code Accept} alone cannot separate it from a program
-	 * — and a challenge sent to one opens the browser's native credential dialog
-	 * <em>above</em> the page, before its JavaScript ever sees the 401. The page cannot
-	 * suppress what happens above it, so this has to be decided here.
+	 * Published so an application declaring its own, more specific chain can reuse it
+	 * rather than reproduce it — see {@link UniAuthBasicEntryPoint}, which is where the
+	 * decision lives. Reproducing it is what an application actually did, and what it
+	 * reached for was a bare {@code BasicAuthenticationEntryPoint}, which brought the
+	 * dialog back on every expired-session XHR while every test on both sides passed.
+	 * @param properties the bound configuration
+	 * @return the shared entry point
 	 */
-	private static AuthenticationEntryPoint apiOnlyBasicEntryPoint(UniAuthProperties properties) {
-		BasicAuthenticationEntryPoint basic = new BasicAuthenticationEntryPoint();
-		basic.setRealmName("UniAuth");
-		LoginUrlAuthenticationEntryPoint chooser = new LoginUrlAuthenticationEntryPoint(properties.getLoginPage());
-		AuthenticationEntryPoint silent = new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED);
-		List<String> paths = properties.getHttpBasic().getPaths();
-		return (request, response, exception) -> entryPointFor(request, paths, basic, chooser, silent).commence(request,
-				response, exception);
-	}
-
-	/**
-	 * Which of the three answers a request gets.
-	 *
-	 * <p>
-	 * {@code paths} scopes the <em>challenge</em>, not whether credentials are accepted.
-	 * Scoping acceptance would mean narrowing the chain itself, and this chain is the
-	 * catch-all — it would stop UniAuth protecting everything outside those paths, which
-	 * is a far larger change than the property appears to ask for. Presenting valid
-	 * credentials anywhere is harmless; what the setting is for is keeping the browser's
-	 * native dialog away from the pages humans visit.
-	 *
-	 * <p>
-	 * Within that scope a browser is asked rather than guessed at: it labels every
-	 * request it makes with {@code Sec-Fetch-*}, and a program does not send those
-	 * headers unless someone sets them deliberately. So a browser never receives a
-	 * challenge — it gets the chooser when it is navigating and a bare 401 otherwise,
-	 * which is the answer a front end can act on. Only a caller that did not identify
-	 * itself falls back to reading {@code Accept}, and that population is programs.
-	 */
-	private static AuthenticationEntryPoint entryPointFor(HttpServletRequest request, List<String> paths,
-			AuthenticationEntryPoint basic, AuthenticationEntryPoint chooser, AuthenticationEntryPoint silent) {
-		if (!inScope(request, paths)) {
-			return chooser;
-		}
-		if (browserInitiated(request)) {
-			if (navigating(request)) {
-				return chooser;
-			}
-			return silent;
-		}
-		if (challengeFor(request)) {
-			return basic;
-		}
-		return chooser;
-	}
-
-	private static boolean inScope(HttpServletRequest request, List<String> paths) {
-		return paths.isEmpty() || paths.stream()
-			.anyMatch((pattern) -> PathPatternRequestMatcher.withDefaults().matcher(pattern).matches(request));
-	}
-
-	/**
-	 * Whether the browser itself made this request.
-	 *
-	 * <p>
-	 * Every current browser sends {@code Sec-Fetch-Site} on every request, and it is a
-	 * forbidden header name, so a page cannot forge one. {@code curl} and the usual HTTP
-	 * libraries send neither.
-	 */
-	private static boolean browserInitiated(HttpServletRequest request) {
-		return request.getHeader("Sec-Fetch-Site") != null || request.getHeader("Sec-Fetch-Mode") != null;
-	}
-
-	/**
-	 * Whether the browser is going to a page, rather than fetching on one's behalf.
-	 */
-	private static boolean navigating(HttpServletRequest request) {
-		return "navigate".equals(request.getHeader("Sec-Fetch-Mode"));
-	}
-
-	/**
-	 * Whether a caller that did not identify itself should be challenged.
-	 *
-	 * <p>
-	 * Only reached by clients sending no {@code Sec-Fetch-*} headers, which a browser
-	 * always does — so this decides between programs and browsers too old to say. A
-	 * program either presents credentials or does not ask for HTML.
-	 */
-	private static boolean challengeFor(HttpServletRequest request) {
-		return request.getHeader("Authorization") != null
-				|| !String.valueOf(request.getHeader("Accept")).contains("text/html");
+	@Bean
+	@ConditionalOnMissingBean
+	public UniAuthBasicEntryPoint uniAuthBasicEntryPoint(UniAuthProperties properties) {
+		return new UniAuthBasicEntryPoint(properties);
 	}
 
 	/**
