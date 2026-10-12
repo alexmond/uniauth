@@ -66,7 +66,7 @@ Java 21, Spring Boot 4.1.1, Spring Security 7.0.x. CI (`.github/workflows/maven.
 - **Checkstyle** 3.6.0 (+ Spring checks) — `checkstyle.xml` / `checkstyle-suppressions.xml` at the
   repo root, test sources included.
 - **PMD** 3.28.0 — `pmd-ruleset.xml` at the repo root, `failOnViolation=true`, main sources only.
-- **JaCoCo** 0.8.14 — BUNDLE line coverage ≥ **80%** at `verify`. Report at
+- **JaCoCo** 0.8.15 — BUNDLE line coverage ≥ **80%** at `verify`. Report at
   `uniauth-spring-boot-starter/target/site/jacoco/`.
 
 Lint rules that bit during the scaffold: **SpringLambda** wants parenthesized single lambda params
