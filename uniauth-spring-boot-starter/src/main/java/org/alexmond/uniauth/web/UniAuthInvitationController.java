@@ -67,18 +67,24 @@ public class UniAuthInvitationController {
 	 * Opens an invitation.
 	 *
 	 * <p>
-	 * An anonymous visitor is stashed and sent to the chooser, which is the ordinary
-	 * flow. An authenticated one gets a confirmation page instead, because the URL is the
+	 * Everybody gets the same page, and this method changes nothing. The URL is the
 	 * credential: whoever holds it gets the record it names, and that is inherent to link
 	 * invitations. What the page buys is that a hijack — or a mis-sent link opened by the
-	 * wrong colleague — is deliberate rather than accidental. It doubles as the recovery
-	 * path for a session lost mid-login: the invitation is still unclaimed, so confirming
+	 * wrong colleague — is deliberate rather than accidental, and that only holds if
+	 * accepting is an act somebody actually took. A GET cannot be CSRF-protected, so a
+	 * GET that stashed would let another site plant its invitation in a visitor's session
+	 * and skip this page altogether.
+	 *
+	 * <p>
+	 * An anonymous visitor is told to accept and then sign in; somebody already signed in
+	 * is shown which account they would be accepting as. The second is also the recovery
+	 * path for a session lost mid-login: the invitation is still unclaimed, so accepting
 	 * claims it without a second sign-in.
 	 * @param token the token from the path
 	 * @param authentication whoever is asking, {@code null} when nobody is
-	 * @param request the current request, whose session carries the token onwards
-	 * @param model receives what the confirmation page renders
-	 * @return a redirect, or the confirmation view
+	 * @param request the current request, unchanged by this method
+	 * @param model receives what the page renders
+	 * @return a redirect for a token that cannot be used, or the acceptance view
 	 */
 	@GetMapping("${uniauth.approval.invitations.path:/invite/{token}}")
 	public String open(@PathVariable String token,
@@ -88,11 +94,13 @@ public class UniAuthInvitationController {
 		if (open.isEmpty()) {
 			return chooser(reasonFor(token));
 		}
-		if (!isAuthenticated(authentication)) {
-			Invitations.stash(request, open.get().token());
-			return chooser(null);
-		}
-		model.addAttribute("signedInAs", authentication.getName());
+		// This GET touches nothing. Accepting is a POST, which carries a CSRF token;
+		// stashing here would be a state change on a method that cannot be protected, and
+		// an attacker's page could fire it with an img tag to plant their invitation in a
+		// visitor's session. That visitor would then sign in with their own account and
+		// be
+		// bound to the record the attacker's invitation names, never seeing this page.
+		model.addAttribute("signedInAs", isAuthenticated(authentication) ? authentication.getName() : null);
 		model.addAttribute("invitePath", this.properties.getApproval().getInvitations().getPath());
 		model.addAttribute("token", open.get().token().value());
 		// Deliberately not the subjectRef. The visitor may not be the invited person, and

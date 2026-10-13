@@ -30,20 +30,34 @@
 <main class="card">
     <h1>Accept this invitation</h1>
 
-    <p>
+    <p th:if="${signedInAs != null}">
         You are signed in as <span class="who" th:text="${signedInAs}">someone</span>.
         Accepting links <em>this</em> account to the invitation.
     </p>
 
+    <p th:if="${signedInAs == null}">
+        Accept the invitation and then sign in. Whichever account you sign in with is the
+        one it will be attached to.
+    </p>
+
     <!-- th:action is what makes Thymeleaf insert the CSRF token; a plain action attribute
-         would post without one and be rejected. -->
+         would post without one and be rejected. The POST is also what makes accepting a
+         deliberate act — a GET cannot be CSRF-protected, so a GET that accepted could be
+         fired from somebody else's page. -->
     <form th:action="@{${invitePath}(token=${token})}" method="post">
-        <button type="submit">Accept as <span th:text="${signedInAs}">someone</span></button>
+        <button th:if="${signedInAs != null}" type="submit">
+            Accept as <span th:text="${signedInAs}">someone</span>
+        </button>
+        <button th:if="${signedInAs == null}" type="submit">Accept and sign in</button>
     </form>
 
-    <p class="hint">
+    <p class="hint" th:if="${signedInAs != null}">
         If this invitation was not meant for this account, sign out first and open the link
         again. An invitation can only be accepted once.
+    </p>
+
+    <p class="hint" th:if="${signedInAs == null}">
+        An invitation can only be accepted once.
     </p>
 </main>
 </body>

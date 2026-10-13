@@ -48,14 +48,33 @@ class UniAuthInvitationControllerTest {
 	}
 
 	@Test
-	void anAnonymousVisitorWithAnOpenInvitationIsStashedAndSentToTheChooser() {
+	void aGetNeverStashesSoAnInvitationCannotBeFixedIntoSomebodyElsesSession() {
+		// Login-CSRF, and the reason a GET here may not touch the session. A GET cannot
+		// be CSRF-protected, so anything that stashed on one could be fired from an
+		// attacker's page — an img tag, an iframe, a link — planting their invitation in
+		// a victim's session. The victim then signs in with their own account and the
+		// gate binds it to the record the attacker's invitation names, without ever
+		// showing the confirmation page that exists to make precisely that deliberate.
 		Invitation invitation = this.store.create("jane", null, List.of(), "admin");
 		MockHttpServletRequest request = new MockHttpServletRequest();
 
-		String view = this.controller.open(invitation.token().value(), null, request, new ExtendedModelMap());
+		this.controller.open(invitation.token().value(), null, request, new ExtendedModelMap());
 
-		assertThat(view).isEqualTo("redirect:/login");
-		assertThat(Invitations.pending(request)).isEqualTo(invitation.token());
+		assertThat(Invitations.pending(request)).isNull();
+	}
+
+	@Test
+	void anAnonymousVisitorGetsTheAcceptPageRatherThanBeingStashedSilently() {
+		Invitation invitation = this.store.create("jane", null, List.of(), "admin");
+		Model model = new ExtendedModelMap();
+
+		String view = this.controller.open(invitation.token().value(), null, new MockHttpServletRequest(), model);
+
+		assertThat(view).isEqualTo("uniauth/invite");
+		// Null rather than absent, so the page can say "sign in to accept" instead of
+		// naming an account nobody is signed in to.
+		assertThat(model.getAttribute("signedInAs")).isNull();
+		assertThat(model.getAttribute("token")).isEqualTo(invitation.token().value());
 	}
 
 	@Test
@@ -202,12 +221,13 @@ class UniAuthInvitationControllerTest {
 	}
 
 	@Test
-	void anAnonymousPostHasNothingToConfirmAndIsSentToTheChooser() {
+	void acceptingBeforeSigningInStashesTheTokenAndSendsThemToTheChooser() {
 		Invitation invitation = this.store.create("jane", null, List.of(), "admin");
 		MockHttpServletRequest request = new MockHttpServletRequest();
 
 		assertThat(this.controller.confirm(invitation.token().value(), null, request)).isEqualTo("redirect:/login");
-		// Stashed anyway: they are about to sign in, and that is exactly the flow.
+		// The POST is the deliberate act, and it carries a CSRF token. This is the
+		// ordinary flow: accept, then sign in, then the gate claims it.
 		assertThat(Invitations.pending(request)).isEqualTo(invitation.token());
 	}
 
