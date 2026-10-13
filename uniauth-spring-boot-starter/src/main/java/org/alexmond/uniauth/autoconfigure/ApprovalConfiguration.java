@@ -5,11 +5,14 @@ import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.ApprovalStore;
 import org.alexmond.uniauth.approval.InMemoryApprovalStore;
 import org.alexmond.uniauth.config.UniAuthProperties;
+import org.alexmond.uniauth.invitation.InvitationRedemption;
 import org.alexmond.uniauth.provider.MechanismResolver;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 /**
  * Wires the approval gate, and only when asked for.
@@ -22,6 +25,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "uniauth.approval", name = "enabled", havingValue = "true")
+@Import(InvitationConfiguration.class)
 class ApprovalConfiguration {
 
 	/**
@@ -37,8 +41,10 @@ class ApprovalConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	ApprovalAuthorizationManager uniAuthApprovalAuthorizationManager(ApprovalStore store, MechanismResolver resolver,
-			UniAuthProperties properties) {
-		return new ApprovalAuthorizationManager(store, resolver, properties);
+			UniAuthProperties properties, ObjectProvider<InvitationRedemption> redemption) {
+		// Absent unless invitations are on, in which case the gate is exactly what it was
+		// before they existed.
+		return new ApprovalAuthorizationManager(store, resolver, properties, redemption.getIfAvailable());
 	}
 
 	/**

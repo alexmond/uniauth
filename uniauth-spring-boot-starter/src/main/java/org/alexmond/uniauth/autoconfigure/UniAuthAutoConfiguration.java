@@ -175,6 +175,11 @@ public class UniAuthAutoConfiguration {
 			// The waiting page has to be reachable by the very people the gate is keeping
 			// out, or the redirect loops.
 			permitted.add(properties.getApproval().getPendingPage());
+			if (properties.getApproval().getInvitations().isEnabled()) {
+				// An invitation has to work before anybody has logged in — that is the
+				// entire point of it.
+				permitted.add(properties.getApproval().getInvitations().getPath());
+			}
 		}
 
 		authorize(http, permitted, authorizationCustomizers, approval);
