@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Accept invitation</title>
+    <style>
+        :root { --muted: #6b7280; --border: #d7dae0; --ink: #16181d; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 1.5rem; background: #f6f7f9; color: var(--ink);
+            font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+        .card {
+            width: 100%; max-width: 24rem; padding: 2rem; background: #fff;
+            border: 1px solid var(--border); border-radius: 10px;
+        }
+        h1 { margin: 0 0 1rem; font-size: 1.25rem; }
+        p { margin: 0 0 1rem; }
+        .who { font-weight: 600; }
+        button {
+            width: 100%; padding: .7rem; border: 0; border-radius: 6px; cursor: pointer;
+            background: var(--ink); color: #fff; font-size: 1rem;
+        }
+        .hint { margin: .75rem 0 0; font-size: .8125rem; color: var(--muted); }
+    </style>
+</head>
+<body>
+<main class="card">
+    <h1>Accept this invitation</h1>
+
+    <p>
+        You are signed in as <span class="who" th:text="${signedInAs}">someone</span>.
+        Accepting links <em>this</em> account to the invitation.
+    </p>
+
+    <!-- th:action is what makes Thymeleaf insert the CSRF token; a plain action attribute
+         would post without one and be rejected. -->
+    <form th:action="@{${invitePath}(token=${token})}" method="post">
+        <button type="submit">Accept as <span th:text="${signedInAs}">someone</span></button>
+    </form>
+
+    <p class="hint">
+        If this invitation was not meant for this account, sign out first and open the link
+        again. An invitation can only be accepted once.
+    </p>
+</main>
+</body>
+</html>
