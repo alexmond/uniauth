@@ -1,0 +1,170 @@
+= Invitations
+:description: Admitting a named person before their first login.
+
+The approval gate answers "somebody logged in; do we let them in?". A stranger has to turn
+up first, and somebody has to notice.
+
+Invitations are the other order. The application already holds a record for Jane, with no
+way to sign in; an invitation is a one-use URL that attaches whichever login she completes
+to *that record*. This is account claiming, not user provisioning — the record exists, the
+login does not.
+
+[source,yaml]
+----
+uniauth:
+  approval:
+    enabled: true                 # <1>
+    invitations:
+      enabled: false
+      path: /invite/{token}       # <2>
+      default-expiry: 14d
+      invite-only: false          # <3>
+----
+<1> Required. Redemption writes an approval record, so invitations without the gate have
+    nowhere to put their decision — switching them on alone wires nothing.
+<2> Must contain `{token}`. Validated at startup, because without it every invitation
+    would 404 with nothing saying why. The starter permits this path on its chain: an
+    invitation has to work before anybody has logged in.
+<3> With this on, an uninvited principal is refused outright — a plain 403 rather than the
+    waiting page. Telling somebody who will never be admitted to keep waiting is a lie.
+
+== The flow
+
+. An administrator calls `InvitationStore.create(subjectRef, ttl, roles, createdBy)` and
+  gets back an `Invitation` carrying its token.
+. They deliver the URL however they like. Sending it is out of scope — the application or a
+  person does that.
+. Jane opens it and sees what she is accepting. Accepting is a `POST`, and that is what
+  puts the token on her session — see <<the-url-is-the-credential>>.
+. She signs in with Google, or the directory, or anything else enabled. An ordinary round
+  trip.
+. Her first authenticated request passes through `ApprovalAuthorizationManager`, which
+  claims the invitation, publishes `InvitationRedeemedEvent`, and records her as
+  `APPROVED`.
+. The application's listener links `(google, sub)` to Jane's record.
+
+She never sees a waiting page.
+
+== Why a token and not an email address
+
+Matching on the invited address drags in `email_verified`, Gmail dots and plus-tags, case
+folding, "the same address from another provider must not be admitted", and a
+non-disclosure rule so an uninvited login cannot reveal whether an address is invited.
+
+A token removes all of it. The token *is* the proof, so there is nothing to normalise and no
+verified-claim problem — which is also why this works identically for SAML and LDAP, where
+email matching could not: `PrincipalIdentity.emailVerified` is a nullable `Boolean` precisely
+because SAML carries no equivalent and GitHub may report no address at all. Disclosure stops
+mattering too: whoever holds the token already holds the invitation, so telling them it has
+expired is a service rather than a leak.
+
+The cost is that the invitation has to survive the redirect out to the provider and back. It
+rides the session, because the alternatives are per-mechanism — OAuth2 `state`, SAML
+`RelayState`, form login neither — and three implementations of one idea is the split the
+single chain exists to avoid.
+
+[#the-url-is-the-credential]
+== The URL is the credential
+
+Whoever holds the link gets the record it names. That is inherent to link invitations and no
+design removes it.
+
+What the starter does is make it deliberate. Opening the URL only shows a page; accepting is
+a `POST`. Somebody already signed in is told which account they would be accepting as — "you
+are signed in as bob@example.com; accept as bob@example.com?" — and somebody not signed in is
+told to accept and then sign in. Either way a mis-sent link opened by the wrong colleague is
+a decision somebody made rather than something that happened.
+
+WARNING: The `GET` must stay free of side effects, and the acceptance must stay a `POST`.
+A `GET` cannot carry a CSRF token, so a `GET` that stashed the invitation could be fired from
+any other site — an `img` tag is enough. It would plant that site's invitation in a visitor's
+session; the visitor would then sign in with their own account and be bound to the record
+that invitation names, with its roles, having never seen the page that exists to make exactly
+this deliberate.
+
+The page is also the recovery path when a session is lost mid-login, which happens: sessions
+are in memory, which is why the deployments are `Recreate`. The invitation is still
+unclaimed, so reopening the URL and accepting claims it without a second sign-in.
+
+== One use means one person, not one request
+
+`InvitationStore.redeem` is keyed by principal. Claiming again with the *same* key succeeds
+and is a no-op; claiming with a different one fails.
+
+This matters because of what happens when the application's listener throws. The event is
+published synchronously inside the authorization decision and *a listener that throws fails
+the admission* — the principal stays pending and the request is refused. Admitted-but-unlinked
+would be worse: the person would be browsing as nobody, holding a session no record backs.
+
+If the claim made the token dead, one transient failure would strand Jane with a URL that can
+never work again. Instead her next request redeems as a no-op and she is admitted the moment
+the application recovers. The risk one-use actually guards against is a *second person*
+claiming the record, and that is exactly what it still guards against.
+
+Two things outrank that retry, because the window it opens can be as long as an outage and
+that is exactly when somebody intervenes:
+
+* *Revoking the invitation* refuses it even to the principal who already claimed it.
+* *A refusal an approver recorded* stands. A claim whose listener threw leaves precisely the
+  pending record an approver acts on, and the retry does not flip their decision back. Only
+  `invite-only`'s own automatic refusal is overridable — under that setting every stranger is
+  recorded `DENIED`, so somebody who signed in before opening their link would otherwise be
+  locked out for good.
+
+== Linking, with or without a listener
+
+[source,java]
+----
+@EventListener
+void onRedeemed(InvitationRedeemedEvent event) {
+    people.linkLogin(event.subjectRef(), event.key());   // (google, sub) -> Jane
+}
+----
+
+The link is durable without any listener at all: `Invitation.usedBy` records which
+`ApprovalKey` claimed which `subjectRef`, permanently, so the mapping is recoverable by
+querying the store. That is why `ApprovalRecord` gains no `subjectRef` field — widening it
+would break every `ApprovalStore` implementation, which it already did once.
+
+== Roles
+
+An invitation carries roles, and falls back to `uniauth.approval.default-roles` when it names
+none.
+
+This is not optional detail. A federated principal arrives with `OIDC_USER` and `SCOPE_*` and
+no `ROLE_` at all, so an approval granting nothing admits somebody who is then refused by
+every `hasRole()` rule in the application — a working sign-in that reaches nothing, which
+reads as a broken application rather than as a permissions decision.
+
+== Any provider may redeem
+
+An invitation names *who* may come in, not *how* they must authenticate, so it carries no
+provider field. The gate's keys are `(provider, principal)`, so the resulting approval is
+scoped to whichever provider answered. A deployment that later needs an invitation pinned to
+one provider gets an optional field, not a redesign.
+
+== When a link does not work
+
+An unusable token redirects to the chooser with a reason — `?invite=unknown`, `used`,
+`expired` or `revoked` — which the login template renders as one line.
+
+Deliberately not a page of its own. The starter once redirected to a page it did not serve
+and a consumer got `ERR_TOO_MANY_REDIRECTS`; an `outcome-page` property would be that mistake
+with a new name. The chooser already exists and is already served.
+
+== The store
+
+`InvitationStore` is an SPI, on the same bargain as `ApprovalStore`: UniAuth owns the flow and
+never the table. `InMemoryInvitationStore` is the default so the flow works out of the box,
+and it is *not production-fit* — invitations are lost on restart, nothing is shared between
+instances, and an admin console pointed at it sees only the invitations created in its own
+process. The starter says so once at startup rather than refusing to run, because durability
+is the deployment's choice.
+
+One method carries a contract an implementation can break silently:
+
+TIP: `redeem` must be a compare-and-set, not a read-then-write. A read-then-write passes
+every single-threaded test and admits two people under load.
+
+Unlike `ApprovalStore`, this interface can enumerate from the start. An administrator cannot
+manage invitations they cannot list.

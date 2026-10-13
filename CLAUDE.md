@@ -157,6 +157,50 @@ principal gets 403, not the waiting page.
 `MechanismResolver` moved from the sample into the starter here, since approval needs to know
 which provider answered. That is the rule: promote when something depends on it, not before.
 
+#### Invitations claim an account, they do not provision one
+
+`uniauth.approval.invitations.enabled` hands a named person a one-use URL that attaches
+whichever login they complete to a record the application already holds. The issue (#29)
+proposed matching on the invited email address; the token in the URL replaces that, and
+deletes `email_verified`, address normalisation, cross-provider matching and the disclosure
+rule along with it — which is also why it works for SAML and LDAP, where email matching
+could not.
+
+Five things that will bite if changed carelessly:
+
+- **The `GET` on the invitation path must stay free of side effects, and accepting must stay
+  a `POST`.** A `GET` cannot carry a CSRF token, so a `GET` that stashed the invitation could
+  be fired from any other site — an `img` tag is enough. It would plant that site's
+  invitation in a visitor's session, and the visitor would then sign in with their own
+  account and be bound to the record that invitation names, with its roles, never seeing the
+  page that exists to make exactly this deliberate.
+
+- **`redeem` is keyed by principal, not by token.** Re-claiming with the same `ApprovalKey`
+  is a no-op. That is what lets a throwing listener be retried: the event is published
+  *before* the approval is written, so a failure leaves the principal `PENDING` with the
+  claim intact, and the next request gets them in. Making the token dead on first claim
+  would strand the invited person after one transient error, with no way back except an
+  administrator noticing.
+- **The event goes out before `decide(APPROVED)`.** Reversing them produces
+  admitted-but-unlinked — browsing as nobody, holding a session no record backs.
+- **Redemption does not condition on `UNKNOWN`.** A session lost mid-login arrives
+  `PENDING`, and somebody already signed in confirms on the invitation page. Conditioning on
+  a first sighting breaks both.
+- **The approver is recorded as `invitation:<subjectRef>`, never the token.** The token is a
+  bearer credential and has no business in an audit record. `InvitationToken.toString()`
+  redacts itself for the same reason.
+- **Revocation and an approver's `DENIED` both outrank the retry.** The retry window can be
+  as long as an outage, which is exactly when somebody intervenes, so neither may be undone
+  by it. Only `invite-only`'s own automatic `DENIED` is overridable — under that setting
+  every stranger is recorded `DENIED`, so anyone who signed in before opening their link
+  would otherwise be locked out for good. That is what the shared constant
+  `InvitationRedemption.INVITE_ONLY` is for: the two classes have to agree on what an
+  automatic refusal looks like.
+
+`Invitation.usedBy` is why `ApprovalRecord` does not gain a `subjectRef` field: the link is
+already durable, and widening that record would break every `ApprovalStore` implementor, as
+#5 did once.
+
 ### Brand is not a mechanism
 
 `AuthProviderType` is the *mechanism* axis — how a provider talks, and therefore which filter
@@ -347,6 +391,12 @@ a count in this heading; it has gone stale twice.
   `BasicAuthenticationEntryPoint` and the native dialog came back on every expired-session
   XHR, for exactly the paths an API-first front end calls — while both chains were installed,
   both correct, and every test on both sides passed.
+
+- An **`InvitationStore`** bean — the invitation table, like `ApprovalStore` is the approval
+  one. Unlike it, this SPI can enumerate from the start (#10 is a real gap, but a sibling
+  does not inherit it). An **`InvitationRedeemedEvent`** listener is how an application links
+  the admitted login to its own record; it may refuse by throwing, which leaves the principal
+  pending.
 
 Because that bean *is* an `AuthenticationEntryPoint`, the chain filters it out when looking
 for the application's own — taking it would replace the chooser redirect for every browser

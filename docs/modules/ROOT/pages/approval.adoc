@@ -19,6 +19,10 @@ uniauth:
 A held principal authenticates successfully and then lands on the pending page until an
 administrator decides. Approving admits them on their next request — no second sign-in.
 
+The gate assumes a stranger arrives first. For the other order — the application already
+holds a record for somebody and wants to hand them a way to claim it — see
+xref:invitations.adoc[invitations].
+
 == Three decisions worth not re-litigating
 
 *It sits in authorization, not authentication.* `ApprovalAuthorizationManager` replaces
