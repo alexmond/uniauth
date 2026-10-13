@@ -1,6 +1,7 @@
 package org.alexmond.uniauth.invitation;
 
 import java.util.List;
+import java.util.Optional;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -128,17 +129,26 @@ public class InvitationRedemption {
 					key, claimed.subjectRef(), failed);
 			return false;
 		}
-		if (refusedByAPerson(key)) {
-			// Checked again, because the listener above is the application's own callback
-			// and may have taken any amount of time — easily long enough for an approver
-			// to refuse in between. This does not make the pair atomic; it shrinks the
-			// window from an unbounded callback to two adjacent statements, which is as
-			// far as this can go without a compare-and-set on ApprovalStore, and widening
-			// that SPI would break every implementation of it. A durable store can close
-			// the remainder by running this method's writes in one transaction.
-			LOGGER.warn("{} was refused while the invitation listener was running; the refusal stands", key);
+		Optional<ApprovalRecord> settled = settledByAPerson(key);
+		if (settled.isPresent()) {
+			// Checked after the listener, because it is the application's own callback
+			// and
+			// may have taken any amount of time — easily long enough for somebody to
+			// decide in between. Their decision stands whichever way it went: an approver
+			// who granted narrower roles than the invitation carries meant the narrower
+			// ones, and a refusal is a refusal. The link has been made either way, which
+			// is what was actually outstanding.
+			//
+			// This does not make the pair atomic; it shrinks the window from an unbounded
+			// callback to two adjacent statements, which is as far as this can go without
+			// a compare-and-set on ApprovalStore, and widening that SPI would break every
+			// implementation of it. A durable store closes the remainder by running this
+			// method's writes in one transaction.
+			ApprovalStatus standing = settled.get().status();
+			LOGGER.info("{} was already decided ({}) by {}; the invitation linked them and that decision stands", key,
+					standing, settled.get().decidedBy());
 			Invitations.clear(request);
-			return false;
+			return standing == ApprovalStatus.APPROVED;
 		}
 		this.approvals.decide(key, ApprovalStatus.APPROVED, "invitation:" + claimed.subjectRef(), rolesFor(claimed));
 		Invitations.clear(request);
@@ -161,10 +171,24 @@ public class InvitationRedemption {
 	 * their link would be locked out for good if an invitation could not override it.
 	 */
 	private boolean refusedByAPerson(ApprovalKey key) {
+		return settledByAPerson(key).filter((record) -> record.status() == ApprovalStatus.DENIED).isPresent();
+	}
+
+	/**
+	 * The decision a person has recorded about this principal, if there is one.
+	 *
+	 * <p>
+	 * An invitation may settle somebody nobody has looked at yet. It may not re-settle
+	 * somebody who has been decided about — not even to approve them again, because the
+	 * roles an approver granted are part of their decision and may be deliberately
+	 * narrower than whatever the invitation carries.
+	 * @param key the principal being asked about
+	 * @return their record when a person decided it, empty when nobody has
+	 */
+	private Optional<ApprovalRecord> settledByAPerson(ApprovalKey key) {
 		return this.approvals.find(key)
-			.filter((record) -> record.status() == ApprovalStatus.DENIED)
-			.filter((record) -> !INVITE_ONLY.equals(record.decidedBy()))
-			.isPresent();
+			.filter((record) -> record.status() == ApprovalStatus.APPROVED || record.status() == ApprovalStatus.DENIED)
+			.filter((record) -> !INVITE_ONLY.equals(record.decidedBy()));
 	}
 
 	/**

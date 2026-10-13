@@ -201,6 +201,31 @@ class InvitationRedemptionTest {
 	}
 
 	@Test
+	void anApproversDecisionAndTheRolesTheyGrantedSurviveTheLinkBeingMadeLater() {
+		// Replay. A claim whose listener threw leaves the principal PENDING with the
+		// token retained for the retry, and a PENDING record is exactly what an approver
+		// acts on. If the retry then wrote the invitation's own decision, it would
+		// replace theirs — including the roles they deliberately chose to grant, which
+		// may be narrower than whatever the invitation carries.
+		Invitation invitation = this.invitations.create("jane", null, List.of("FAMILY", "ADMIN"), "admin");
+		MockHttpServletRequest request = requestHolding(invitation.token());
+		redemption((event) -> {
+			throw new IllegalStateException("the application's database was down");
+		}).admit(request, JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.approvals.decide(JANE, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+
+		redemption((event) -> this.published.add(event)).admit(request, JANE, IDENTITY, AuthProviderType.OAUTH2);
+
+		assertThat(this.approvals.find(JANE)).get().satisfies((record) -> {
+			assertThat(record.decidedBy()).isEqualTo("admin");
+			assertThat(record.roles()).containsExactly("USER");
+		});
+		// The link is still made, because that is what was actually outstanding.
+		assertThat(this.published).hasSize(1);
+		assertThat(Invitations.pending(request)).isNull();
+	}
+
+	@Test
 	void aRefusalThatLandsWhileTheListenerIsRunningStillStands() {
 		// Checking the refusal and writing the approval are two separate calls, and
 		// between them sits the application's own listener — a callback that can take as
