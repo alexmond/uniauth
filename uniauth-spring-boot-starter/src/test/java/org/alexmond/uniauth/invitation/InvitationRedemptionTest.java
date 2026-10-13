@@ -179,6 +179,45 @@ class InvitationRedemptionTest {
 	}
 
 	@Test
+	void anInvitationDoesNotUndoARefusalAPersonMade() {
+		// The retry window again. A claim whose listener threw leaves the principal
+		// PENDING with the token still on their session, and a PENDING record is exactly
+		// what an approver looks at and refuses. Writing APPROVED on the retry would
+		// silently revert their decision — and they would have no reason to suspect an
+		// invitation was holding the door open.
+		Invitation invitation = this.invitations.create("jane", null, List.of(), "admin");
+		MockHttpServletRequest request = requestHolding(invitation.token());
+		redemption((event) -> {
+			throw new IllegalStateException("the application's database was down");
+		}).admit(request, JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.approvals.decide(JANE, ApprovalStatus.DENIED, "admin", List.of());
+
+		boolean admitted = redemption((event) -> this.published.add(event)).admit(request, JANE, IDENTITY,
+				AuthProviderType.OAUTH2);
+
+		assertThat(admitted).isFalse();
+		assertThat(this.approvals.statusOf(JANE)).isEqualTo(ApprovalStatus.DENIED);
+		assertThat(this.published).isEmpty();
+	}
+
+	@Test
+	void anInvitationStillAdmitsSomebodyInviteOnlyTurnedAwayByItself() {
+		// The fix above has to stay narrow, and this is why. Under invite-only every
+		// first-time visitor is recorded DENIED, so anybody who signed in before opening
+		// their link would be locked out permanently if an invitation could not override
+		// it. Only a refusal a person made is final.
+		this.approvals.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.approvals.decide(JANE, ApprovalStatus.DENIED, InvitationRedemption.INVITE_ONLY, List.of());
+		Invitation invitation = this.invitations.create("jane", null, List.of("FAMILY"), "admin");
+
+		boolean admitted = redemption((event) -> this.published.add(event)).admit(requestHolding(invitation.token()),
+				JANE, IDENTITY, AuthProviderType.OAUTH2);
+
+		assertThat(admitted).isTrue();
+		assertThat(this.approvals.statusOf(JANE)).isEqualTo(ApprovalStatus.APPROVED);
+	}
+
+	@Test
 	void aRevokedInvitationIsNotRedeemedAndTheTokenIsDropped() {
 		Invitation invitation = this.invitations.create("jane", null, List.of(), "admin");
 		this.invitations.revoke(invitation.token(), "admin");

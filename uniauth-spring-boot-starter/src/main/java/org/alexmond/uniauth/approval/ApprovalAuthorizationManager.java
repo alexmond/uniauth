@@ -151,7 +151,7 @@ public class ApprovalAuthorizationManager implements AuthorizationManager<Reques
 	 * would turn a queue a human was about to read into a silent refusal.
 	 */
 	private ApprovalStatus refuse(ApprovalKey key) {
-		this.store.decide(key, ApprovalStatus.DENIED, "invite-only", java.util.List.of());
+		this.store.decide(key, ApprovalStatus.DENIED, InvitationRedemption.INVITE_ONLY, java.util.List.of());
 		return ApprovalStatus.DENIED;
 	}
 

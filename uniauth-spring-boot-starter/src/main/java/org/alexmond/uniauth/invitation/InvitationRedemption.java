@@ -5,6 +5,7 @@ import java.util.List;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.alexmond.uniauth.approval.ApprovalKey;
+import org.alexmond.uniauth.approval.ApprovalRecord;
 import org.alexmond.uniauth.approval.ApprovalStatus;
 import org.alexmond.uniauth.approval.ApprovalStore;
 import org.alexmond.uniauth.approval.PrincipalIdentity;
@@ -26,6 +27,16 @@ import org.springframework.context.ApplicationEventPublisher;
  * to this principal, so the next request retries.
  */
 public class InvitationRedemption {
+
+	/**
+	 * Recorded as the approver when {@code invite-only} refuses somebody by itself.
+	 *
+	 * <p>
+	 * Named rather than inlined because two classes have to agree on it: the gate writes
+	 * it, and this class reads it to tell an automatic refusal from one a person made. An
+	 * invitation may override the first and must never override the second.
+	 */
+	public static final String INVITE_ONLY = "invite-only";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(InvitationRedemption.class);
 
@@ -75,6 +86,14 @@ public class InvitationRedemption {
 		if (token == null) {
 			return false;
 		}
+		if (refusedByAPerson(key)) {
+			// Ahead of the claim, so a refused principal does not burn the invitation
+			// either — it stays open for whoever it was meant for.
+			LOGGER.warn("{} holds an invitation but was refused by {}; the refusal stands", key,
+					this.approvals.find(key).map(ApprovalRecord::decidedBy).orElse("an approver"));
+			Invitations.clear(request);
+			return false;
+		}
 		Invitation claimed;
 		try {
 			claimed = this.invitations.redeem(token, key);
@@ -104,6 +123,28 @@ public class InvitationRedemption {
 		this.approvals.decide(key, ApprovalStatus.APPROVED, "invitation:" + claimed.subjectRef(), rolesFor(claimed));
 		Invitations.clear(request);
 		return true;
+	}
+
+	/**
+	 * Whether somebody has deliberately refused this principal.
+	 *
+	 * <p>
+	 * A {@code DENIED} record is reached two ways, and they must not be treated alike. An
+	 * approver looking at a pending record and refusing it is a decision an invitation
+	 * must never silently revert — and the moment it is most likely to happen is the
+	 * retry window, where a claim whose listener threw leaves exactly the pending record
+	 * an approver would act on.
+	 *
+	 * <p>
+	 * {@code invite-only} refusing a first-time visitor is not that. Under that setting
+	 * every stranger is recorded {@code DENIED}, so somebody who signed in before opening
+	 * their link would be locked out for good if an invitation could not override it.
+	 */
+	private boolean refusedByAPerson(ApprovalKey key) {
+		return this.approvals.find(key)
+			.filter((record) -> record.status() == ApprovalStatus.DENIED)
+			.filter((record) -> !INVITE_ONLY.equals(record.decidedBy()))
+			.isPresent();
 	}
 
 	/**
