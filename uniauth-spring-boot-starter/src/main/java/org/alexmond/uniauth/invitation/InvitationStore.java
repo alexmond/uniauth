@@ -60,6 +60,12 @@ public interface InvitationStore {
 	 * logins must not both claim Jane.
 	 *
 	 * <p>
+	 * <strong>A revoked invitation is refused even to the principal who already claimed
+	 * it.</strong> Revocation outranks the no-op below, because it is the one refusal
+	 * somebody chose deliberately and the retry window it has to override can span an
+	 * outage — which is exactly when it gets used.
+	 *
+	 * <p>
 	 * One-use means one <em>principal</em>, not one request. Claiming again with the
 	 * <em>same</em> key succeeds and is a no-op — which is what lets a transient failure
 	 * in the application be retried, rather than stranding the invited person with a URL

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.alexmond.uniauth.approval.ApprovalKey;
 
@@ -75,24 +76,41 @@ public class InMemoryInvitationStore implements InvitationStore {
 	@Override
 	public Invitation redeem(InvitationToken token, ApprovalKey admitted) {
 		Instant now = this.clock.instant();
+		AtomicReference<Invitation> granted = new AtomicReference<>();
 		// compute, not get-then-put: the claim has to be a compare-and-set or two
-		// simultaneous logins both take Jane.
-		Invitation claimed = this.invitations.compute(token, (unused, existing) -> {
+		// simultaneous logins both take Jane. Success is recorded in `granted` rather
+		// than inferred from what compute returns, because an invitation this principal
+		// already holds is returned unchanged whether or not they may still use it.
+		this.invitations.compute(token, (unused, existing) -> {
 			if (existing == null) {
 				return null;
 			}
+			if (existing.revokedAt() != null) {
+				// Ahead of the same-principal no-op below, and the order is the whole
+				// point. Revocation is the one refusal somebody chose deliberately, and
+				// the retry window it has to override can span an outage — which is
+				// exactly when it gets used. With the no-op first, revoking inside that
+				// window did nothing at all: the next request re-claimed and was let in.
+				return existing;
+			}
 			if (admitted.equals(existing.usedBy())) {
-				// Same principal claiming again. A no-op, so a failed listener can be
-				// retried instead of stranding the invited person.
+				// Same principal claiming again: a no-op, so a failed listener can be
+				// retried instead of stranding the invited person. Expiry does not
+				// interfere, because USED outranks EXPIRED in the status precedence.
+				granted.set(existing);
 				return existing;
 			}
 			if (existing.status(now) != InvitationStatus.OPEN) {
 				return existing;
 			}
-			return new Invitation(existing.token(), existing.subjectRef(), existing.roles(), existing.createdAt(),
-					existing.createdBy(), existing.expiresAt(), now, admitted, existing.revokedAt());
+			Invitation claim = new Invitation(existing.token(), existing.subjectRef(), existing.roles(),
+					existing.createdAt(), existing.createdBy(), existing.expiresAt(), now, admitted,
+					existing.revokedAt());
+			granted.set(claim);
+			return claim;
 		});
-		if (claimed == null || !admitted.equals(claimed.usedBy())) {
+		Invitation claimed = granted.get();
+		if (claimed == null) {
 			throw new InvitationNotRedeemableException("The invitation is not open to this principal");
 		}
 		return claimed;

@@ -155,6 +155,33 @@ class InMemoryInvitationStoreTest {
 	}
 
 	@Test
+	void revokingStopsEvenThePrincipalWhoAlreadyClaimedItFromRedeemingAgain() {
+		// The retry window is the gap between a claim and a listener that works, and it
+		// can span an outage — which is exactly when somebody might revoke. If the
+		// same-principal no-op outranked revocation, revoking during that window would do
+		// nothing at all: the next request would re-claim and be admitted.
+		Invitation created = this.store.create("jane", null, List.of(), "admin");
+		this.store.redeem(created.token(), JANE);
+
+		this.store.revoke(created.token(), "admin");
+
+		assertThatExceptionOfType(InvitationStore.InvitationNotRedeemableException.class)
+			.isThrownBy(() -> this.store.redeem(created.token(), JANE));
+	}
+
+	@Test
+	void expiringDuringTheRetryWindowDoesNotStrandThePrincipalWhoAlreadyClaimedIt() {
+		// The fix above has to stay narrow. Expiry is about invitations nobody took, and
+		// USED already outranks EXPIRED in the status precedence, so a retry across the
+		// expiry instant still works. Only a deliberate revocation stops it.
+		Invitation created = this.store.create("jane", Duration.ofSeconds(1), List.of(), "admin");
+		this.store.redeem(created.token(), JANE);
+		InMemoryInvitationStore later = adopt(this.store, NOW.plusSeconds(60));
+
+		assertThat(later.redeem(created.token(), JANE).usedBy()).isEqualTo(JANE);
+	}
+
+	@Test
 	void anUnknownTokenCannotBeRedeemed() {
 		assertThatExceptionOfType(InvitationStore.InvitationNotRedeemableException.class)
 			.isThrownBy(() -> this.store.redeem(InvitationToken.generate(), JANE));
