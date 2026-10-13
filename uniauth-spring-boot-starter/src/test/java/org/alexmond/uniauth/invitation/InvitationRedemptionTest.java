@@ -201,6 +201,22 @@ class InvitationRedemptionTest {
 	}
 
 	@Test
+	void aRefusalThatLandsWhileTheListenerIsRunningStillStands() {
+		// Checking the refusal and writing the approval are two separate calls, and
+		// between them sits the application's own listener — a callback that can take as
+		// long as it likes. That is more than long enough for an approver to refuse, and
+		// a listener that refuses during its own call is the deterministic version of
+		// exactly that race.
+		Invitation invitation = this.invitations.create("jane", null, List.of(), "admin");
+
+		boolean admitted = redemption((event) -> this.approvals.decide(JANE, ApprovalStatus.DENIED, "admin", List.of()))
+			.admit(requestHolding(invitation.token()), JANE, IDENTITY, AuthProviderType.OAUTH2);
+
+		assertThat(admitted).isFalse();
+		assertThat(this.approvals.statusOf(JANE)).isEqualTo(ApprovalStatus.DENIED);
+	}
+
+	@Test
 	void anInvitationStillAdmitsSomebodyInviteOnlyTurnedAwayByItself() {
 		// The fix above has to stay narrow, and this is why. Under invite-only every
 		// first-time visitor is recorded DENIED, so anybody who signed in before opening

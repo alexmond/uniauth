@@ -77,8 +77,16 @@ public class InvitationRedemption {
 	 * @param identity who the provider says they are, recorded so the decision reads like
 	 * any other
 	 * @param mechanism which mechanism vouched for them
+	 * <p>
+	 * A refusal somebody has already recorded is honoured, and is re-checked after the
+	 * listener returns. The two are still separate calls, so a refusal landing in the gap
+	 * between the second check and the write would be overwritten; closing that entirely
+	 * needs a compare-and-set, and widening {@code ApprovalStore} for it would break
+	 * every implementation. A durable store closes it by running these writes in one
+	 * transaction.
 	 * @return {@code true} when the principal is now approved; {@code false} when there
-	 * was nothing to claim, the invitation was not claimable, or a listener refused
+	 * was nothing to claim, the invitation was not claimable, a listener refused, or
+	 * somebody has refused this principal
 	 */
 	public boolean admit(HttpServletRequest request, ApprovalKey key, PrincipalIdentity identity,
 			AuthProviderType mechanism) {
@@ -118,6 +126,18 @@ public class InvitationRedemption {
 					"A listener refused the invitation link for {} (subjectRef '{}'); "
 							+ "the principal stays pending and the next request will retry",
 					key, claimed.subjectRef(), failed);
+			return false;
+		}
+		if (refusedByAPerson(key)) {
+			// Checked again, because the listener above is the application's own callback
+			// and may have taken any amount of time — easily long enough for an approver
+			// to refuse in between. This does not make the pair atomic; it shrinks the
+			// window from an unbounded callback to two adjacent statements, which is as
+			// far as this can go without a compare-and-set on ApprovalStore, and widening
+			// that SPI would break every implementation of it. A durable store can close
+			// the remainder by running this method's writes in one transaction.
+			LOGGER.warn("{} was refused while the invitation listener was running; the refusal stands", key);
+			Invitations.clear(request);
 			return false;
 		}
 		this.approvals.decide(key, ApprovalStatus.APPROVED, "invitation:" + claimed.subjectRef(), rolesFor(claimed));
