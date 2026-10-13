@@ -15,6 +15,14 @@ import org.alexmond.uniauth.approval.PrincipalIdentity;
  * principal stays pending and the request is refused.
  *
  * <p>
+ * <strong>Delivery is at-least-once, so a listener must be idempotent.</strong> Two
+ * authorized requests on one session can both read the stashed token before either clears
+ * it — the normal shape of a browser landing on a page, not merely a double-click — and
+ * the same-principal no-op in {@code redeem} is exactly what lets the second one through,
+ * so both publish. Combined with the contract above, a listener doing a plain insert
+ * turns a duplicate-key exception into a refusal of somebody who is in fact approved.
+ *
+ * <p>
  * Retrying is safe and is the expected recovery. The invitation stays claimed by this
  * same principal, so the next request redeems again as a no-op and admits them once the
  * application has recovered — which is why one-use is keyed by principal rather than by

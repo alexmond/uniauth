@@ -176,14 +176,25 @@ public class UniAuthProperties {
 			 * A path with no {@code {token}} maps a literal URL: every invitation 404s,
 			 * and nothing anywhere says why. Checked at startup rather than left to
 			 * surface as a mystery one link at a time — the same reason
-			 * {@code ManagedApplication.validate()} exists in the console.
-			 * @throws IllegalStateException if the path is unusable
+			 * {@code ManagedApplication.validate()} exists in the console. A non-positive
+			 * {@code default-expiry} is caught here for the same reason: it would make
+			 * every invitation born already expired, with nothing anywhere complaining.
+			 * @throws IllegalStateException if the path or the default expiry is unusable
 			 */
 			public void validate() {
 				if (this.path == null || !this.path.startsWith("/") || !this.path.contains("{token}")) {
 					throw new IllegalStateException(
 							"uniauth.approval.invitations.path must start with '/' and contain '{token}', but was '"
 									+ this.path + "'");
+				}
+				// Expiry is inclusive, so a zero or negative default makes every
+				// invitation born already expired — and the store, the endpoint and the
+				// log would all agree there was nothing wrong. Null is fine: it means
+				// never expires.
+				if (this.defaultExpiry != null && (this.defaultExpiry.isZero() || this.defaultExpiry.isNegative())) {
+					throw new IllegalStateException(
+							"uniauth.approval.invitations.default-expiry must be positive (or absent, "
+									+ "meaning never), but was " + this.defaultExpiry);
 				}
 			}
 

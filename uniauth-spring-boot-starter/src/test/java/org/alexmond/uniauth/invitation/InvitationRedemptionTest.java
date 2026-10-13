@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.alexmond.uniauth.approval.ApprovalKey;
+import org.alexmond.uniauth.approval.ApprovalRecord;
 import org.alexmond.uniauth.approval.ApprovalStatus;
 import org.alexmond.uniauth.approval.ApprovalStore;
 import org.alexmond.uniauth.approval.InMemoryApprovalStore;
@@ -226,6 +227,46 @@ class InvitationRedemptionTest {
 	}
 
 	@Test
+	void aFreshInvitationCanRaiseTheRolesOfSomebodyAnEarlierInvitationAdmitted() {
+		// Re-inviting is the only way to change what an invitation granted: invitations
+		// are never reopened. If an approval the previous invitation wrote counted as a
+		// decision a person made, the new one would mark itself USED, publish the link,
+		// and silently keep the old roles — with nothing above INFO saying why the
+		// administrator's change did not take.
+		Invitation first = this.invitations.create("jane", null, List.of("USER"), "admin");
+		redemption((event) -> this.published.add(event)).admit(requestHolding(first.token()), JANE, IDENTITY,
+				AuthProviderType.OAUTH2);
+		Invitation second = this.invitations.create("jane", null, List.of("FAMILY"), "admin");
+
+		boolean admitted = redemption((event) -> this.published.add(event)).admit(requestHolding(second.token()), JANE,
+				IDENTITY, AuthProviderType.OAUTH2);
+
+		assertThat(admitted).isTrue();
+		assertThat(this.approvals.find(JANE)).get().extracting(ApprovalRecord::roles).isEqualTo(List.of("FAMILY"));
+	}
+
+	@Test
+	void theEventIsAtLeastOnceWhenTwoRequestsRaceOnOneSession() {
+		// Two authorized requests on one session both read the token before either
+		// clears it, and the same-principal no-op in redeem is exactly what lets the
+		// second through — so both publish. That is the normal shape of a browser landing
+		// on a page, not only a double-click. The contract is therefore at-least-once,
+		// and it is pinned here because a listener doing a plain INSERT would otherwise
+		// discover it as a duplicate-key exception, which by the event's own contract
+		// refuses the admission of somebody who is in fact approved.
+		Invitation invitation = this.invitations.create("jane", null, List.of(), "admin");
+		MockHttpServletRequest first = requestHolding(invitation.token());
+		MockHttpServletRequest second = requestHolding(invitation.token());
+		InvitationRedemption redemption = redemption(this.published::add);
+
+		redemption.admit(first, JANE, IDENTITY, AuthProviderType.OAUTH2);
+		redemption.admit(second, JANE, IDENTITY, AuthProviderType.OAUTH2);
+
+		// Twice, deliberately. A listener has to tolerate it.
+		assertThat(this.published).hasSize(2);
+	}
+
+	@Test
 	void aRefusalThatLandsWhileTheListenerIsRunningStillStands() {
 		// Checking the refusal and writing the approval are two separate calls, and
 		// between them sits the application's own listener — a callback that can take as
@@ -306,6 +347,9 @@ class InvitationRedemptionTest {
 
 		// Every one is the same person, so every one succeeds; the record settles once.
 		assertThat(admitted.get()).isEqualTo(attempts);
+		// And every one publishes: the event is at-least-once, which the collected list
+		// is here to state rather than quietly ignore.
+		assertThat(events).hasSize(attempts);
 		assertThat(this.approvals.statusOf(JANE)).isEqualTo(ApprovalStatus.APPROVED);
 		assertThat(this.approvals.find(JANE)).get()
 			.extracting(org.alexmond.uniauth.approval.ApprovalRecord::roles)

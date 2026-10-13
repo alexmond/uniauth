@@ -66,6 +66,16 @@ class InvitationConfigurationTest {
 	}
 
 	@Test
+	void andSaysSoRatherThanWiringNothingInSilence(CapturedOutput output) {
+		// Otherwise it is the same experience the path validation exists to prevent,
+		// reached by another route: every invitation 404s and nothing anywhere says why.
+		runner("uniauth.enabled=true", "uniauth.approval.invitations.enabled=true")
+			.run((context) -> assertThat(context).hasNotFailed());
+
+		assertThat(output).contains("uniauth.approval.enabled");
+	}
+
+	@Test
 	void askingForInvitationsWiresTheStoreTheCollaboratorAndTheEndpoint() {
 		this.runner.withPropertyValues("uniauth.approval.invitations.enabled=true")
 			.run((context) -> assertThat(context).hasSingleBean(InvitationStore.class)

@@ -88,6 +88,24 @@ public class ApprovalAuthoritiesFilter extends OncePerRequestFilter {
 			.filter((record) -> record.status() == ApprovalStatus.APPROVED)
 			.map(ApprovalRecord::roles)
 			.orElse(List.of());
+		return granting(current, roles);
+	}
+
+	/**
+	 * A copy of the authentication carrying these roles, or {@code null} when it already
+	 * has every one of them.
+	 *
+	 * <p>
+	 * Shared with {@link ApprovalAuthorizationManager}, which has to do the same thing at
+	 * a different moment: roles an invitation grants are created <em>by</em> the
+	 * authorization decision, so this filter has already run by the time they exist. Two
+	 * copies of the prefixing rule would be two chances to disagree about what
+	 * {@code hasRole()} compares against.
+	 * @param current the authentication to extend
+	 * @param roles the roles to grant, with or without the {@code ROLE_} prefix
+	 * @return the extended authentication, or {@code null} if nothing was added
+	 */
+	static Authentication granting(Authentication current, List<String> roles) {
 		if (roles.isEmpty()) {
 			return null;
 		}

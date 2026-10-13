@@ -28,6 +28,11 @@ uniauth:
 <3> With this on, an uninvited principal is refused outright — a plain 403 rather than the
     waiting page. Telling somebody who will never be admitted to keep waiting is a lie.
 
+`default-expiry` must be positive, and is checked at startup for the same reason the path is:
+expiry is inclusive, so a zero or negative value would make every invitation born already
+expired, with the store, the endpoint and the log all agreeing nothing was wrong. Omit it
+entirely to mean never.
+
 == The flow
 
 . An administrator calls `InvitationStore.create(subjectRef, ttl, roles, createdBy)` and
@@ -86,6 +91,18 @@ The page is also the recovery path when a session is lost mid-login, which happe
 are in memory, which is why the deployments are `Recreate`. The invitation is still
 unclaimed, so reopening the URL and accepting claims it without a second sign-in.
 
+NOTE: One risk the `POST` does not close, because it is not CSRF. The token rides the session,
+and Spring's default `changeSessionId` fixation protection *preserves* session attributes — so
+anyone who can set a visitor's session cookie (subdomain cookie injection, or any XSS on the
+domain) can accept their own invitation, plant that session id, and have the visitor's next
+login bound to their `subjectRef`. `sessionFixation().newSession()` drops it, and also breaks
+the ordinary flow, silently. This is inherent to carrying the token in the session, and the
+defence is the one that protects every other session on the domain.
+
+TIP: An application that overrides `templates/uniauth/login.html` — the supported re-skin
+path — must render the `invite` model attribute, or every outcome below is swallowed and the
+person gets a login page with no explanation.
+
 == One use means one person, not one request
 
 `InvitationStore.redeem` is keyed by principal. Claiming again with the *same* key succeeds
@@ -105,11 +122,16 @@ Two things outrank that retry, because the window it opens can be as long as an 
 that is exactly when somebody intervenes:
 
 * *Revoking the invitation* refuses it even to the principal who already claimed it.
-* *A refusal an approver recorded* stands. A claim whose listener threw leaves precisely the
-  pending record an approver acts on, and the retry does not flip their decision back. Only
-  `invite-only`'s own automatic refusal is overridable — under that setting every stranger is
-  recorded `DENIED`, so somebody who signed in before opening their link would otherwise be
-  locked out for good.
+* *Any decision a person recorded* stands — a refusal, and equally an approval. A claim whose
+  listener threw leaves precisely the pending record an approver acts on, and the retry does
+  not replace their decision or the roles they chose to grant, which may be narrower than the
+  invitation's.
+
+Two decisions are not a person's and are therefore replaceable: `invite-only`'s own automatic
+refusal (under that setting every stranger is recorded `DENIED`, so somebody who signed in
+before opening their link would otherwise be locked out for good), and a grant an earlier
+invitation made. The second is what lets an administrator *re-invite* somebody to change what
+they were granted — invitations are never reopened, so a fresh one is the only way.
 
 == Linking, with or without a listener
 
@@ -120,6 +142,13 @@ void onRedeemed(InvitationRedeemedEvent event) {
     people.linkLogin(event.subjectRef(), event.key());   // (google, sub) -> Jane
 }
 ----
+
+IMPORTANT: *The event is at-least-once, so the listener must be idempotent.* Two authorized
+requests on one session can both read the stashed token before either clears it — the normal
+shape of a browser landing on a page, not just a double-click — and the same-principal no-op
+in `redeem` is what lets the second through, so both publish. A listener doing a plain
+`INSERT` would get a duplicate-key exception on the second delivery, and by the contract above
+that *refuses the admission* of somebody who is in fact approved.
 
 The link is durable without any listener at all: `Invitation.usedBy` records which
 `ApprovalKey` claimed which `subjectRef`, permanently, so the mapping is recoverable by
@@ -135,6 +164,21 @@ This is not optional detail. A federated principal arrives with `OIDC_USER` and 
 no `ROLE_` at all, so an approval granting nothing admits somebody who is then refused by
 every `hasRole()` rule in the application — a working sign-in that reaches nothing, which
 reads as a broken application rather than as a permissions decision.
+
+== Redemption does not wait for the gate
+
+`uniauth.approval.require-for` decides which mechanisms are *held*, and it excludes internal
+accounts by default. Redemption runs before that check, because an invitation is not a gate:
+it says who a login belongs to, and the application wants that link whichever mechanism
+answered. Behind the check, an invitation completed with an internal login would claim
+nothing, publish nothing and record no `usedBy` — while letting the person in, so neither they
+nor whoever invited them would have any sign it had failed.
+
+The roles the invitation grants are put on the principal by the authorization decision itself,
+not by the filter that carries an approver's roles. That filter runs *before* authorization —
+it has to, or an approver's roles would arrive after the decision that needed them — so for an
+invitation it has already run by the time the roles exist. Without that, the invited person
+would land on their first `hasRole`-gated page, get a 403, and find it worked on refresh.
 
 == Any provider may redeem
 

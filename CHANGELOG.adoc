@@ -19,7 +19,15 @@ Opening an invitation URL only renders a page; accepting is a `POST`, because a 
 carry a CSRF token and a `GET` with a side effect here could be fired from any other site to
 plant its invitation in a visitor's session. Revoking an invitation, and a refusal an
 approver recorded, both outrank the retry — the window that retry opens can be as long as an
-outage, which is exactly when somebody intervenes.
+outage, which is exactly when somebody intervenes — as does any decision an approver
+recorded, including an approval whose roles are narrower than the invitation's. Re-inviting is
+how an administrator changes what somebody was granted, since invitations are never reopened.
++
+`InvitationRedeemedEvent` is at-least-once and the listener must be idempotent: two requests
+on one session can both claim and both publish, and a listener that throws refuses the
+admission. Redemption runs whether or not the mechanism is covered by
+`uniauth.approval.require-for` — an invitation is not a gate — and the roles it grants reach
+the principal on the request that granted them.
 
 == 4.1.1.1
 

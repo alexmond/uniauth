@@ -47,6 +47,28 @@ class UniAuthInvitationPropertiesTest {
 	}
 
 	@Test
+	void aNonPositiveDefaultExpiryIsRejectedAtStartup() {
+		// Otherwise every invitation is born EXPIRED — expiry is inclusive, so
+		// expiresAt == now is already past — and the store, the endpoint and the log all
+		// agree there is nothing wrong. Exactly what validate() exists to catch.
+		UniAuthProperties.Approval.Invitations zero = new UniAuthProperties.Approval.Invitations();
+		zero.setDefaultExpiry(Duration.ZERO);
+		UniAuthProperties.Approval.Invitations negative = new UniAuthProperties.Approval.Invitations();
+		negative.setDefaultExpiry(Duration.ofSeconds(-1));
+
+		assertThatIllegalStateException().isThrownBy(zero::validate).withMessageContaining("default-expiry");
+		assertThatIllegalStateException().isThrownBy(negative::validate).withMessageContaining("default-expiry");
+	}
+
+	@Test
+	void noExpiryAtAllIsAllowedBecauseItMeansNeverExpires() {
+		UniAuthProperties.Approval.Invitations forever = new UniAuthProperties.Approval.Invitations();
+		forever.setDefaultExpiry(null);
+
+		forever.validate();
+	}
+
+	@Test
 	void aCustomPathIsAccepted() {
 		UniAuthProperties.Approval.Invitations invitations = new UniAuthProperties.Approval.Invitations();
 		invitations.setPath("/welcome/{token}");

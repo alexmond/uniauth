@@ -39,6 +39,20 @@ public class InvitationRedemption {
 	 */
 	public static final String INVITE_ONLY = "invite-only";
 
+	/**
+	 * Prefix of the approver recorded when an invitation admits somebody, the rest being
+	 * the {@code subjectRef}.
+	 *
+	 * <p>
+	 * The {@code subjectRef} and not the token: a bearer credential has no business in an
+	 * audit record, and "who was this invitation for" is what somebody reading the trail
+	 * wants. The prefix is also how this class recognises its own earlier work, which it
+	 * is free to replace — an administrator re-inviting somebody is changing what they
+	 * granted, and invitations are never reopened, so a fresh one is the only way to do
+	 * it.
+	 */
+	public static final String APPROVER_PREFIX = "invitation:";
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(InvitationRedemption.class);
 
 	private final InvitationStore invitations;
@@ -150,7 +164,7 @@ public class InvitationRedemption {
 			Invitations.clear(request);
 			return standing == ApprovalStatus.APPROVED;
 		}
-		this.approvals.decide(key, ApprovalStatus.APPROVED, "invitation:" + claimed.subjectRef(), rolesFor(claimed));
+		this.approvals.decide(key, ApprovalStatus.APPROVED, APPROVER_PREFIX + claimed.subjectRef(), rolesFor(claimed));
 		Invitations.clear(request);
 		return true;
 	}
@@ -178,17 +192,23 @@ public class InvitationRedemption {
 	 * The decision a person has recorded about this principal, if there is one.
 	 *
 	 * <p>
-	 * An invitation may settle somebody nobody has looked at yet. It may not re-settle
-	 * somebody who has been decided about — not even to approve them again, because the
-	 * roles an approver granted are part of their decision and may be deliberately
-	 * narrower than whatever the invitation carries.
+	 * An invitation may settle somebody nobody has looked at yet, and may replace a grant
+	 * an earlier invitation made. It may not re-settle somebody a <em>person</em> decided
+	 * about — not even to approve them again, because the roles an approver granted are
+	 * part of their decision and may be deliberately narrower than whatever the
+	 * invitation carries.
 	 * @param key the principal being asked about
 	 * @return their record when a person decided it, empty when nobody has
 	 */
 	private Optional<ApprovalRecord> settledByAPerson(ApprovalKey key) {
 		return this.approvals.find(key)
 			.filter((record) -> record.status() == ApprovalStatus.APPROVED || record.status() == ApprovalStatus.DENIED)
-			.filter((record) -> !INVITE_ONLY.equals(record.decidedBy()));
+			.filter((record) -> !INVITE_ONLY.equals(record.decidedBy()))
+			// Nor one an earlier invitation wrote. Re-inviting is how an administrator
+			// changes what somebody was granted, and treating the previous grant as
+			// untouchable would mark the new invitation used, publish the link, and keep
+			// the old roles — with nothing above INFO saying the change had not taken.
+			.filter((record) -> record.decidedBy() == null || !record.decidedBy().startsWith(APPROVER_PREFIX));
 	}
 
 	/**

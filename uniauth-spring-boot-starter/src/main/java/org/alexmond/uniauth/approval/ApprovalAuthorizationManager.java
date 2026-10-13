@@ -9,6 +9,7 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
 import java.util.function.Supplier;
@@ -88,17 +89,28 @@ public class ApprovalAuthorizationManager implements AuthorizationManager<Reques
 			return new AuthorizationDecision(false);
 		}
 		ResolvedMechanism mechanism = this.resolver.resolve(current);
-		if (!this.properties.getApproval().getRequireFor().contains(mechanism.type())) {
-			return new AuthorizationDecision(true);
-		}
 		ApprovalKey key = ApprovalKey.of(mechanism, current);
 		PrincipalIdentity identity = this.identities.resolve(current);
-		// Before the status is read, because claiming an invitation is what changes it.
-		// Runs whatever the current standing: a session that survived the round trip
-		// arrives UNKNOWN, one lost to a restart arrives PENDING and reopens the URL, and
-		// somebody already signed in confirms on the invitation page. All three have to
-		// work.
-		if (this.redemption != null && this.redemption.admit(context.getRequest(), key, identity, mechanism.type())) {
+		// Ahead of the require-for check on purpose. An invitation is not a gate: it says
+		// who this login belongs to, and the application wants that link whether or not
+		// the mechanism they used is gated. require-for excludes INTERNAL by default, so
+		// behind that check an invitation completed with an internal login would claim
+		// nothing, publish nothing and record no usedBy — while letting the person in, so
+		// nothing would look wrong to them or to whoever invited them.
+		//
+		// Also ahead of the status read, because claiming is what changes the status.
+		// Runs
+		// whatever the current standing: a session that survived the round trip arrives
+		// UNKNOWN, one lost to a restart arrives PENDING and reopens the URL, and
+		// somebody
+		// already signed in accepts on the invitation page. All three have to work.
+		boolean admitted = this.redemption != null
+				&& this.redemption.admit(context.getRequest(), key, identity, mechanism.type());
+		if (admitted) {
+			grantApprovedRoles(key, current);
+			return new AuthorizationDecision(true);
+		}
+		if (!this.properties.getApproval().getRequireFor().contains(mechanism.type())) {
 			return new AuthorizationDecision(true);
 		}
 		ApprovalStatus status = this.store.statusOf(key);
@@ -150,6 +162,28 @@ public class ApprovalAuthorizationManager implements AuthorizationManager<Reques
 	 * was recorded under an earlier configuration, and flipping them to {@code DENIED}
 	 * would turn a queue a human was about to read into a silent refusal.
 	 */
+	/**
+	 * Puts the roles the admission just granted onto this request's authentication.
+	 *
+	 * <p>
+	 * {@link ApprovalAuthoritiesFilter} cannot do it for an invitation. It runs before
+	 * {@code AuthorizationFilter} — it has to, or an approver's roles would arrive after
+	 * the decision that needed them — but roles an invitation grants are created
+	 * <em>by</em> this decision, so by then the filter has already run. Without this the
+	 * invited person lands on their first {@code hasRole}-gated page, gets 403, and finds
+	 * it works on refresh.
+	 */
+	private void grantApprovedRoles(ApprovalKey key, Authentication current) {
+		Authentication granted = ApprovalAuthoritiesFilter.granting(current,
+				this.store.find(key)
+					.filter((record) -> record.status() == ApprovalStatus.APPROVED)
+					.map(ApprovalRecord::roles)
+					.orElse(java.util.List.of()));
+		if (granted != null) {
+			SecurityContextHolder.getContext().setAuthentication(granted);
+		}
+	}
+
 	private ApprovalStatus refuse(ApprovalKey key) {
 		this.store.decide(key, ApprovalStatus.DENIED, InvitationRedemption.INVITE_ONLY, java.util.List.of());
 		return ApprovalStatus.DENIED;

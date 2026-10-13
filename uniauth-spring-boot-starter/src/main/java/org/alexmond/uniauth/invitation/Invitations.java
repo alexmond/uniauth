@@ -21,7 +21,14 @@ import jakarta.servlet.http.HttpSession;
  */
 public final class Invitations {
 
-	/** Where the pending token sits on the session. */
+	/**
+	 * Where the pending token sits on the session, as the token's text.
+	 *
+	 * <p>
+	 * Text rather than the {@link InvitationToken} record, because a session attribute
+	 * has to survive whatever the deployment stores sessions in — and the common stores
+	 * default to JDK serialization.
+	 */
 	public static final String SESSION_ATTRIBUTE = Invitations.class.getName() + ".TOKEN";
 
 	private Invitations() {
@@ -33,7 +40,13 @@ public final class Invitations {
 	 * @param token the token to carry
 	 */
 	public static void stash(HttpServletRequest request, InvitationToken token) {
-		request.getSession(true).setAttribute(SESSION_ATTRIBUTE, token);
+		// The token's text, not the record. A session attribute has to survive whatever
+		// the deployment stores sessions in, and spring-session-data-redis,
+		// spring-session-jdbc, Tomcat persistence and Tomcat replication all default to
+		// JDK serialization — which would throw on a record that does not declare itself
+		// Serializable, on the POST that accepts the invitation. A String has no such
+		// contract to get wrong, and none to keep stable across versions either.
+		request.getSession(true).setAttribute(SESSION_ATTRIBUTE, token.value());
 	}
 
 	/**
@@ -48,7 +61,12 @@ public final class Invitations {
 			return null;
 		}
 		HttpSession session = request.getSession(false);
-		return (session != null) ? (InvitationToken) session.getAttribute(SESSION_ATTRIBUTE) : null;
+		Object stashed = (session != null) ? session.getAttribute(SESSION_ATTRIBUTE) : null;
+		// Anything other than token text reads as no invitation. A rolling upgrade can
+		// hand this a session written by an earlier version, and throwing on every
+		// request would be a worse answer than sending the person through the ordinary
+		// gate.
+		return (stashed instanceof String value) ? InvitationToken.of(value) : null;
 	}
 
 	/**

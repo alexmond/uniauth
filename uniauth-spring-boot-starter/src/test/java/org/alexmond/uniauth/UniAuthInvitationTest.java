@@ -33,6 +33,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -132,6 +133,24 @@ class UniAuthInvitationTest {
 		// 403 rather than the waiting page, and still DENIED on the way out.
 		this.mockMvc.perform(get("/").session((MockHttpSession) session)).andExpect(status().isForbidden());
 		assertThat(this.approvals.statusOf(JANE)).isEqualTo(ApprovalStatus.DENIED);
+	}
+
+	@Test
+	void theInvitationsRolesAreOnThePrincipalOnTheVeryRequestThatGrantsThem() throws Exception {
+		// The roles are created BY the authorization decision, so a filter placed before
+		// AuthorizationFilter cannot carry them — it has already run. Without the manager
+		// putting them on the context itself, the invited person lands on their first
+		// hasRole-gated page and gets 403, and it then works on refresh. Measured on the
+		// request rather than off the session, because that is what an application's own
+		// rule sees.
+		Invitation invitation = this.invitations.create("jane-record", null, List.of("FAMILY"), "admin");
+
+		HttpSession accepted = accept(invitation);
+		HttpSession session = signIn(accepted, "jane");
+
+		this.mockMvc.perform(get("/whoami").session((MockHttpSession) session))
+			.andExpect(status().isOk())
+			.andExpect(content().string(org.hamcrest.Matchers.containsString("ROLE_FAMILY")));
 	}
 
 	@Test
