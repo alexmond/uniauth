@@ -1,5 +1,34 @@
 = Changelog
 
+== Unreleased
+
+* *New — invitations* (#29), `uniauth.approval.invitations.enabled`. The approval gate needs a
+  stranger to turn up first. Invitations are the other order: the application already holds a
+  record for somebody, and a one-use URL attaches whichever login they complete to that
+  record. A token rather than a matched email address, which removes `email_verified`, address
+  normalisation, cross-provider matching and the whole disclosure question — and makes SAML and
+  LDAP work as well as OIDC. Redemption happens in `ApprovalAuthorizationManager`, the one
+  place every request passes exactly once, so one implementation covers all four mechanisms.
+  `InvitationRedeemedEvent` is the linking contract and a listener that throws fails the
+  admission, because admitted-but-unlinked is worse than "try again"; one-use is keyed by
+  principal so that failure can be retried rather than stranding the invited person.
+  `invite-only` refuses an uninvited principal outright instead of telling somebody who will
+  never be admitted to keep waiting.
++
+Opening an invitation URL only renders a page; accepting is a `POST`, because a `GET` cannot
+carry a CSRF token and a `GET` with a side effect here could be fired from any other site to
+plant its invitation in a visitor's session. Revoking an invitation, and a refusal an
+approver recorded, both outrank the retry — the window that retry opens can be as long as an
+outage, which is exactly when somebody intervenes — as does any decision an approver
+recorded, including an approval whose roles are narrower than the invitation's. Re-inviting is
+how an administrator changes what somebody was granted, since invitations are never reopened.
++
+`InvitationRedeemedEvent` is at-least-once and the listener must be idempotent: two requests
+on one session can both claim and both publish, and a listener that throws refuses the
+admission. Redemption runs whether or not the mechanism is covered by
+`uniauth.approval.require-for` — an invitation is not a gate — and the roles it grants reach
+the principal on the request that granted them.
+
 == 4.1.1.1
 
 * *Spring Boot 4.1.1* (was 4.1.0). The version follows the Boot patch, so the fourth segment

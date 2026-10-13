@@ -157,6 +157,77 @@ principal gets 403, not the waiting page.
 `MechanismResolver` moved from the sample into the starter here, since approval needs to know
 which provider answered. That is the rule: promote when something depends on it, not before.
 
+#### Invitations claim an account, they do not provision one
+
+`uniauth.approval.invitations.enabled` hands a named person a one-use URL that attaches
+whichever login they complete to a record the application already holds. The issue (#29)
+proposed matching on the invited email address; the token in the URL replaces that, and
+deletes `email_verified`, address normalisation, cross-provider matching and the disclosure
+rule along with it — which is also why it works for SAML and LDAP, where email matching
+could not.
+
+Things that will bite if changed carelessly (no count here; the heading above says why):
+
+- **The `GET` on the invitation path must stay free of side effects, and accepting must stay
+  a `POST`.** A `GET` cannot carry a CSRF token, so a `GET` that stashed the invitation could
+  be fired from any other site — an `img` tag is enough. It would plant that site's
+  invitation in a visitor's session, and the visitor would then sign in with their own
+  account and be bound to the record that invitation names, with its roles, never seeing the
+  page that exists to make exactly this deliberate.
+
+- **`redeem` is keyed by principal, not by token.** Re-claiming with the same `ApprovalKey`
+  is a no-op. That is what lets a throwing listener be retried: the event is published
+  *before* the approval is written, so a failure leaves the principal `PENDING` with the
+  claim intact, and the next request gets them in. Making the token dead on first claim
+  would strand the invited person after one transient error, with no way back except an
+  administrator noticing.
+- **The event goes out before `decide(APPROVED)`.** Reversing them produces
+  admitted-but-unlinked — browsing as nobody, holding a session no record backs.
+- **Redemption does not condition on `UNKNOWN`.** A session lost mid-login arrives
+  `PENDING`, and somebody already signed in confirms on the invitation page. Conditioning on
+  a first sighting breaks both.
+- **The approver is recorded as `invitation:<subjectRef>`, never the token.** The token is a
+  bearer credential and has no business in an audit record. `InvitationToken.toString()`
+  redacts itself for the same reason.
+- **Revocation, and any decision a *person* recorded, outrank the retry.** The retry window
+  can be as long as an outage, which is exactly when somebody intervenes, so neither may be
+  undone by it — and that includes an approver's *approval*, whose roles may be deliberately
+  narrower than the invitation's. Two decisions are not a person's and so may be replaced:
+  `invite-only`'s own automatic `DENIED` (under that setting every stranger is recorded
+  `DENIED`, so anyone who signed in before opening their link would otherwise be locked out
+  for good) and a grant an earlier invitation made (re-inviting is the only way to change
+  what somebody was granted, since invitations are never reopened). That is what
+  `InvitationRedemption.INVITE_ONLY` and `APPROVER_PREFIX` are for — the classes have to
+  agree on what "not a person" looks like.
+
+- **Redemption runs ahead of the `require-for` check, and must stay there.** An invitation is
+  not a gate; it says who a login belongs to. `require-for` excludes INTERNAL by default, so
+  behind that check an invitation completed with an internal login claimed nothing, published
+  nothing and recorded no `usedBy` — while letting the person in, so nothing looked wrong to
+  anybody. `UniAuthInvitationUngatedTest` is the guard, and it is the one invitation test that
+  deliberately sets no `require-for`.
+- **The manager puts the granted roles on the context itself.** `ApprovalAuthoritiesFilter`
+  cannot: it runs before `AuthorizationFilter` — it has to, or an approver's roles arrive
+  after the decision that needed them — but roles an invitation grants are created *by* that
+  decision. Without it the invited person lands on their first `hasRole`-gated page, gets 403,
+  and finds it works on refresh. The prefixing rule lives once, in
+  `ApprovalAuthoritiesFilter.granting`.
+- **The session carries the token's *text*, not the record.** spring-session-redis,
+  spring-session-jdbc and Tomcat persistence all default to JDK serialization, so a
+  non-serializable attribute throws when the session is saved — on the POST that accepts the
+  invitation, which is the only flow this feature has. A `String` has no such contract to get
+  wrong, and an unexpected attribute reads as no invitation rather than throwing on every
+  request after a rolling upgrade.
+- **`InvitationRedeemedEvent` is at-least-once.** Two requests on one session can both read
+  the token before either clears it, and the no-op in `redeem` lets the second through, so
+  both publish. Combined with "a listener that throws fails the admission", a non-idempotent
+  listener turns a duplicate into a refusal of somebody who is approved. Documented on the
+  event and in `invitations.adoc`; `InvitationRedemptionTest` pins the count.
+
+`Invitation.usedBy` is why `ApprovalRecord` does not gain a `subjectRef` field: the link is
+already durable, and widening that record would break every `ApprovalStore` implementor, as
+#5 did once.
+
 ### Brand is not a mechanism
 
 `AuthProviderType` is the *mechanism* axis — how a provider talks, and therefore which filter
@@ -347,6 +418,12 @@ a count in this heading; it has gone stale twice.
   `BasicAuthenticationEntryPoint` and the native dialog came back on every expired-session
   XHR, for exactly the paths an API-first front end calls — while both chains were installed,
   both correct, and every test on both sides passed.
+
+- An **`InvitationStore`** bean — the invitation table, like `ApprovalStore` is the approval
+  one. Unlike it, this SPI can enumerate from the start (#10 is a real gap, but a sibling
+  does not inherit it). An **`InvitationRedeemedEvent`** listener is how an application links
+  the admitted login to its own record; it may refuse by throwing, which leaves the principal
+  pending.
 
 Because that bean *is* an `AuthenticationEntryPoint`, the chain filters it out when looking
 for the application's own — taking it would replace the chooser redirect for every browser

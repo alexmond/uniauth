@@ -107,6 +107,18 @@
 
     <div class="notice error" th:if="${error}">Those credentials were not accepted.</div>
     <div class="notice info" th:if="${logout}">You have been signed out.</div>
+    <div class="notice error" th:if="${invite == 'expired'}">
+        That invitation has expired. Ask whoever invited you for a new link.
+    </div>
+    <div class="notice error" th:if="${invite == 'used'}">
+        That invitation has already been used. Ask whoever invited you for a new link.
+    </div>
+    <div class="notice error" th:if="${invite == 'revoked'}">
+        That invitation was withdrawn. Ask whoever invited you if you still need access.
+    </div>
+    <div class="notice error" th:if="${invite == 'unknown'}">
+        That invitation link is not valid. Check you copied the whole URL.
+    </div>
 
     <p class="hint" th:if="${noProviders}">
         No authentication provider is enabled. Turn one on under <code>uniauth.*</code> —

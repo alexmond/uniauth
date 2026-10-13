@@ -171,10 +171,16 @@ public class UniAuthAutoConfiguration {
 		permitted.addAll(properties.getPublicPaths());
 
 		ApprovalAuthorizationManager approval = approvalManager.getIfAvailable();
+		warnAboutInvitationsWithoutTheGate(properties, approval);
 		if (approval != null) {
 			// The waiting page has to be reachable by the very people the gate is keeping
 			// out, or the redirect loops.
 			permitted.add(properties.getApproval().getPendingPage());
+			if (properties.getApproval().getInvitations().isEnabled()) {
+				// An invitation has to work before anybody has logged in — that is the
+				// entire point of it.
+				permitted.add(properties.getApproval().getInvitations().getPath());
+			}
 		}
 
 		authorize(http, permitted, authorizationCustomizers, approval);
@@ -287,6 +293,23 @@ public class UniAuthAutoConfiguration {
 	@ConditionalOnMissingBean
 	public UniAuthBasicEntryPoint uniAuthBasicEntryPoint(UniAuthProperties properties) {
 		return new UniAuthBasicEntryPoint(properties);
+	}
+
+	/**
+	 * Says so when invitations are configured but the gate they need is not.
+	 *
+	 * <p>
+	 * The alternative is the failure the path validation exists to prevent, reached by
+	 * another route: invitations are switched on, nothing is wired, every link 404s, and
+	 * nothing anywhere explains it.
+	 */
+	private static void warnAboutInvitationsWithoutTheGate(UniAuthProperties properties,
+			ApprovalAuthorizationManager approval) {
+		if (approval == null && properties.getApproval().getInvitations().isEnabled()) {
+			LOGGER.warn("uniauth.approval.invitations.enabled is set but uniauth.approval.enabled is not, "
+					+ "so invitations are NOT active: redemption writes an approval record and has nowhere "
+					+ "to put it without the gate. Set uniauth.approval.enabled=true.");
+		}
 	}
 
 	/**

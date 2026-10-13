@@ -3,6 +3,7 @@
 * xref:mechanisms.adoc[Mechanisms]
 * xref:providers.adoc[Provider recipes]
 * xref:approval.adoc[Approval gate]
+* xref:invitations.adoc[Invitations]
 * xref:configuration.adoc[Configuration]
 * xref:architecture.adoc[Architecture]
 * xref:examples.adoc[Examples]

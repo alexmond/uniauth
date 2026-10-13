@@ -26,6 +26,28 @@ public class TestApplication {
 			return "home";
 		}
 
+		/**
+		 * Echoes the authorities the <em>current request</em> carries.
+		 *
+		 * <p>
+		 * Reading them off the session afterwards answers a different question: a change
+		 * made to the context mid-request is not persisted by default, so the session can
+		 * lack an authority the request itself had. What an application's
+		 * {@code hasRole(...)} rule sees is this.
+		 * @return the authorities, comma separated
+		 */
+		@GetMapping("/whoami")
+		String whoami() {
+			org.springframework.security.core.Authentication current = org.springframework.security.core.context.SecurityContextHolder
+				.getContext()
+				.getAuthentication();
+			return current.getAuthorities()
+				.stream()
+				.map(org.springframework.security.core.GrantedAuthority::getAuthority)
+				.sorted()
+				.collect(java.util.stream.Collectors.joining(","));
+		}
+
 	}
 
 }

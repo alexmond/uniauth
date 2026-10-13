@@ -4,6 +4,7 @@ import lombok.Data;
 import org.alexmond.uniauth.provider.AuthProviderType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -129,6 +130,75 @@ public class UniAuthProperties {
 		 * application. The {@code ROLE_} prefix is added if absent.
 		 */
 		private List<String> defaultRoles = new ArrayList<>(List.of("USER"));
+
+		private Invitations invitations = new Invitations();
+
+		/**
+		 * Admitting a named person before their first login.
+		 *
+		 * <p>
+		 * The approval gate answers "somebody logged in; do we let them in?", which needs
+		 * a stranger to arrive first. Invitations are the other order: the application
+		 * already holds a record for Jane, and hands her a one-use URL that attaches
+		 * whichever login she completes to <em>that record</em>. Account claiming, not
+		 * user provisioning.
+		 */
+		@Data
+		public static class Invitations {
+
+			private boolean enabled;
+
+			/**
+			 * Where an invitation is redeemed. Must contain {@code {token}}, and the
+			 * starter permits this path on its chain — it has to work before anybody has
+			 * logged in.
+			 */
+			private String path = "/invite/{token}";
+
+			/** How long an invitation lasts when the creator names no ttl. */
+			private Duration defaultExpiry = Duration.ofDays(14);
+
+			/**
+			 * Refuse anyone who was not invited, rather than holding them for approval.
+			 *
+			 * <p>
+			 * An uninvited principal is recorded {@code DENIED} and gets a plain 403
+			 * instead of the waiting page. Telling somebody who will never be admitted to
+			 * keep waiting is a lie, and the waiting page implies a queue that nobody is
+			 * reading.
+			 */
+			private boolean inviteOnly;
+
+			/**
+			 * Fails fast on a path that could never work.
+			 *
+			 * <p>
+			 * A path with no {@code {token}} maps a literal URL: every invitation 404s,
+			 * and nothing anywhere says why. Checked at startup rather than left to
+			 * surface as a mystery one link at a time — the same reason
+			 * {@code ManagedApplication.validate()} exists in the console. A non-positive
+			 * {@code default-expiry} is caught here for the same reason: it would make
+			 * every invitation born already expired, with nothing anywhere complaining.
+			 * @throws IllegalStateException if the path or the default expiry is unusable
+			 */
+			public void validate() {
+				if (this.path == null || !this.path.startsWith("/") || !this.path.contains("{token}")) {
+					throw new IllegalStateException(
+							"uniauth.approval.invitations.path must start with '/' and contain '{token}', but was '"
+									+ this.path + "'");
+				}
+				// Expiry is inclusive, so a zero or negative default makes every
+				// invitation born already expired — and the store, the endpoint and the
+				// log would all agree there was nothing wrong. Null is fine: it means
+				// never expires.
+				if (this.defaultExpiry != null && (this.defaultExpiry.isZero() || this.defaultExpiry.isNegative())) {
+					throw new IllegalStateException(
+							"uniauth.approval.invitations.default-expiry must be positive (or absent, "
+									+ "meaning never), but was " + this.defaultExpiry);
+				}
+			}
+
+		}
 
 	}
 
