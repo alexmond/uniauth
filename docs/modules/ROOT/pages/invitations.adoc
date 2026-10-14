@@ -28,6 +28,53 @@ uniauth:
 <3> With this on, an uninvited principal is refused outright — a plain 403 rather than the
     waiting page. Telling somebody who will never be admitted to keep waiting is a lie.
 
+[#the-first-administrator]
+=== Who creates the first invitation
+
+Somebody has to be inside to mint one, and `invite-only` looks like it closes that door. It
+does not, on the default configuration — but the route is worth knowing before you need it
+(#35).
+
+`uniauth.approval.require-for` excludes `INTERNAL`, on the reasoning that writing an account
+into configuration is already a deliberate act of approval. The `invite-only` refusal sits
+*behind* that check, so an account in `uniauth.internal.users` is admitted without ever
+being asked for an invitation:
+
+[source,yaml]
+----
+uniauth:
+  internal:
+    enabled: true
+    users:
+      - username: admin
+        password: "{bcrypt}$2a$10$..."
+        roles: [ADMIN]
+----
+
+That is the same break-glass pattern the admin console uses for when the provider is down,
+and it is the answer to "who invites the first person".
+
+[WARNING]
+====
+Adding `INTERNAL` to `require-for` closes it again. Then every mechanism is gated, every
+uninvited principal is refused, and there is nobody left who can invite anybody — a
+locked-out deployment with no route back that does not involve a restart.
+
+If you need that configuration, admit the first administrator directly instead, which
+`ApprovalStore` supports as a recipe rather than a special case:
+
+[source,java]
+----
+ApprovalKey key = new ApprovalKey("internal", "admin");
+approvals.recordPending(key, PrincipalIdentity.ofName("admin"), AuthProviderType.INTERNAL);
+approvals.decide(key, ApprovalStatus.APPROVED, "bootstrap", List.of("ADMIN"));
+----
+
+`recordPending` first is not optional: `decide` leaves a key the store has never seen
+untouched, deliberately, so that a decision always has an identity and a mechanism behind
+it for whoever reads the queue later.
+====
+
 `default-expiry` must be positive, and is checked at startup for the same reason the path is:
 expiry is inclusive, so a zero or negative value would make every invitation born already
 expired, with the store, the endpoint and the log all agreeing nothing was wrong. Omit it
@@ -151,8 +198,24 @@ in `redeem` is what lets the second through, so both publish. A listener doing a
 that *refuses the admission* of somebody who is in fact approved.
 
 The link is durable without any listener at all: `Invitation.usedBy` records which
-`ApprovalKey` claimed which `subjectRef`, permanently, so the mapping is recoverable by
-querying the store. That is why `ApprovalRecord` gains no `subjectRef` field — widening it
+`ApprovalKey` claimed which `subjectRef`, permanently, and `InvitationStore.findByUsedBy`
+asks it directly:
+
+[source,java]
+----
+String held = invitations.findByUsedBy(key).map(Invitation::subjectRef).orElse(null);
+----
+
+That is the question an application has on a later request, or when repairing its own link
+table after a listener failed. Two edges are contract: the *latest* claim wins, because
+re-inviting is how an administrator changes what somebody holds and leaves two invitations
+naming the same principal; and a claim that was later *revoked* is still returned, because
+revocation outranks use in `status()`, so filtering on `USED` would answer "holds nothing"
+for precisely the person whose link needs attention. Check `status(now)` on what comes back.
+
+It is a `default` method over `list`, so an existing implementation keeps compiling; one
+backed by a database should override it with the indexed query rather than listing the
+table. That is why `ApprovalRecord` gains no `subjectRef` field — widening it
 would break every `ApprovalStore` implementation, which it already did once.
 
 == Roles

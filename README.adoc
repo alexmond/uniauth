@@ -380,6 +380,11 @@ means giving up all the wiring:
 after the permitted paths and before the catch-all. Reach for it when the application's rules
 are a different shape from "permitted or authenticated" — a role on an admin area, or a
 method-scoped rule.
+`UniAuthHttpSecurityCustomizer` bean:: Adjusts the chain itself — CSRF, headers, CORS, session
+management — applied after everything the starter configures, so your setting wins. The starter
+configures no CSRF, so Spring Security's session-backed default applies: a front end posting
+JSON, a machine caller using Basic, or a static page's sign-out button all have no token to
+send, and the refusal is a silent 403. See the CSRF page in the reference documentation.
 `UniAuthBasicEntryPoint` bean:: The rule that decides whether a caller gets a Basic challenge,
 the chooser, or a bare `401`. Inject it into a chain of your own and hand it to
 `.httpBasic(...)`, so a second chain keeps the browser's native dialog shut instead of

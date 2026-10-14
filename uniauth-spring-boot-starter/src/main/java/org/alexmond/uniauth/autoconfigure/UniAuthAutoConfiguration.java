@@ -242,12 +242,7 @@ public class UniAuthAutoConfiguration {
 			http.addFilterBefore(authorities, AuthorizationFilter.class);
 		}
 
-		// Last, so an application's own setting wins over ours. This is the only reach
-		// into HttpSecurity itself, and it is what stops "I need CSRF off for /api/**"
-		// from costing somebody every mechanism the starter wires.
-		for (UniAuthHttpSecurityCustomizer customizer : httpSecurityCustomizers.orderedStream().toList()) {
-			customizer.customize(http);
-		}
+		applyApplicationConcerns(http, httpSecurityCustomizers);
 
 		SecurityFilterChain chain = http.build();
 		logInstalled(properties, registry, approval != null);
@@ -321,6 +316,26 @@ public class UniAuthAutoConfiguration {
 			LOGGER.warn("uniauth.approval.invitations.enabled is set but uniauth.approval.enabled is not, "
 					+ "so invitations are NOT active: redemption writes an approval record and has nowhere "
 					+ "to put it without the gate. Set uniauth.approval.enabled=true.");
+		}
+	}
+
+	/**
+	 * The application's own adjustments to the chain, applied last.
+	 *
+	 * <p>
+	 * Last so that a setting the application cares about wins over ours, and it is the
+	 * only reach into {@code HttpSecurity} itself — what stops "I need CSRF off for
+	 * {@code /api/**}" from costing somebody every mechanism this starter wires.
+	 *
+	 * <p>
+	 * Nothing is caught. A customizer that cannot be applied means the application's
+	 * security intent did not take, and starting anyway would serve a chain nobody asked
+	 * for, with a stack trace as the only sign.
+	 */
+	private static void applyApplicationConcerns(HttpSecurity http,
+			ObjectProvider<UniAuthHttpSecurityCustomizer> customizers) throws Exception {
+		for (UniAuthHttpSecurityCustomizer customizer : customizers.orderedStream().toList()) {
+			customizer.customize(http);
 		}
 	}
 
