@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.alexmond</groupId>
+        <artifactId>uniauth-parent</artifactId>
+        <version>4.1.1.2-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>uniauth-spring-boot-starter-test</artifactId>
+    <name>UniAuth Spring Boot Starter Test</name>
+    <description>Contract test suites an ApprovalStore or InvitationStore implementation extends to prove
+        it honours the rules UniAuth relies on — above all that redeem is a compare-and-set, which a
+        read-then-write passes every single-threaded test and fails under load.
+    </description>
+
+    <!--
+      A module of its own rather than a tests-classifier jar on the starter. A test-jar
+      publishes every test class, which would make TestApplication and 200-odd internal
+      tests de facto API: renaming one would break a consumer, and their component scan
+      could reach an application class meant for this repo alone. Here, only what is in
+      src/main is published surface.
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>uniauth-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!--
+          Compile scope on purpose, both of them. This artifact IS test support, so a
+          consumer declares it at test scope and these arrive on their test classpath
+          with it. Marking them provided would compile here and then fail at the
+          consumer with NoClassDefFoundError on the superclass they just extended.
+        -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          To run the contracts against deliberately broken stores and assert that they
+          FAIL. A contract suite that only ever passes proves nothing about the defect it
+          claims to catch, and the headline defect here cannot be caught by reading code.
+        -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-testkit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

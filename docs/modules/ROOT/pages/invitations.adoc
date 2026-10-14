@@ -275,3 +275,57 @@ every single-threaded test and admits two people under load.
 
 Unlike `ApprovalStore`, this interface can enumerate from the start. An administrator cannot
 manage invitations they cannot list.
+
+[#the-contract-kit]
+=== Prove an implementation rather than reading it
+
+The rules above are the ones an implementation can break without anybody noticing, so they
+ship as an executable suite rather than as prose to be followed carefully (#37). Add the
+test artifact and extend the contract:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>uniauth-spring-boot-starter-test</artifactId>
+    <version>${uniauth.version}</version>
+    <scope>test</scope>
+</dependency>
+----
+
+[source,java]
+----
+class JdbcInvitationStoreTest extends InvitationStoreContract {
+
+    @Override
+    protected InvitationStore createStore(Clock clock) {
+        return new JdbcInvitationStore(dataSource, clock, Duration.ofDays(14));
+    }
+
+}
+----
+
+That is the whole integration. The suite covers one use, expiry at the boundary instant,
+revocation outranking the retry, `findByUsedBy`, and — the case that cannot be found by
+reading code — sixteen threads claiming one invitation at once, which a read-then-write
+implementation fails and nothing else will tell you about.
+
+`ApprovalStoreContract` is the same shape for the approval store, including the rule that a
+repeated sighting must not reopen a settled decision.
+
+[NOTE]
+====
+The `Clock` the contract hands over is a `MutableClock` it moves, so the store must read it
+when it needs the time rather than once in its constructor. That is not pedantry: a store
+that caches the answer reports every invitation as open for ever.
+
+A store whose data outlives the object — a database — needs nothing further. One holding
+its own map gets this for free as well, because moving the clock keeps the store under test
+the same object it always was.
+====
+
+The suites are not only documentation of the rules; they are tested against deliberately
+broken stores to prove they fail them. Worth knowing what that exposed: of the five cases
+that touch revocation, three still pass against a store that ignores `revoke` entirely,
+because they assert what revocation leaves alone. Passing a contract suite is evidence, not
+a proof of correctness.

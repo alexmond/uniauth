@@ -392,6 +392,32 @@ reproducing the decision.
 `AuthenticationEntryPoint` bean:: Declare one and the starter uses it instead of redirecting to
 the chooser. An API-first application returns 401 this way — see the `headless` example.
 
+=== Proving a store you supply
+
+`InMemoryApprovalStore` and `InMemoryInvitationStore` are not production-fit, so a real
+deployment supplies its own — and their correctness rules are subtle enough that they ship as
+an executable suite rather than as prose:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>uniauth-spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+----
+
+[source,java]
+----
+class JdbcInvitationStoreTest extends InvitationStoreContract {
+    @Override protected InvitationStore createStore(Clock clock) { ... }
+}
+----
+
+`ApprovalStoreContract` is the same for the approval store. The case worth having checked is
+the one reading the code will not find: sixteen threads claiming one invitation at once, which
+a read-then-write `redeem` fails while passing every single-threaded test.
+
 == Building
 
 [source,bash]

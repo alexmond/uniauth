@@ -2,6 +2,25 @@
 
 == Unreleased
 
+* *New artifact — `uniauth-spring-boot-starter-test`* (#37). A durable `ApprovalStore` or
+  `InvitationStore` is the application's job by design, and its correctness rules lived only in
+  prose — so every implementor rediscovered them alone, including the one that cannot be found
+  by reading code: `redeem` must be a compare-and-set, and a read-then-write passes every
+  single-threaded test while binding two people to one record under load.
++
+`InvitationStoreContract` and `ApprovalStoreContract` are suites an implementation extends by
+supplying its store. The clock handed over is mutable, so an implementation that reads it once
+in its constructor is caught. A module of its own rather than a tests-classifier jar on the
+starter: a test-jar would publish every internal test class, making `TestApplication` and
+200-odd tests de facto API.
++
+The suites are themselves run against deliberately broken stores to prove they fail them,
+which is the part a contract kit usually lacks. That exposed something worth documenting: of
+the five cases touching revocation, three still pass against a store that ignores `revoke`
+entirely, because they assert what revocation leaves alone. Passing is evidence, not proof.
+* *Docs — `ApprovalStore.decide` signature was stale* in `approval.adoc`, missing the `roles`
+  parameter an implementor copies.
+
 * *New — a hook on `HttpSecurity` itself* (#12), `UniAuthHttpSecurityCustomizer`. The chain is
   built inside the starter and offered one reach into it: authorization rules. Nothing answered
   CSRF, headers, CORS or session management — and since the starter configures no CSRF, Spring
