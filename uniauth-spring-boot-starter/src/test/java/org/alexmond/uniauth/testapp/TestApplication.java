@@ -2,6 +2,7 @@ package org.alexmond.uniauth.testapp;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -46,6 +47,21 @@ public class TestApplication {
 				.map(org.springframework.security.core.GrantedAuthority::getAuthority)
 				.sorted()
 				.collect(java.util.stream.Collectors.joining(","));
+		}
+
+		/**
+		 * An application's own write endpoint, called by a front end that holds no
+		 * server-rendered form and therefore carries no session CSRF token.
+		 *
+		 * <p>
+		 * This is the shape of #12: enabling UniAuth turned such a POST from 200 into
+		 * 403, because the starter owns the chain and never configured CSRF, and no
+		 * extension point reached {@code HttpSecurity} to say otherwise.
+		 * @return anything; only the status is under test
+		 */
+		@PostMapping("/api/feedback")
+		String feedback() {
+			return "thanks";
 		}
 
 	}

@@ -5,6 +5,7 @@ import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
 import org.alexmond.uniauth.config.UniAuthAuthorizationCustomizer;
 import org.alexmond.uniauth.config.UniAuthBasicEntryPoint;
+import org.alexmond.uniauth.config.UniAuthHttpSecurityCustomizer;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProvider;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
@@ -150,6 +151,9 @@ public class UniAuthAutoConfiguration {
 	 * enabled; absent otherwise
 	 * @param authorizationCustomizers application-supplied rules, applied in order before
 	 * the catch-all so the chain can express more than "permitted or authenticated"
+	 * @param httpSecurityCustomizers application-supplied adjustments to the chain
+	 * itself, applied in order after everything here so a setting the application cares
+	 * about wins — CSRF above all, which has no other hook
 	 * @param entryPoint an application-supplied entry point, used instead of redirecting
 	 * to the chooser — this is how an API-first application answers 401
 	 * @return the chain
@@ -163,6 +167,7 @@ public class UniAuthAutoConfiguration {
 			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
 			ObjectProvider<ApprovalAuthoritiesFilter> approvalAuthorities,
 			ObjectProvider<UniAuthAuthorizationCustomizer> authorizationCustomizers,
+			ObjectProvider<UniAuthHttpSecurityCustomizer> httpSecurityCustomizers,
 			ObjectProvider<AuthenticationEntryPoint> entryPoint, UniAuthBasicEntryPoint basicEntryPoint)
 			throws Exception {
 
@@ -235,6 +240,13 @@ public class UniAuthAutoConfiguration {
 		ApprovalAuthoritiesFilter authorities = approvalAuthorities.getIfAvailable();
 		if (authorities != null) {
 			http.addFilterBefore(authorities, AuthorizationFilter.class);
+		}
+
+		// Last, so an application's own setting wins over ours. This is the only reach
+		// into HttpSecurity itself, and it is what stops "I need CSRF off for /api/**"
+		// from costing somebody every mechanism the starter wires.
+		for (UniAuthHttpSecurityCustomizer customizer : httpSecurityCustomizers.orderedStream().toList()) {
+			customizer.customize(http);
 		}
 
 		SecurityFilterChain chain = http.build();
