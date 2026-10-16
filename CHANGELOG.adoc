@@ -2,6 +2,32 @@
 
 == Unreleased
 
+* *Breaking — `ApprovalStore` gains `list(ApprovalStatus...)`* (#10). The store could
+  answer who wants in but never who *is* in: `pending()` by definition excludes everybody
+  already admitted, and `find` needs a key you already hold — which for an OIDC login is an
+  opaque subject claim nobody has memorised. So an application could build a queue and
+  never an access list: no way to see who can sign in today, what roles they hold, or who
+  was refused, and no way to pick somebody to revoke. The only route left was querying the
+  backing table directly, which couples the page to one implementation and leaves a non-SQL
+  store unable to offer the same screen at all.
++
+*Every implementation of `ApprovalStore` must add one method.* It is abstract rather than a
+`default` because there is nothing honest to default to — the store is the only thing that
+can enumerate itself, so a default would either answer empty, telling an access-review
+screen that nobody has access, or throw, turning a compile error into a page load at the
+moment somebody opens the screen. For a JDBC store the migration is the query `pending()`
+already runs with its status predicate opened up; the step-by-step is at
+https://www.alexmond.org/uniauth/current/approval/#migrating-to-list[Migrating an existing
+store to `list`]. `pending()` is now a `default` over `list`, so it can be deleted —
+or kept, where a table is indexed for the queue.
++
+No filter means every record. `UNKNOWN` matches nothing, because it is the absence of a
+record rather than a value one can be stored with. Ordering is `firstSeen` ascending for the
+whole interface, since `pending()` already promised oldest-first. The contract kit gains
+five cases and four deliberately broken stores; the mistake they exist for is wiring `list`
+to the query `pending()` used, which compiles, passes every older test, and shows an empty
+access list. The sample approvals page now has the two tables this makes possible.
+
 * *Fixed — brand buttons on the chooser* (#8). Every redirect provider was rendered as its
   bare brand name in a generic bordered box. For Google that is the one rendering its
   guidelines explicitly forbid — and Boot's `CommonOAuth2Provider.GOOGLE` sets the client

@@ -231,7 +231,9 @@ Things that will bite if changed carelessly (no count here; the heading above sa
 
 `Invitation.usedBy` is why `ApprovalRecord` does not gain a `subjectRef` field: the link is
 already durable, and widening that record would break every `ApprovalStore` implementor, as
-#5 did once. `InvitationStore.findByUsedBy` is how that link is read back (#36) — a `default`
+#5 did once. **That rule is about the record, and it stands.** The interface itself has been
+widened once, deliberately — see `list` below — which is the precedent to read before doing
+it again, not a licence. `InvitationStore.findByUsedBy` is how that link is read back (#36) — a `default`
 method over `list`, so adding it broke nobody. Two edges are contract, not convenience: the
 **latest** claim wins (re-inviting leaves two invitations naming one principal), and a claim
 later **revoked** is still returned, because revocation outranks use in `status()` and
@@ -247,6 +249,37 @@ the only way in is `recordPending` followed by `decide`. Which is also why
 decision about somebody with no identity and no mechanism behind it, a row an approver
 reading the queue cannot make sense of. That is now stated on the interface, because it was
 not, and the two answers are not interchangeable to a caller.
+
+#### `ApprovalStore.list` is the one breaking change this SPI has taken
+
+The store could answer who wants in and never who *is* in: `pending()` excludes everybody
+already admitted by definition, and `find` needs a key you already hold — an opaque subject
+claim, for OIDC. So an access list was unreachable through the interface, and the
+application that found it had to query its own table, which couples the page to one
+implementation and leaves a non-SQL store unable to offer the screen at all (#10).
+
+`list(ApprovalStatus...)` is **abstract, and breaks every implementor compiled against
+4.1.0.3 or earlier.** The alternatives were worse and were both considered: a capability
+interface the caller feature-detects (the `AuthProviderRegistry` pattern) leaves the
+feature invisible to exactly the applications that need it, and a `default` has nothing
+honest to return — empty tells an access review that nobody has access, which is a wrong
+answer rather than a missing one, and throwing moves a compile error to a page load. A
+compiler error names the file and the method. Migration note in `approval.adoc`; it is one
+query.
+
+Four things to keep:
+
+- **`UNKNOWN` matches nothing.** It is the absence of a record, not a value one can be
+  stored with, so a store treating it as a wildcard hands an access list every row it has.
+- **One ordering for the interface, `firstSeen` ascending.** `pending()` is published API
+  that promised oldest-first and is now a `default` over `list`, so changing the order
+  silently reorders every approvals page already written. Note this differs from
+  `InvitationStore.list`, which is newest-first: that one is a log, this one is a queue.
+  Do not "harmonise" them.
+- **Overriding `pending()` stays supported** — a table indexed for the queue should use
+  that index — so the contract checks the two agree. Agreement is what drifts.
+- **Shape copied from `InvitationStore.list`,** varargs with empty meaning everything,
+  because that was already the house pattern for this exact question.
 
 **Rules contributed through `UniAuthAuthorizationCustomizer` run before the gate.** They have
 to — the gate is the catch-all — so a rule ending in `.authenticated()` admits every account
@@ -279,8 +312,11 @@ there breaks an implementor's build.
   keep twice — it caught that the fixture's own `get`-then-`put` was non-atomic (so every
   variant failed the concurrency case, proving nothing about its own flaw), and it showed
   that **three of the five revocation cases still pass against a store that ignores
-  `revoke`**, because they assert what revocation leaves alone. When adding a rule, add
-  the broken store that violates it.
+  `revoke`**, because they assert what revocation leaves alone. It has since said the same
+  thing about enumeration: **exactly one of the eighteen approval cases catches a store
+  that lists newest-first**, because every other assertion either ignores order or holds a
+  single element. When adding a rule, add the broken store that violates it, then look at
+  which cases actually fired — the answer is usually fewer than it looks.
 - The kit depends on the starter, so the starter can **never** depend on the kit — the
   in-memory implementations are run against the contracts from the kit's own `src/test`.
 
@@ -521,8 +557,8 @@ a count in this heading; it has gone stale twice.
   cookie back is refused with the same 403 it was trying to fix.
 
 - An **`InvitationStore`** bean — the invitation table, like `ApprovalStore` is the approval
-  one. Unlike it, this SPI can enumerate from the start (#10 is a real gap, but a sibling
-  does not inherit it). An **`InvitationRedeemedEvent`** listener is how an application links
+  one. Both can enumerate now; this one always could, and the other took a breaking change
+  to get there (#10). An **`InvitationRedeemedEvent`** listener is how an application links
   the admitted login to its own record; it may refuse by throwing, which leaves the principal
   pending.
 
