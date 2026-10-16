@@ -2,6 +2,32 @@
 
 == Unreleased
 
+* *Fixed — the waiting page is now served* (#11). The gate redirected a held principal to
+  `uniauth.approval.pending-page` and the starter mapped nothing there, so they got one
+  redirect, a 404 and the whitelabel error page — which reads as a fault rather than as the
+  system working as configured. Nothing failed at startup and nothing logged, and the only
+  flow that reaches it is a real sign-in by somebody actually pending, which no first manual
+  run as an approved administrator performs.
++
+The page explains what is happening, names the account that is waiting — the one fact that
+makes it actionable, since somebody signed in with the wrong account cannot otherwise tell
+— and carries a sign-out *form*. A form because with CSRF on Spring's logout matcher is
+POST-only, so a sign-out link never reaches `LogoutFilter`: it falls through to the gate and
+bounces back to the waiting page. The back button is worse than nothing, returning to the
+provider which signs the same held account in again.
++
+It is registered as a view controller rather than a `@Controller`, which is a compatibility
+decision: the page was missing for long enough that applications supplied their own mapping
+on that path, and a `@RequestMapping` there would be an ambiguous mapping failing their
+context at startup. Behind a handler mapping ordered after `RequestMappingHandlerMapping` an
+application's own mapping simply wins, with nothing to exclude or configure — which is why
+`uniauth-examples/webapp` still serves its own richer page unchanged.
++
+New: `uniauth.approval.pending-view`, defaulting to `uniauth/pending`. The pending *page*
+was always configuration, so the view rendered on it is too — point it at a template of your
+own rather than putting a file in the starter's template path. The model (`signedInAs`) is
+the same either way.
+
 * *Breaking — `ApprovalStore` gains `list(ApprovalStatus...)`* (#10). The store could
   answer who wants in but never who *is* in: `pending()` by definition excludes everybody
   already admitted, and `find` needs a key you already hold — which for an OIDC login is an

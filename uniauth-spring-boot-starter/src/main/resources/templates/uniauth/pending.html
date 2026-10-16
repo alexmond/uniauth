@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Waiting for approval</title>
+    <style>
+        :root { --muted: #6b7280; --border: #d7dae0; --ink: #16181d; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 1.5rem; background: #f6f7f9; color: var(--ink);
+            font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+        .card {
+            width: 100%; max-width: 24rem; padding: 2rem; background: #fff;
+            border: 1px solid var(--border); border-radius: 10px;
+        }
+        h1 { margin: 0 0 1rem; font-size: 1.25rem; }
+        p { margin: 0 0 1rem; }
+        .who { font-weight: 600; }
+        button {
+            width: 100%; padding: .7rem; border: 1px solid var(--border); border-radius: 6px;
+            cursor: pointer; background: #fff; color: var(--ink); font-size: 1rem;
+        }
+        .hint { margin: .75rem 0 0; font-size: .8125rem; color: var(--muted); }
+    </style>
+</head>
+<body>
+<main class="card">
+    <h1>Waiting for approval</h1>
+
+    <!-- Signed in, and held. Saying "access denied" would describe a decision nobody has
+         taken yet, and saying "something went wrong" would describe a fault — this is the
+         system working as configured. -->
+    <p th:if="${signedInAs != null}">
+        You are signed in as <span class="who" th:text="${signedInAs}">someone</span>, and your
+        access is waiting on an administrator. Nothing further is needed from you.
+    </p>
+
+    <p th:if="${signedInAs == null}">
+        Access here is granted by an administrator. Sign in, and this page will tell you
+        where your request stands.
+    </p>
+
+    <p>Once approved you will get in on your next request, without signing in again.</p>
+
+    <!-- The only way out of a waiting room, and it has to be a POST. With CSRF on,
+         Spring's logout matcher is POST-only, so a sign-out LINK never reaches
+         LogoutFilter: it falls through to the gate and bounces straight back here. The
+         back button is worse than nothing — it returns to the provider, which signs the
+         same held account in again. th:action is also what inserts the CSRF token; a
+         plain action attribute would post without one and be refused. -->
+    <form th:if="${signedInAs != null}" th:action="@{/logout}" method="post">
+        <button type="submit">Sign out</button>
+    </form>
+
+    <p class="hint" th:if="${signedInAs != null}">
+        Signed in as the wrong account? Sign out and come back as the one that should have
+        access — approval is recorded per account, and per provider.
+    </p>
+</main>
+</body>
+</html>
