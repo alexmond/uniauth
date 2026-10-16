@@ -31,6 +31,15 @@ public record PendingView(String principal, String displayName, String email, St
 	private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'")
 		.withZone(ZoneOffset.UTC);
 
+	/**
+	 * Formats an instant the way both tables show one.
+	 * @param instant the moment to render
+	 * @return the moment, to the minute, in UTC
+	 */
+	static String stamp(java.time.Instant instant) {
+		return STAMP.format(instant);
+	}
+
 	public static PendingView of(ApprovalRecord record) {
 		PrincipalIdentity identity = record.identity();
 		return new PendingView(record.key().principal(), (identity != null) ? identity.displayName() : null,

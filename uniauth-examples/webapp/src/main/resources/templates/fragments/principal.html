@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!--
+  One principal, formatted for recognition. Its own file rather than a block inside
+  approvals.html, because a th:fragment left in a page still renders where it stands —
+  with its parameter unbound, which is a null dereference on every request rather than a
+  definition.
+-->
+<body>
+	<!-- Recognising a person is the same problem on all three tables: a name and an
+	     address first, because they are what a decision is actually about, with the
+	     subject still visible underneath because that is what approval is keyed on
+	     and hiding it would mean admitting something the page never showed. -->
+	<th:block th:fragment="who(p)">
+		<span class="who__name" th:if="${p.displayName()}" th:text="${p.displayName()}">Name</span>
+		<span class="who__name who__name--unknown" th:unless="${p.displayName()}">
+			(no name given)
+		</span>
+		<span class="who__mail" th:if="${p.email()}">
+			<span th:text="${p.email()}">a@b.c</span>
+			<span class="badge badge--ok" th:if="${p.emailStatus() == 'verified'}">verified</span>
+			<span class="badge badge--warn" th:if="${p.emailStatus() == 'UNVERIFIED'}">
+				unverified
+			</span>
+		</span>
+		<span class="who__mail who__mail--none" th:unless="${p.email()}">
+			no address from this provider
+		</span>
+		<span class="who__sub" th:text="${p.principal()}">subject</span>
+	</th:block>
+</body>
+</html>

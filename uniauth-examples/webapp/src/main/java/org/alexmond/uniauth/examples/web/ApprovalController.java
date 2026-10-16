@@ -47,7 +47,14 @@ public class ApprovalController {
 	@GetMapping("/approvals")
 	@PreAuthorize("hasRole('ADMIN')")
 	public String queue(Model model) {
-		model.addAttribute("waiting", this.store.pending().stream().map(PendingView::of).toList());
+		// One method answers the whole page. Before list() the store could only be
+		// asked who was waiting, so the two tables below did not exist and access
+		// granted was never access reviewed — nobody could see who had access, what
+		// they could do with it, or pick somebody to revoke without already knowing
+		// their key by heart (#10).
+		model.addAttribute("waiting", this.store.list(ApprovalStatus.PENDING).stream().map(PendingView::of).toList());
+		model.addAttribute("admitted", this.store.list(ApprovalStatus.APPROVED).stream().map(AccessView::of).toList());
+		model.addAttribute("refused", this.store.list(ApprovalStatus.DENIED).stream().map(AccessView::of).toList());
 		return "approvals";
 	}
 

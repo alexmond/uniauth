@@ -9,11 +9,15 @@
 
 	<main>
 		<p class="eyebrow">Protected page · administrators</p>
-		<h1 class="display">Who is<br/><em>waiting.</em></h1>
+		<h1 class="display">Access, and<br/><em>who wants it.</em></h1>
 		<p class="lede">
-			Everyone here authenticated successfully and is being held at the door. Approving
-			admits them on their next request; denying refuses them outright.
+			Three questions on one page: who is being held at the door, who has already been
+			let through and what they may do once inside, and who was turned away. The last
+			two are only answerable because the store can be enumerated — a queue on its own
+			shows applications for access and never access itself.
 		</p>
+
+		<h2>Who is waiting</h2>
 
 		<section>
 			<p class="note" th:if="${#lists.isEmpty(waiting)}" style="margin-top: 0">
@@ -34,28 +38,7 @@
 					</thead>
 					<tbody>
 					<tr th:each="record : ${waiting}">
-						<td>
-							<!-- Name and address first, because they are what the decision is
-							     actually about. The subject stays visible underneath: it is
-							     what approval is keyed on, and hiding it would mean admitting
-							     something the page never showed. -->
-							<span class="who__name" th:if="${record.displayName()}"
-							      th:text="${record.displayName()}">Name</span>
-							<span class="who__name who__name--unknown" th:unless="${record.displayName()}">
-								(no name given)
-							</span>
-							<span class="who__mail" th:if="${record.email()}">
-								<span th:text="${record.email()}">a@b.c</span>
-								<span class="badge badge--ok" th:if="${record.emailStatus() == 'verified'}">verified</span>
-								<span class="badge badge--warn" th:if="${record.emailStatus() == 'UNVERIFIED'}">
-									unverified
-								</span>
-							</span>
-							<span class="who__mail who__mail--none" th:unless="${record.email()}">
-								no address from this provider
-							</span>
-							<span class="who__sub" th:text="${record.principal()}">subject</span>
-						</td>
+						<td th:insert="~{fragments/principal :: who(${record})}"></td>
 						<td th:text="${record.mechanism()} + ' · ' + ${record.provider()}">LDAP</td>
 						<td th:text="${record.firstSeen()}">when</td>
 						<td>
@@ -79,6 +62,115 @@
 			</div>
 		</section>
 
+		<section>
+			<h2>Who has access</h2>
+			<p class="note" style="margin-top: 0">
+				Everyone a decision has already admitted, and what that decision granted them.
+				A queue answers who wants in; this answers who <em>is</em> in — which is the
+				question an access review actually asks, and the one the store could not
+				answer until it could be enumerated.
+			</p>
+
+			<p class="note" th:if="${#lists.isEmpty(admitted)}" style="margin-top: 0">
+				Nobody has been admitted yet.
+			</p>
+
+			<div class="scroll-x" th:unless="${#lists.isEmpty(admitted)}">
+				<table class="rows rows--grid">
+					<caption>Principals with access</caption>
+					<thead>
+					<tr>
+						<th scope="col">Who is in</th>
+						<th scope="col">Provider</th>
+						<th scope="col">May do</th>
+						<th scope="col">Admitted by</th>
+						<th scope="col">Change</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr th:each="row : ${admitted}">
+						<td th:insert="~{fragments/principal :: who(${row.who()})}"></td>
+						<td th:text="${row.who().mechanism()} + ' · ' + ${row.who().provider()}">LDAP</td>
+						<td>
+							<!-- The roles the approver granted, not the ones the provider sent:
+							     a federated principal arrives with none of its own, so this
+							     column is the only place they exist. -->
+							<span class="badge" th:each="role : ${row.roles()}" th:text="${role}"
+							      style="margin-right: .25rem">USER</span>
+							<span class="who__mail who__mail--none" th:if="${#lists.isEmpty(row.roles())}">
+								nothing granted
+							</span>
+						</td>
+						<td>
+							<span th:text="${row.decidedBy()}">admin</span>
+							<span class="who__sub" th:text="${row.decidedAt()}">when</span>
+						</td>
+						<td>
+							<form th:action="@{/approvals}" method="post" style="display: flex; gap: .5rem">
+								<input type="hidden" name="provider" th:value="${row.who().provider()}"/>
+								<input type="hidden" name="principal" th:value="${row.who().principal()}"/>
+								<input class="field__input field__input--tight" type="text" name="roles"
+								       placeholder="USER, ADMIN" style="width:9rem"/>
+								<!-- Re-deciding an existing record is how roles change: there is
+								     no separate edit, because a narrower grant is a new decision
+								     and belongs in the audit trail as one. -->
+								<button class="button button--ghost" type="submit" name="outcome" value="APPROVED">
+									Set roles
+								</button>
+								<button class="button button--ghost" type="submit" name="outcome" value="revoke">
+									Revoke
+								</button>
+							</form>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
+		<section th:unless="${#lists.isEmpty(refused)}">
+			<h2>Who was refused</h2>
+			<p class="note" style="margin-top: 0">
+				A denied principal gets a plain 403 rather than the waiting page, and never
+				turns up in the queue again — so without this table a refusal was final by
+				accident. Reconsidering is forgetting them: the next request they make puts
+				them back at the top of the page.
+			</p>
+
+			<div class="scroll-x">
+				<table class="rows rows--grid">
+					<caption>Principals refused</caption>
+					<thead>
+					<tr>
+						<th scope="col">Who was refused</th>
+						<th scope="col">Provider</th>
+						<th scope="col">Refused by</th>
+						<th scope="col">Change</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr th:each="row : ${refused}">
+						<td th:insert="~{fragments/principal :: who(${row.who()})}"></td>
+						<td th:text="${row.who().mechanism()} + ' · ' + ${row.who().provider()}">LDAP</td>
+						<td>
+							<span th:text="${row.decidedBy()}">admin</span>
+							<span class="who__sub" th:text="${row.decidedAt()}">when</span>
+						</td>
+						<td>
+							<form th:action="@{/approvals}" method="post">
+								<input type="hidden" name="provider" th:value="${row.who().provider()}"/>
+								<input type="hidden" name="principal" th:value="${row.who().principal()}"/>
+								<button class="button button--ghost" type="submit" name="outcome" value="revoke">
+									Reconsider
+								</button>
+							</form>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+
 		<p class="note">
 			Approval is keyed on the identifier in grey — a subject claim, for an OIDC login —
 			because that is stable and never reassigned, while an address can change hands.
@@ -90,6 +182,7 @@
 			This queue lives in memory, so it empties on restart — and every approval goes with
 			it. A real deployment supplies its own <code>ApprovalStore</code>.
 		</p>
+
 	</main>
 </div>
 </body>
