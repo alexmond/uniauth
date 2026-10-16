@@ -218,12 +218,21 @@ and a migration story onto an application that only wanted a login page.
 public interface ApprovalStore {
     ApprovalStatus statusOf(ApprovalKey key);
     ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
-    List<ApprovalRecord> pending();
+    List<ApprovalRecord> list(ApprovalStatus... statuses);   // no filter means everything
     Optional<ApprovalRecord> find(ApprovalKey key);
-    void decide(ApprovalKey key, ApprovalStatus outcome, String approver);
+    void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles);
     void remove(ApprovalKey key);   // revoking: back to the waiting room, not locked out
+
+    default List<ApprovalRecord> pending() {                 // the queue, oldest first
+        return list(ApprovalStatus.PENDING);
+    }
 }
 ----
+
+WARNING: `list` arrived after 4.1.0.3 and *breaks every existing implementation* — see
+https://www.alexmond.org/uniauth/current/approval/#migrating-to-list[the migration note]. Without it the store could answer
+who wants in but never who *is* in, so an access list was unreachable through the interface
+(#10).
 
 Keys are `(provider, principal)`, never the principal alone: "alice" in the internal store and
 "alice" at some OIDC provider are different people who happen to share a string.

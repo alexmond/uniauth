@@ -106,10 +106,14 @@ consumer.
 public interface ApprovalStore {
     ApprovalStatus statusOf(ApprovalKey key);
     ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
-    List<ApprovalRecord> pending();
+    List<ApprovalRecord> list(ApprovalStatus... statuses);
     Optional<ApprovalRecord> find(ApprovalKey key);
     void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles);
     void remove(ApprovalKey key);
+
+    default List<ApprovalRecord> pending() {
+        return list(ApprovalStatus.PENDING);
+    }
 }
 ----
 
@@ -125,6 +129,89 @@ WARNING: `InMemoryApprovalStore` is the default and is *not production-fit*. It 
 restart, taking every approval with it, and it is per-instance — two replicas do not agree.
 Supply your own implementation for anything real.
 
+=== Enumeration, and why it is not optional
+
+`list` answers who the store holds. Pass no statuses for everything, or name the ones you
+want:
+
+[source,java]
+----
+store.list()                                        // everybody, oldest first
+store.list(ApprovalStatus.APPROVED)                 // the access list
+store.list(ApprovalStatus.PENDING)                  // the queue, same as pending()
+store.list(ApprovalStatus.APPROVED, ApprovalStatus.DENIED)   // everyone decided about
+----
+
+Two rules an implementation has to honour:
+
+* `ApprovalStatus.UNKNOWN` matches *nothing*, ever. It is the absence of a record rather
+  than a value a record can carry, so a store must not treat it as a wildcard — an access
+  list asking for the unknown would otherwise be handed every principal in the table.
+* The ordering is `firstSeen` ascending, for the whole interface and not only for the
+  queue, because `pending()` is published API that already promised oldest-first and now
+  reads through `list`.
+
+Overriding `pending()` stays supported, and is the right thing to do where a table is
+indexed for the queue — that index should go on being used. The contract then checks the
+two agree, because agreement is what drifts: change one query and not the other and
+approved people appear on the approvals page, or waiting ones vanish from it.
+
+[#migrating-to-list]
+=== Migrating an existing store to `list`
+
+`list` arrived after 4.1.0.3 and **breaks every implementation of this interface**. That is
+deliberate, and the alternative was worse. A `default` method had nothing honest to return:
+the store is the only thing that can enumerate itself, so a default could answer empty —
+telling an access-review screen that nobody has access, which is a wrong answer rather than
+a missing one — or throw, which turns a compile error into a page load at the moment
+somebody opens the screen. A compiler error names the file and the method; neither of the
+other two does.
+
+What the gap was: `pending()` answers "who wants in" and by definition excludes everybody
+already admitted, and `find` needs a key you already hold — which for an OIDC login is an
+opaque subject claim nobody has memorised. So an application could build a queue but never
+an access list: no way to see who can sign in today, what roles they hold, or who was
+refused, and no way to pick somebody to revoke. The only route left was querying the
+backing table directly, which couples the page to one implementation and leaves a non-SQL
+store unable to offer the same screen at all (#10).
+
+**The whole migration is one method.** For a JDBC store it is the query `pending()` already
+runs, with the status predicate opened up:
+
+[source,java]
+----
+private static final String SELECT = """
+        SELECT provider, principal, display_name, email, email_verified,
+               mechanism, status, first_seen, decided_at, decided_by, roles
+        FROM uniauth_approval
+        WHERE status IN (:statuses)
+        ORDER BY first_seen ASC
+        """;
+
+@Override
+public List<ApprovalRecord> list(ApprovalStatus... statuses) {
+    // No filter means everything. UNKNOWN needs no special case: it is never stored,
+    // so naming it simply matches no rows.
+    List<ApprovalStatus> wanted = (statuses.length > 0) ? List.of(statuses)
+            : List.of(ApprovalStatus.values());
+    return this.jdbc.query(SELECT, Map.of("statuses", wanted.stream().map(Enum::name).toList()),
+            ROW_MAPPER);
+}
+----
+
+Then **delete your `pending()`**, or keep it if it rides an index — but if you keep it,
+make sure it still answers exactly `list(PENDING)`.
+
+WARNING: The mistake to expect is wiring `list` to the query `pending()` already used, so
+that it answers only the queue. It compiles, it passes every test written before this
+change, and the access list it exists for shows nobody. Three cases in the contract kit
+catch it; nothing else will.
+
+Already extending `ApprovalStoreContract`? Then the migration is checked for you — five new
+cases cover enumeration, and `./mvnw test` is the whole verification. If you are not, this
+is the release to start: see <<prove-your-implementation>>.
+
+[#prove-your-implementation]
 === Prove your implementation
 
 Because a real deployment supplies its own store, the rules it has to honour ship as an

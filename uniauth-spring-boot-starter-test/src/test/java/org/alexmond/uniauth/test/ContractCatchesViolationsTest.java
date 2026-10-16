@@ -10,6 +10,11 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.alexmond.uniauth.approval.ApprovalKey;
+import org.alexmond.uniauth.approval.ApprovalRecord;
+import org.alexmond.uniauth.approval.ApprovalStatus;
+import org.alexmond.uniauth.approval.ApprovalStore;
+import org.alexmond.uniauth.approval.PrincipalIdentity;
+import org.alexmond.uniauth.provider.AuthProviderType;
 import org.alexmond.uniauth.invitation.Invitation;
 import org.alexmond.uniauth.invitation.InvitationStatus;
 import org.alexmond.uniauth.invitation.InvitationStore;
@@ -101,6 +106,73 @@ class ContractCatchesViolationsTest {
 		// transient listener failure.
 		EngineTestKit.engine("junit-jupiter")
 			.selectors(DiscoverySelectors.selectMethod(OneRequestOnly.class, "oneUseMeansOnePersonAndNotOneRequest"))
+			.execute()
+			.testEvents()
+			.assertStatistics((stats) -> stats.failed(1));
+	}
+
+	@Test
+	@DisplayName("a store whose list() still answers only the queue is caught")
+	void aQueueOnlyListIsCaught() {
+		// The migration mistake to expect: list() wired to the query pending() already
+		// used, which compiles, passes every pre-existing case, and leaves the access
+		// list the method was added for showing nobody (#10).
+		EngineTestKit.engine("junit-jupiter")
+			.selectors(DiscoverySelectors.selectMethod(ListsOnlyPending.class,
+					"listHoldsEverybodyTheStoreKnowsWhateverTheirStanding"))
+			.execute()
+			.testEvents()
+			.assertStatistics((stats) -> stats.failed(1));
+	}
+
+	@Test
+	@DisplayName("a store that ignores the status filter is caught")
+	void anIgnoredFilterIsCaught() {
+		List<String> failed = EngineTestKit.engine("junit-jupiter")
+			.selectors(DiscoverySelectors.selectClass(IgnoresTheFilter.class))
+			.execute()
+			.testEvents()
+			.failed()
+			.stream()
+			.map((event) -> event.getTestDescriptor().getDisplayName())
+			.toList();
+
+		// Named rather than counted, for the same reason as the revocation cases above:
+		// a store that hands back everything regardless of the filter also breaks the
+		// queue, because pending() reads through list(). That second failure is the one
+		// an implementor will actually notice, since it empties nothing and instead puts
+		// approved people back on the approvals page.
+		//
+		// Note which case does NOT fire: listHoldsEverybody... passes, correctly — a
+		// store that ignores the filter answers an unfiltered list exactly right. The
+		// filter rules are what separate the two flaws.
+		assertThat(failed).contains("listFiltersToTheStandingsAsked()",
+				"listingUnknownHoldsNobodyBecauseNoRecordIsEverStoredThatWay()", "pendingHoldsOnlyThoseStillWaiting()");
+	}
+
+	@Test
+	@DisplayName("a store whose own pending() disagrees with its list() is caught")
+	void aDisagreeingPendingIsCaught() {
+		// Overriding pending() stays supported — a table indexed for the queue should go
+		// on using that index — so the contract has to check the two agree. They drift
+		// the moment one of them is changed and the other is not.
+		EngineTestKit.engine("junit-jupiter")
+			.selectors(DiscoverySelectors.selectMethod(PendingDisagreesWithList.class,
+					"pendingAnswersExactlyWhatListOfPendingDoes"))
+			.execute()
+			.testEvents()
+			.assertStatistics((stats) -> stats.failed(1));
+	}
+
+	@Test
+	@DisplayName("a store that lists newest first is caught")
+	void aReversedOrderIsCaught() {
+		// The single guard on ordering, and worth knowing as such: of the eighteen
+		// approval cases exactly one fails against a store that reverses the order,
+		// because every other assertion either ignores order or holds one element. The
+		// older queue case cannot help — it asserts containsExactly on a list of one.
+		EngineTestKit.engine("junit-jupiter")
+			.selectors(DiscoverySelectors.selectMethod(NewestFirst.class, "listIsOldestFirstThroughoutTheInterface"))
 			.execute()
 			.testEvents()
 			.assertStatistics((stats) -> stats.failed(1));
@@ -311,6 +383,136 @@ class ContractCatchesViolationsTest {
 				.filter((invitation) -> wanted.contains(invitation.status(now)))
 				.sorted(Comparator.comparing(Invitation::createdAt).reversed())
 				.toList();
+		}
+
+	}
+
+	// The approval suites. Each points the contract at one broken store.
+
+	static class ListsOnlyPending extends ApprovalStoreContract {
+
+		@Override
+		protected ApprovalStore createStore(Clock clock) {
+			return new BrokenApprovalStore(clock, BrokenApprovalStore.Flaw.LISTS_ONLY_PENDING);
+		}
+
+	}
+
+	static class IgnoresTheFilter extends ApprovalStoreContract {
+
+		@Override
+		protected ApprovalStore createStore(Clock clock) {
+			return new BrokenApprovalStore(clock, BrokenApprovalStore.Flaw.IGNORES_THE_FILTER);
+		}
+
+	}
+
+	static class PendingDisagreesWithList extends ApprovalStoreContract {
+
+		@Override
+		protected ApprovalStore createStore(Clock clock) {
+			return new BrokenApprovalStore(clock, BrokenApprovalStore.Flaw.PENDING_DISAGREES);
+		}
+
+	}
+
+	static class NewestFirst extends ApprovalStoreContract {
+
+		@Override
+		protected ApprovalStore createStore(Clock clock) {
+			return new BrokenApprovalStore(clock, BrokenApprovalStore.Flaw.NEWEST_FIRST);
+		}
+
+	}
+
+	/**
+	 * An {@link ApprovalStore} that is correct apart from one chosen flaw.
+	 *
+	 * <p>
+	 * Every flaw here is in enumeration, because enumeration is what the interface gained
+	 * (#10) and the rest of the contract was already falsified by the invitation stores
+	 * above. Correct elsewhere on purpose, for the same reason as those.
+	 */
+	private static final class BrokenApprovalStore implements ApprovalStore {
+
+		enum Flaw {
+
+			/** list() answers the queue, which is the query it was migrated from. */
+			LISTS_ONLY_PENDING,
+			/** Hands back every record whatever was asked for. */
+			IGNORES_THE_FILTER,
+			/** Keeps its own pending() query, and that query disagrees. */
+			PENDING_DISAGREES,
+			/** Lists newest first, reversing the published queue order. */
+			NEWEST_FIRST
+
+		}
+
+		private final Map<ApprovalKey, ApprovalRecord> records = new ConcurrentHashMap<>();
+
+		private final Clock clock;
+
+		private final Flaw flaw;
+
+		BrokenApprovalStore(Clock clock, Flaw flaw) {
+			this.clock = clock;
+			this.flaw = flaw;
+		}
+
+		@Override
+		public ApprovalStatus statusOf(ApprovalKey key) {
+			ApprovalRecord record = this.records.get(key);
+			return (record != null) ? record.status() : ApprovalStatus.UNKNOWN;
+		}
+
+		@Override
+		public ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism) {
+			return this.records.computeIfAbsent(key, (absent) -> new ApprovalRecord(absent, identity, mechanism,
+					ApprovalStatus.PENDING, this.clock.instant(), null, null, List.of()));
+		}
+
+		@Override
+		public List<ApprovalRecord> list(ApprovalStatus... statuses) {
+			List<ApprovalStatus> wanted = switch (this.flaw) {
+				case LISTS_ONLY_PENDING -> List.of(ApprovalStatus.PENDING);
+				case IGNORES_THE_FILTER -> List.of(ApprovalStatus.values());
+				default -> (statuses.length > 0) ? List.of(statuses) : List.of(ApprovalStatus.values());
+			};
+			Comparator<ApprovalRecord> order = Comparator.comparing(ApprovalRecord::firstSeen);
+			return this.records.values()
+				.stream()
+				.filter((record) -> wanted.contains(record.status()))
+				.sorted((this.flaw == Flaw.NEWEST_FIRST) ? order.reversed() : order)
+				.toList();
+		}
+
+		@Override
+		public List<ApprovalRecord> pending() {
+			if (this.flaw != Flaw.PENDING_DISAGREES) {
+				return ApprovalStore.super.pending();
+			}
+			// Plausible rather than absurd: somebody who reads DENIED as "still to be
+			// dealt with" and leaves them on the queue page.
+			return list(ApprovalStatus.PENDING, ApprovalStatus.DENIED);
+		}
+
+		@Override
+		public Optional<ApprovalRecord> find(ApprovalKey key) {
+			return Optional.ofNullable(this.records.get(key));
+		}
+
+		@Override
+		public void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles) {
+			if (outcome != ApprovalStatus.APPROVED && outcome != ApprovalStatus.DENIED) {
+				throw new IllegalArgumentException("A decision must be APPROVED or DENIED, not " + outcome);
+			}
+			this.records.computeIfPresent(key,
+					(unused, record) -> record.decide(outcome, approver, this.clock.instant(), roles));
+		}
+
+		@Override
+		public void remove(ApprovalKey key) {
+			this.records.remove(key);
 		}
 
 	}

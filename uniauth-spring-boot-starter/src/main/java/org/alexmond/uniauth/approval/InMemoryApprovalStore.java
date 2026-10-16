@@ -54,10 +54,14 @@ public class InMemoryApprovalStore implements ApprovalStore {
 	}
 
 	@Override
-	public List<ApprovalRecord> pending() {
+	public List<ApprovalRecord> list(ApprovalStatus... statuses) {
+		// No filter means everything, the same shape as InvitationStore.list. UNKNOWN
+		// needs no special case either way: it is the absence of a record, so nothing
+		// held here ever carries it and asking for it matches nobody.
+		List<ApprovalStatus> wanted = (statuses.length > 0) ? List.of(statuses) : List.of(ApprovalStatus.values());
 		return this.records.values()
 			.stream()
-			.filter((record) -> record.status() == ApprovalStatus.PENDING)
+			.filter((record) -> wanted.contains(record.status()))
 			.sorted(Comparator.comparing(ApprovalRecord::firstSeen))
 			.toList();
 	}

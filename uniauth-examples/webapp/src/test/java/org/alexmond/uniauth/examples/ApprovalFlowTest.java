@@ -86,6 +86,64 @@ class ApprovalFlowTest {
 	}
 
 	@Test
+	void theQueuePageAlsoShowsWhoIsAlreadyInAndWhatTheyMayDo() throws Exception {
+		// Access granted is not access reviewed. Before list() the page could only show
+		// who was waiting, so the people who already had access — and the roles they
+		// hold — were invisible to the only screen an administrator ever opens (#10).
+		HttpSession bob = signIn("bob", "bobspassword");
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) bob));
+		HttpSession alice = signIn("alice", "s3cret");
+		this.mockMvc.perform(post("/approvals").session((MockHttpSession) alice)
+			.with(csrf())
+			.param("provider", "ldap")
+			.param("principal", "bob")
+			.param("outcome", "APPROVED")
+			.param("roles", "FAMILY"));
+
+		this.mockMvc.perform(get("/approvals").session((MockHttpSession) alice))
+			.andExpect(status().isOk())
+			.andExpect(content().string(containsString("Who has access")))
+			.andExpect(content().string(containsString("FAMILY")))
+			// And out of the queue, which is the half the page could always show.
+			.andExpect(content().string(containsString("Nobody is waiting")));
+	}
+
+	@Test
+	void theAccessListOffersRevocationWithoutKnowingTheKeyByHeart() throws Exception {
+		// The practical half of the gap: revoking took the exact ApprovalKey, which for
+		// an OIDC login is an opaque subject claim nobody has memorised. Now the row
+		// carries it.
+		HttpSession bob = signIn("bob", "bobspassword");
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) bob));
+		HttpSession alice = signIn("alice", "s3cret");
+		this.mockMvc.perform(post("/approvals").session((MockHttpSession) alice)
+			.with(csrf())
+			.param("provider", "ldap")
+			.param("principal", "bob")
+			.param("outcome", "APPROVED"));
+
+		this.mockMvc.perform(get("/approvals").session((MockHttpSession) alice))
+			.andExpect(content().string(containsString("value=\"revoke\"")));
+	}
+
+	@Test
+	void somebodyRefusedIsStillOnThePageSoTheDecisionCanBeReconsidered() throws Exception {
+		// A denied principal gets a plain 403 and never appears in the queue again, so
+		// without enumeration the refusal was final by accident rather than by choice.
+		HttpSession bob = signIn("bob", "bobspassword");
+		this.mockMvc.perform(get("/dashboard").session((MockHttpSession) bob));
+		HttpSession alice = signIn("alice", "s3cret");
+		this.mockMvc.perform(post("/approvals").session((MockHttpSession) alice)
+			.with(csrf())
+			.param("provider", "ldap")
+			.param("principal", "bob")
+			.param("outcome", "DENIED"));
+
+		this.mockMvc.perform(get("/approvals").session((MockHttpSession) alice))
+			.andExpect(content().string(containsString("Who was refused")));
+	}
+
+	@Test
 	void aHeldUserCannotReachTheQueueThemselves() throws Exception {
 		HttpSession bob = signIn("bob", "bobspassword");
 
