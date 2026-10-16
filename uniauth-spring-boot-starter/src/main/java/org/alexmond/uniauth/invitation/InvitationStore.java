@@ -1,6 +1,7 @@
 package org.alexmond.uniauth.invitation;
 
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -96,6 +97,48 @@ public interface InvitationStore {
 	 * top
 	 */
 	List<Invitation> list(InvitationStatus... statuses);
+
+	/**
+	 * Which record a login holds, if any.
+	 *
+	 * <p>
+	 * {@link Invitation#usedBy()} makes the link durable without the application storing
+	 * anything, which is why {@code ApprovalRecord} gains no {@code subjectRef} field.
+	 * But durable is not reachable: the only way to ask was to list every invitation and
+	 * filter, so an application wanting the link on a later request — or repairing its
+	 * own table after a listener failed — had no question to ask (#36).
+	 *
+	 * <p>
+	 * A default method on purpose. This interface is the application's table, so one it
+	 * had to implement would be a breaking change dressed as a feature, and the answer is
+	 * derivable from {@code list} for everybody. An implementation backed by a database
+	 * should override it with the obvious indexed query rather than listing the table.
+	 *
+	 * <p>
+	 * The latest claim wins, by {@code usedAt} and then by {@code createdAt}. Re-inviting
+	 * is the only way to change what somebody holds, so after one there are two
+	 * invitations naming the same principal and the current answer is the newer. Two
+	 * claims identical in both instants are a tie this cannot break, and it returns
+	 * either — worth knowing rather than hiding, though it takes one principal claiming
+	 * two invitations within the same clock tick.
+	 *
+	 * <p>
+	 * A claim that was later revoked is still returned: revocation outranks use in
+	 * {@link Invitation#status(java.time.Instant)}, so filtering on {@code USED} would
+	 * answer "holds nothing" for precisely the person whose link needs attention. Read
+	 * {@code status(now)} on what comes back and decide.
+	 * @param admitted the principal to ask about; {@code null} is a miss, not an error
+	 * @return their most recent claim, or empty if they have never claimed one
+	 */
+	default Optional<Invitation> findByUsedBy(ApprovalKey admitted) {
+		if (admitted == null) {
+			return Optional.empty();
+		}
+		Comparator<Invitation> byClaim = Comparator
+			.comparing(Invitation::usedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+			.thenComparing(Invitation::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()));
+		return list().stream().filter((invitation) -> admitted.equals(invitation.usedBy())).max(byClaim);
+	}
 
 	/**
 	 * Thrown when an invitation cannot be claimed.

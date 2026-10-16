@@ -5,6 +5,7 @@ import org.alexmond.uniauth.approval.ApprovalAuthorizationManager;
 import org.alexmond.uniauth.approval.PendingApprovalAccessDeniedHandler;
 import org.alexmond.uniauth.config.UniAuthAuthorizationCustomizer;
 import org.alexmond.uniauth.config.UniAuthBasicEntryPoint;
+import org.alexmond.uniauth.config.UniAuthHttpSecurityCustomizer;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.alexmond.uniauth.provider.AuthProvider;
 import org.alexmond.uniauth.provider.AuthProviderRegistry;
@@ -150,6 +151,9 @@ public class UniAuthAutoConfiguration {
 	 * enabled; absent otherwise
 	 * @param authorizationCustomizers application-supplied rules, applied in order before
 	 * the catch-all so the chain can express more than "permitted or authenticated"
+	 * @param httpSecurityCustomizers application-supplied adjustments to the chain
+	 * itself, applied in order after everything here so a setting the application cares
+	 * about wins — CSRF above all, which has no other hook
 	 * @param entryPoint an application-supplied entry point, used instead of redirecting
 	 * to the chooser — this is how an API-first application answers 401
 	 * @return the chain
@@ -163,6 +167,7 @@ public class UniAuthAutoConfiguration {
 			ObjectProvider<ApprovalAuthorizationManager> approvalManager,
 			ObjectProvider<ApprovalAuthoritiesFilter> approvalAuthorities,
 			ObjectProvider<UniAuthAuthorizationCustomizer> authorizationCustomizers,
+			ObjectProvider<UniAuthHttpSecurityCustomizer> httpSecurityCustomizers,
 			ObjectProvider<AuthenticationEntryPoint> entryPoint, UniAuthBasicEntryPoint basicEntryPoint)
 			throws Exception {
 
@@ -237,6 +242,8 @@ public class UniAuthAutoConfiguration {
 			http.addFilterBefore(authorities, AuthorizationFilter.class);
 		}
 
+		applyApplicationConcerns(http, httpSecurityCustomizers);
+
 		SecurityFilterChain chain = http.build();
 		logInstalled(properties, registry, approval != null);
 		return chain;
@@ -309,6 +316,26 @@ public class UniAuthAutoConfiguration {
 			LOGGER.warn("uniauth.approval.invitations.enabled is set but uniauth.approval.enabled is not, "
 					+ "so invitations are NOT active: redemption writes an approval record and has nowhere "
 					+ "to put it without the gate. Set uniauth.approval.enabled=true.");
+		}
+	}
+
+	/**
+	 * The application's own adjustments to the chain, applied last.
+	 *
+	 * <p>
+	 * Last so that a setting the application cares about wins over ours, and it is the
+	 * only reach into {@code HttpSecurity} itself — what stops "I need CSRF off for
+	 * {@code /api/**}" from costing somebody every mechanism this starter wires.
+	 *
+	 * <p>
+	 * Nothing is caught. A customizer that cannot be applied means the application's
+	 * security intent did not take, and starting anyway would serve a chain nobody asked
+	 * for, with a stack trace as the only sign.
+	 */
+	private static void applyApplicationConcerns(HttpSecurity http,
+			ObjectProvider<UniAuthHttpSecurityCustomizer> customizers) throws Exception {
+		for (UniAuthHttpSecurityCustomizer customizer : customizers.orderedStream().toList()) {
+			customizer.customize(http);
 		}
 	}
 

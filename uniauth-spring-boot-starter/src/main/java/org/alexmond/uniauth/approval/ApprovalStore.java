@@ -61,7 +61,21 @@ public interface ApprovalStore {
 
 	/**
 	 * Settles a principal's standing.
-	 * @param key who is being decided about
+	 *
+	 * <p>
+	 * <strong>A key this store has never recorded is left alone.</strong> Implementations
+	 * must not create a record here, and the interface says so because it previously did
+	 * not: an implementor could not tell which behaviour was required, and the two
+	 * answers are not interchangeable to a caller (#35). Creating one would invent a
+	 * decision about somebody nobody has ever seen, with no identity and no mechanism to
+	 * show whoever reads the queue afterwards — a row an approver cannot make sense of.
+	 *
+	 * <p>
+	 * Which makes pre-approval a recipe rather than a special case: call
+	 * {@link #recordPending} with whatever is known about the principal, then decide it.
+	 * That is how somebody is admitted before their first login — the documented route
+	 * for the first administrator under {@code uniauth.approval.invitations.invite-only}.
+	 * @param key who is being decided about; unknown here means nothing happens
 	 * @param outcome {@link ApprovalStatus#APPROVED} or {@link ApprovalStatus#DENIED}
 	 * @param approver name of whoever decided, for the audit trail
 	 * @param roles what the approver granted. An approver looking at "Jane Smith,

@@ -1,0 +1,145 @@
+= CSRF and the rest of HttpSecurity
+:description: Why an application's POSTs started failing, and the hook that fixes it.
+
+UniAuth builds the one `SecurityFilterChain` and *configures no CSRF at all*, so Spring
+Security's default applies: protection on, with a session-backed token.
+
+That default is right for the server-rendered pages this library ships. It is often wrong
+for the application around them, and the way it goes wrong is quiet.
+
+[WARNING]
+====
+Enabling UniAuth on an application that already had its own chain can turn working writes
+into refusals:
+
+----
+POST /api/feedback   403      # was 200
+----
+
+Nothing fails at startup and nothing is logged. Every `GET` keeps working, the login page
+works, the admin pages work. Only a `POST` from a caller that carries no token fails — and
+if those POSTs are user-facing, that is submissions lost rather than an outage somebody
+notices (#12).
+====
+
+Three kinds of caller have no session CSRF token to send:
+
+* a front end that posts JSON, because only a server-rendered form gets the token injected;
+* a machine caller using HTTP Basic, which has no session to carry one;
+* a plain `.html` page served from `static/` — which makes a sign-out button on such a page
+  a guaranteed 403, since `POST /logout` is protected like any other write (#32).
+
+== The hook
+
+A `UniAuthHttpSecurityCustomizer` bean reaches `HttpSecurity` itself. Every customizer is
+applied in `Ordered` order *after* everything UniAuth configures and immediately before the
+chain is built, so a setting made here wins over the starter's own.
+
+[source,java]
+----
+@Bean
+UniAuthHttpSecurityCustomizer apiCsrf() {
+    return (http) -> http.csrf((csrf) -> csrf.ignoringRequestMatchers("/api/**"));
+}
+----
+
+That is the whole fix for the machine-caller case, and it is the smallest thing that works.
+
+Before this existed the only answer was to declare your own `SecurityFilterChain`, which
+makes the starter back off entirely and costs every mechanism it wires — so it is not an
+answer.
+
+The hook is not only for CSRF. Headers, CORS and session management are all reachable the
+same way.
+
+TIP: A customizer that throws fails the context rather than being swallowed. It reaches
+`HttpSecurity` itself, so one that cannot be applied means the application's security
+intent did not take, and starting anyway would serve a chain nobody asked for.
+
+=== Two things to leave alone
+
+Being applied last is what makes the hook useful and also what makes it sharp.
+
+*Authorization rules.* Calling `authorizeHttpRequests` here adds rules _after_ the
+catch-all, where the first match has already won, so they never run.
+xref:architecture.adoc[`UniAuthAuthorizationCustomizer`] exists for that and is applied in
+the right place.
+
+*Blanket `csrf(AbstractHttpConfigurer::disable)`.* It switches protection off for the login
+form and the logout endpoint too, which are state-changing POSTs this library owns. Exempt
+the paths that genuinely cannot carry a token, and for everything else move the token
+somewhere the caller can read it.
+
+== A front end with no form
+
+Exempting the application's own API does nothing for `POST /logout`, which belongs to the
+starter and should stay protected. The front end needs the token itself.
+
+The obvious version of this does not work, and it fails with the same 403 you were trying
+to fix. Spring Security's default `XorCsrfTokenRequestAttributeHandler` *masks* the token it
+renders, as a defence against BREACH; the value in a cookie is the raw token. A script that
+reads the cookie and sends it back is refused, because the masked handler tries to unmask
+something that was never masked.
+
+So both handlers are needed — the masking one to render the login form, the plain one to
+read the header:
+
+[source,java]
+----
+@Bean
+UniAuthHttpSecurityCustomizer spaCsrf() {
+    return (http) -> http.csrf((csrf) -> csrf
+        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()));
+}
+
+static final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
+
+    private final CsrfTokenRequestHandler plain = new CsrfTokenRequestAttributeHandler();
+
+    private final CsrfTokenRequestHandler masked = new XorCsrfTokenRequestAttributeHandler();
+
+    @Override
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+            Supplier<CsrfToken> csrfToken) {
+        this.masked.handle(request, response, csrfToken);
+        csrfToken.get();   // <1>
+    }
+
+    @Override
+    public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken csrfToken) {
+        String fromHeader = request.getHeader(csrfToken.getHeaderName());
+        return StringUtils.hasText(fromHeader)
+                ? this.plain.resolveCsrfTokenValue(request, csrfToken)
+                : this.masked.resolveCsrfTokenValue(request, csrfToken);
+    }
+
+}
+----
+<1> Resolved eagerly, because the repository only writes the cookie once somebody asks for
+    the token — and a front end that is handed no page has nobody to ask on its behalf.
+
+The front end then reads `XSRF-TOKEN` from the cookie and sends it as `X-XSRF-TOKEN`:
+
+[source,javascript]
+----
+const token = document.cookie.split('; ')
+    .find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1];
+
+await fetch('/logout', { method: 'POST', headers: { 'X-XSRF-TOKEN': token } });
+----
+
+Any `GET` that renders a page primes the cookie; the chooser at `uniauth.login-page` will
+do, so a front end has somewhere to prime from before it has signed anybody in.
+
+NOTE: This pattern is Spring Security's own, carried here because the failure it prevents
+looks identical to the one the hook was added to fix, and because it is the difference
+between a sign-out button that works and one that 403s. `UniAuthHttpSecurityCustomizerTest`
+runs exactly this configuration end to end, including the sign-out POST.
+
+== What this does not change
+
+The starter's own POSTs stay protected: the login form, `POST /logout`, and accepting an
+invitation. Exempting those would reintroduce precisely the attack the invitation page's
+`POST` exists to prevent — see xref:invitations.adoc#the-url-is-the-credential[The URL is
+the credential].

@@ -37,6 +37,46 @@ Set uniauth.enabled=false to back off entirely.
 ----
 ====
 
+[#switching-uniauth-off]
+=== Switching UniAuth off is not the same as no security
+
+`uniauth.enabled=false` backs *this starter* off entirely. It does not leave the
+application open, and the surprise is a login page nobody configured.
+
+With the starter on the classpath, `spring-boot-starter-security` is too — and Spring Boot's
+own security auto-configuration takes over, which locks every path behind a generated
+password printed once at startup:
+
+----
+Using generated security password: 8e8f2f0c-...
+----
+
+That is Boot being helpful, not UniAuth leaving something behind, and it is the right
+default for an application that simply has no security configured yet. It is not what
+somebody expects who switched UniAuth off to run an application open on a trusted network
+during development (#33).
+
+An application that wants none says so itself:
+
+[source,java]
+----
+@Bean
+@Profile("dev")
+SecurityFilterChain open(HttpSecurity http) throws Exception {
+    return http.authorizeHttpRequests((rules) -> rules.anyRequest().permitAll())
+        .csrf(AbstractHttpConfigurer::disable)
+        .build();
+}
+----
+
+Declaring any `SecurityFilterChain` of your own also backs Boot's default chain off, so this
+is the whole of it. The starter's own catch-all backs off on its bean *name*, so this does
+not have to be an either/or: a chain of your own can sit beside UniAuth's when you want
+both.
+
+WARNING: `permitAll()` means what it says. Scope it to a profile, as above, rather than
+leaving it in the configuration an application deploys with.
+
 == Internal store
 
 [cols="2,1,3"]

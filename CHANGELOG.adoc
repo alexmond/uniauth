@@ -2,6 +2,39 @@
 
 == Unreleased
 
+* *New — a hook on `HttpSecurity` itself* (#12), `UniAuthHttpSecurityCustomizer`. The chain is
+  built inside the starter and offered one reach into it: authorization rules. Nothing answered
+  CSRF, headers, CORS or session management — and since the starter configures no CSRF, Spring
+  Security's session-backed default applies, so enabling UniAuth turned a front end's working
+  POSTs into 403s with nothing logged. Applied after everything the starter configures, so an
+  application's setting wins; a customizer that throws fails the context rather than serving a
+  chain nobody asked for. A new reference page carries the single-page recipe, including the
+  part that is easy to get wrong: Spring's default handler masks the token it renders, so a
+  front end echoing a raw cookie value back is refused with the same 403. Closes #32, which
+  asked for the same hook from the sign-out side.
+* *New — `InvitationStore.findByUsedBy`* (#36). `Invitation.usedBy` already made the link
+  between a login and the record it claimed durable, but the only way to ask was to list every
+  invitation and filter. A `default` method, so no existing implementation changes; the latest
+  claim wins, and a claim later revoked is still returned, because that is the one whose link
+  needs attention.
+* *Contract — `ApprovalStore.decide` on an unknown key* (#35). The interface did not say whether
+  a record may be created, so an implementor could not tell which behaviour was required. It is
+  now stated: the key is left alone, and pre-approving somebody before their first login is
+  `recordPending` then `decide`. `InMemoryApprovalStore` gained the test suite it never had.
+* *Docs — `uniauth.enabled=false` does not mean "no security"* (#33). Several pages said the
+  starter "backs off entirely", which is true of the starter and misleading about the
+  application: Boot's own security auto-configuration takes over and locks every path behind a
+  generated password. Now stated, with the permit-all chain for an application that wants none,
+  and pinned by a test.
+* *Docs — a customizer rule can skip the approval gate* (#34). Rules contributed through
+  `UniAuthAuthorizationCustomizer` run before the catch-all that carries the gate, so one ending
+  in `.authenticated()` admits every account the provider will issue, approved or not. The
+  documentation demonstrated exactly that ending; it now warns, and shows the two safe ones.
+* *Docs — who creates the first invitation* (#35). `invite-only` looks as though it locks
+  everyone out. It does not on the default `require-for`, which excludes internal accounts, so a
+  local account is the break-glass route — and adding `INTERNAL` to `require-for` closes it,
+  which is now documented along with the direct-admission recipe.
+
 * *New — invitations* (#29), `uniauth.approval.invitations.enabled`. The approval gate needs a
   stranger to turn up first. Invitations are the other order: the application already holds a
   record for somebody, and a one-use URL attaches whichever login they complete to that

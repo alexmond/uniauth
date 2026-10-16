@@ -129,7 +129,11 @@ repository (database-backed, say) is not iterable, so its mechanism still works 
 cannot be listed; that limitation is documented on the class.
 
 **Conditionals.** Every bean is `@ConditionalOnMissingBean`, so an app overrides by declaring its
-own rather than excluding the auto-configuration. `uniauth.enabled=false` backs off entirely.
+own rather than excluding the auto-configuration. `uniauth.enabled=false` backs *this starter*
+off entirely — **not the same as no security** (#33): `spring-boot-starter-security` is still
+on the classpath, so Boot's own auto-configuration takes over and locks every path behind a
+generated password. An application that wants to run open declares a permit-all chain of its
+own. `UniAuthDisabledTest` pins both halves.
 
 ### Approval gate
 
@@ -226,7 +230,30 @@ Things that will bite if changed carelessly (no count here; the heading above sa
 
 `Invitation.usedBy` is why `ApprovalRecord` does not gain a `subjectRef` field: the link is
 already durable, and widening that record would break every `ApprovalStore` implementor, as
-#5 did once.
+#5 did once. `InvitationStore.findByUsedBy` is how that link is read back (#36) — a `default`
+method over `list`, so adding it broke nobody. Two edges are contract, not convenience: the
+**latest** claim wins (re-inviting leaves two invitations naming one principal), and a claim
+later **revoked** is still returned, because revocation outranks use in `status()` and
+filtering on `USED` would answer "holds nothing" for exactly the person whose link needs
+repairing.
+
+**`invite-only` does not lock everyone out, and the route in is a local account.**
+`require-for` excludes INTERNAL, and the invite-only refusal sits *behind* that check, so an
+account in `uniauth.internal.users` is admitted without being asked for an invitation — that
+is who mints the first one (#35). Adding INTERNAL to `require-for` closes the door, and then
+the only way in is `recordPending` followed by `decide`. Which is also why
+**`ApprovalStore.decide` leaves a key it has never seen alone**: creating one would invent a
+decision about somebody with no identity and no mechanism behind it, a row an approver
+reading the queue cannot make sense of. That is now stated on the interface, because it was
+not, and the two answers are not interchangeable to a caller.
+
+**Rules contributed through `UniAuthAuthorizationCustomizer` run before the gate.** They have
+to — the gate is the catch-all — so a rule ending in `.authenticated()` admits every account
+the provider will issue, approved or not, and under `invite-only` the very people it refuses
+(#34). A role is safe, because the gate is what puts an approver's roles on the principal;
+`.access(approvalManager)` is the other safe ending. The docs demonstrated the unsafe one.
+There is no startup warning for this and cannot easily be: Spring Security exposes no
+read-back of the rules a customizer registered.
 
 ### Brand is not a mechanism
 
@@ -418,6 +445,20 @@ a count in this heading; it has gone stale twice.
   `BasicAuthenticationEntryPoint` and the native dialog came back on every expired-session
   XHR, for exactly the paths an API-first front end calls — while both chains were installed,
   both correct, and every test on both sides passed.
+
+- A **`UniAuthHttpSecurityCustomizer`** bean — the chain itself (CSRF, headers, CORS, session
+  management), applied **last**, after everything the starter configures, so an application's
+  setting wins (#12). This is the only reach into `HttpSecurity`. The starter configures **no
+  CSRF**, so Spring Security's session-backed default applies — which is right for the pages
+  this library serves and wrong for a front end posting JSON, a machine caller on Basic, or a
+  static page's sign-out button, none of which hold a token. The failure is a silent 403 on
+  writes only, so every GET keeps working and nothing logs. Two traps, both in `csrf.adoc`:
+  calling `authorizeHttpRequests` here adds rules *after* the catch-all where the first match
+  already won, and a blanket `csrf(...disable)` unprotects the login form, `POST /logout` and
+  the invitation acceptance. The single-page recipe needs **both** token handlers — the masking
+  one renders the form, the plain one reads the header — because the default
+  `XorCsrfTokenRequestAttributeHandler` masks what it renders, so a front end echoing the raw
+  cookie back is refused with the same 403 it was trying to fix.
 
 - An **`InvitationStore`** bean — the invitation table, like `ApprovalStore` is the approval
   one. Unlike it, this SPI can enumerate from the start (#10 is a real gap, but a sibling

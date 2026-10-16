@@ -266,6 +266,55 @@ class InMemoryInvitationStoreTest {
 	}
 
 	@Test
+	void findByUsedByAnswersWhichRecordAPrincipalHolds() {
+		Invitation invitation = this.store.create("jane-record", null, List.of(), "admin");
+		this.store.redeem(invitation.token(), JANE);
+
+		assertThat(this.store.findByUsedBy(JANE)).get()
+			.satisfies((held) -> assertThat(held.subjectRef()).isEqualTo("jane-record"));
+		assertThat(this.store.findByUsedBy(BOB)).isEmpty();
+	}
+
+	@Test
+	void findByUsedByFollowsAReInviteToTheNewRecord() {
+		// Re-inviting is how an administrator changes what somebody holds, so the answer
+		// has to be the latest claim and not whichever one the store happens to reach
+		// first. The second claim has to land at a later instant for "latest" to mean
+		// anything — on one fixed clock both claims share a usedAt and the question has
+		// no answer, which is the contract's one soft edge.
+		Invitation first = this.store.create("jane-old", null, List.of(), "admin");
+		this.store.redeem(first.token(), JANE);
+
+		InMemoryInvitationStore later = adopt(this.store, NOW.plusSeconds(60));
+		Invitation second = later.create("jane-new", null, List.of(), "admin");
+		later.redeem(second.token(), JANE);
+
+		assertThat(later.findByUsedBy(JANE)).get()
+			.satisfies((held) -> assertThat(held.subjectRef()).isEqualTo("jane-new"));
+	}
+
+	@Test
+	void findByUsedByStillFindsAClaimThatWasLaterRevoked() {
+		// Revocation wins in status(), so a claimed-then-revoked invitation does not
+		// appear under USED at all. An implementation filtering on that status would
+		// answer "holds nothing" for somebody whose link is exactly what needs repairing.
+		Invitation invitation = this.store.create("jane-record", null, List.of(), "admin");
+		this.store.redeem(invitation.token(), JANE);
+		this.store.revoke(invitation.token(), "admin");
+
+		assertThat(this.store.findByUsedBy(JANE)).get()
+			.satisfies((held) -> assertThat(held.subjectRef()).isEqualTo("jane-record"))
+			.satisfies((held) -> assertThat(held.status(NOW)).isEqualTo(InvitationStatus.REVOKED));
+	}
+
+	@Test
+	void findByUsedByIsAMissForANullKeyRatherThanAnError() {
+		this.store.create("jane-record", null, List.of(), "admin");
+
+		assertThat(this.store.findByUsedBy(null)).isEmpty();
+	}
+
+	@Test
 	void onlyOneOfManySimultaneousPrincipalsClaimsTheInvitation() throws Exception {
 		// The case a read-then-write implementation passes every other test and fails:
 		// two logins landing at once must not both claim Jane.

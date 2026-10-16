@@ -4,6 +4,7 @@
 * xref:providers.adoc[Provider recipes]
 * xref:approval.adoc[Approval gate]
 * xref:invitations.adoc[Invitations]
+* xref:csrf.adoc[CSRF and HttpSecurity]
 * xref:configuration.adoc[Configuration]
 * xref:architecture.adoc[Architecture]
 * xref:examples.adoc[Examples]
