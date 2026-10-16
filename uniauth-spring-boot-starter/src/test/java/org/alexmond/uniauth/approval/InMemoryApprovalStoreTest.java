@@ -2,6 +2,7 @@ package org.alexmond.uniauth.approval;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 
@@ -121,6 +122,107 @@ class InMemoryApprovalStoreTest {
 		this.store.remove(JANE);
 
 		assertThat(this.store.statusOf(JANE)).isEqualTo(ApprovalStatus.UNKNOWN);
+	}
+
+	@Test
+	void listWithNoFilterHoldsEveryoneTheStoreKnowsWhateverTheirStanding() {
+		// The gap #10 reported: pending() answers "who wants in" and by definition
+		// excludes everyone already admitted, so an access list was unreachable through
+		// the interface and the reporting application had to query its own table.
+		ApprovalKey bob = new ApprovalKey("saml", "bob-nameid");
+		ApprovalKey carol = new ApprovalKey("internal", "carol");
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.store.recordPending(bob, IDENTITY, AuthProviderType.SAML);
+		this.store.recordPending(carol, IDENTITY, AuthProviderType.INTERNAL);
+		this.store.decide(bob, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+		this.store.decide(carol, ApprovalStatus.DENIED, "admin", List.of());
+
+		assertThat(this.store.list()).extracting(ApprovalRecord::key).containsExactlyInAnyOrder(JANE, bob, carol);
+	}
+
+	@Test
+	void listFiltersToTheStandingAsked() {
+		ApprovalKey bob = new ApprovalKey("saml", "bob-nameid");
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.store.recordPending(bob, IDENTITY, AuthProviderType.SAML);
+		this.store.decide(bob, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+
+		assertThat(this.store.list(ApprovalStatus.APPROVED)).extracting(ApprovalRecord::key).containsExactly(bob);
+		assertThat(this.store.list(ApprovalStatus.PENDING)).extracting(ApprovalRecord::key).containsExactly(JANE);
+		assertThat(this.store.list(ApprovalStatus.APPROVED, ApprovalStatus.PENDING)).extracting(ApprovalRecord::key)
+			.containsExactlyInAnyOrder(JANE, bob);
+	}
+
+	@Test
+	void listingUnknownHoldsNobodyBecauseNoRecordIsEverStoredThatWay() {
+		// UNKNOWN is the absence of a record, not a value one can carry, so asking for
+		// it is a question with one honest answer. A store that treated it as a wildcard
+		// would hand an access list everybody it holds.
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+
+		assertThat(this.store.list(ApprovalStatus.UNKNOWN)).isEmpty();
+	}
+
+	@Test
+	void listIsOldestFirstBecauseThatIsWhatPendingAlreadyPromised() {
+		// pending() is published API and documented oldest-first, and it now delegates
+		// here. One ordering for the whole interface is what keeps that promise.
+		Ticking ticking = new Ticking(NOW);
+		InMemoryApprovalStore store = new InMemoryApprovalStore(ticking);
+		ApprovalKey bob = new ApprovalKey("saml", "bob-nameid");
+		store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		ticking.set(NOW.plusSeconds(60));
+		store.recordPending(bob, IDENTITY, AuthProviderType.SAML);
+
+		assertThat(store.list()).extracting(ApprovalRecord::key).containsExactly(JANE, bob);
+	}
+
+	@Test
+	void pendingNowReadsThroughListAndStillHoldsOnlyThoseWaiting() {
+		ApprovalKey bob = new ApprovalKey("saml", "bob-nameid");
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.store.recordPending(bob, IDENTITY, AuthProviderType.SAML);
+		this.store.decide(bob, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+
+		assertThat(this.store.pending()).isEqualTo(this.store.list(ApprovalStatus.PENDING));
+		assertThat(this.store.pending()).extracting(ApprovalRecord::key).containsExactly(JANE);
+	}
+
+	/**
+	 * A clock a test can move, so two sightings can land at different instants.
+	 *
+	 * <p>
+	 * A fixed clock makes "oldest first" undecidable: every record shares one
+	 * {@code firstSeen}, so any order satisfies the assertion and the test proves
+	 * nothing.
+	 */
+	private static final class Ticking extends Clock {
+
+		private volatile Instant now;
+
+		Ticking(Instant now) {
+			this.now = now;
+		}
+
+		void set(Instant later) {
+			this.now = later;
+		}
+
+		@Override
+		public Instant instant() {
+			return this.now;
+		}
+
+		@Override
+		public ZoneId getZone() {
+			return ZoneOffset.UTC;
+		}
+
+		@Override
+		public Clock withZone(ZoneId zone) {
+			return this;
+		}
+
 	}
 
 }

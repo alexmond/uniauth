@@ -215,6 +215,82 @@ public abstract class ApprovalStoreContract {
 	}
 
 	@Test
+	void listHoldsEverybodyTheStoreKnowsWhateverTheirStanding() {
+		// The gap #10 reported. pending() answers "who wants in" and by definition
+		// excludes everybody already admitted, so an access-review screen — who can sign
+		// in today, holding which roles — was unreachable through the interface, and the
+		// application that found this had to query its own table instead.
+		//
+		// The migration to expect is list() wired to the query pending() already used:
+		// it compiles, passes every older case, and shows an empty access list.
+		ApprovalKey carol = new ApprovalKey("ldap", "uid=carol");
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.store.recordPending(JANE_ELSEWHERE, IDENTITY, AuthProviderType.INTERNAL);
+		this.store.recordPending(carol, IDENTITY, AuthProviderType.LDAP);
+		this.store.decide(JANE_ELSEWHERE, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+		this.store.decide(carol, ApprovalStatus.DENIED, "admin", List.of());
+
+		assertThat(this.store.list()).extracting(ApprovalRecord::key)
+			.containsExactlyInAnyOrder(JANE, JANE_ELSEWHERE, carol);
+	}
+
+	@Test
+	void listFiltersToTheStandingsAsked() {
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.store.recordPending(JANE_ELSEWHERE, IDENTITY, AuthProviderType.INTERNAL);
+		this.store.decide(JANE_ELSEWHERE, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+
+		assertThat(this.store.list(ApprovalStatus.APPROVED)).extracting(ApprovalRecord::key)
+			.containsExactly(JANE_ELSEWHERE);
+		assertThat(this.store.list(ApprovalStatus.PENDING)).extracting(ApprovalRecord::key).containsExactly(JANE);
+		assertThat(this.store.list(ApprovalStatus.DENIED)).isEmpty();
+		assertThat(this.store.list(ApprovalStatus.PENDING, ApprovalStatus.APPROVED)).extracting(ApprovalRecord::key)
+			.containsExactlyInAnyOrder(JANE, JANE_ELSEWHERE);
+	}
+
+	@Test
+	void listingUnknownHoldsNobodyBecauseNoRecordIsEverStoredThatWay() {
+		// UNKNOWN is the absence of a record rather than a value one can be stored with,
+		// so it matches nothing. A store treating it as a wildcard would hand an access
+		// list asking for the unknown every principal it holds.
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+
+		assertThat(this.store.list(ApprovalStatus.UNKNOWN)).isEmpty();
+	}
+
+	@Test
+	void pendingAnswersExactlyWhatListOfPendingDoes() {
+		// pending() is a default over list() now, so this holds for free — unless the
+		// implementation keeps its own, which stays supported precisely because a table
+		// indexed for the queue should go on using that index. Then the two can drift,
+		// and the drift shows up as approved people sitting on the approvals page or
+		// waiting ones missing from it.
+		ApprovalKey carol = new ApprovalKey("ldap", "uid=carol");
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		this.store.recordPending(JANE_ELSEWHERE, IDENTITY, AuthProviderType.INTERNAL);
+		this.store.recordPending(carol, IDENTITY, AuthProviderType.LDAP);
+		this.store.decide(JANE_ELSEWHERE, ApprovalStatus.APPROVED, "admin", List.of("USER"));
+		this.store.decide(carol, ApprovalStatus.DENIED, "admin", List.of());
+
+		assertThat(this.store.pending()).isEqualTo(this.store.list(ApprovalStatus.PENDING));
+	}
+
+	@Test
+	void listIsOldestFirstThroughoutTheInterface() {
+		// One ordering for the whole interface, and it is the queue's: pending() is
+		// published API that promised oldest-first and now reads through list(), so
+		// reversing it here would silently reorder every approvals page already written
+		// against this library.
+		this.store.recordPending(JANE, IDENTITY, AuthProviderType.OAUTH2);
+		timeTravelTo(NOW.plusSeconds(600));
+		this.store.recordPending(JANE_ELSEWHERE, IDENTITY, AuthProviderType.INTERNAL);
+
+		assertThat(this.store.list()).extracting(ApprovalRecord::key).containsExactly(JANE, JANE_ELSEWHERE);
+		assertThat(this.store.list(ApprovalStatus.PENDING)).extracting(ApprovalRecord::key)
+			.containsExactly(JANE, JANE_ELSEWHERE);
+	}
+
+	@Test
 	void removingForgetsAPrincipalEntirelySoTheyCanBeReconsidered() {
 		// The only route back for somebody denied. A store that keeps the row and
 		// reports DENIED for ever gives an administrator no way to change their mind.

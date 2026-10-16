@@ -47,10 +47,55 @@ public interface ApprovalStore {
 	ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
 
 	/**
+	 * Every record the store holds whose standing is one of those asked for, oldest
+	 * first.
+	 *
+	 * <p>
+	 * <strong>This is the one method that has ever been added to this interface, and
+	 * adding it broke every implementation.</strong> It is abstract rather than a
+	 * {@code default} because there is nothing honest to default to: the store is the
+	 * only thing that can enumerate itself, so a default could return empty — reporting
+	 * "nobody has access" to an access-review screen — or throw, which moves a compile
+	 * error to a page load. See the migration note in the reference documentation.
+	 *
+	 * <p>
+	 * Why it exists: {@link #pending} answers "who wants in" and by definition excludes
+	 * everybody already admitted, and {@link #find} needs a key you already hold — which
+	 * for an OIDC login is an opaque subject claim nobody has memorised. So through the
+	 * interface alone an application could build a queue but never an access list: no way
+	 * to see who can sign in today, what roles they hold, or who was refused, and no way
+	 * to pick somebody to revoke. The only route was to query the backing table directly,
+	 * which couples the page to one implementation and leaves a non-SQL store unable to
+	 * offer the same screen at all (#10).
+	 *
+	 * <p>
+	 * Passing no statuses means every record. {@link ApprovalStatus#UNKNOWN} matches
+	 * nothing, ever: it is the absence of a record rather than a value one can be stored
+	 * with, so a store must not treat it as a wildcard — an access list asking for the
+	 * unknown would otherwise be handed everybody.
+	 *
+	 * <p>
+	 * The ordering is by {@link ApprovalRecord#firstSeen()} ascending, for the whole
+	 * interface and not only for the queue, because {@code pending()} is published API
+	 * that already promised oldest-first and now reads through here.
+	 * @param statuses the standings wanted, or none at all for everything
+	 * @return the matching records, oldest first, empty when none match
+	 */
+	List<ApprovalRecord> list(ApprovalStatus... statuses);
+
+	/**
 	 * Everyone currently waiting, oldest first.
+	 *
+	 * <p>
+	 * A {@code default} over {@link #list} since the enumeration landed, so it is no
+	 * longer a method an implementation has to write. An implementation that already
+	 * overrides it keeps working and keeps winning — that is deliberate, because a store
+	 * whose table is indexed for the queue should go on using that index.
 	 * @return the pending records, empty when nobody is waiting
 	 */
-	List<ApprovalRecord> pending();
+	default List<ApprovalRecord> pending() {
+		return list(ApprovalStatus.PENDING);
+	}
 
 	/**
 	 * One principal's record, whatever their standing.
