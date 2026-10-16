@@ -72,6 +72,23 @@ class UniAuthPendingPageTest {
 		assertThat(page).contains("_csrf");
 	}
 
+	@Test
+	void somebodyNotSignedInGetsThePageRatherThanTheSignedInWording() throws Exception {
+		// The page is permitted to everybody, because the gate must not keep people out
+		// of the page it sends them to — so it can be opened by somebody with no session
+		// at all, and it has to read sensibly for them too.
+		String page = this.mockMvc.perform(get("/pending"))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		assertThat(page).contains("Sign in, and this page will tell you");
+		// And no sign-out form, which would post a logout for a session that does not
+		// exist and land them back here having achieved nothing.
+		assertThat(page).doesNotContain("method=\"post\"");
+	}
+
 	private HttpSession signInAndBeHeld() throws Exception {
 		HttpSession session = this.mockMvc.perform(formLogin("/login").user("held").password("pw"))
 			.andReturn()
