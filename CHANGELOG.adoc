@@ -2,6 +2,29 @@
 
 == Unreleased
 
+* *Fixed — brand buttons on the chooser* (#8). Every redirect provider was rendered as its
+  bare brand name in a generic bordered box. For Google that is the one rendering its
+  guidelines explicitly forbid — and Boot's `CommonOAuth2Provider.GOOGLE` sets the client
+  name to exactly `Google`, so every consumer enabling a Google registration inherited it.
+  Facebook had the same problem, which the issue did not mention: its guidelines name the
+  two labels it accepts and the brand name alone is not one of them.
++
+Each brand now carries its required wording and mark — the full-colour G and Microsoft's
+four squares, which both forbid alteration, and the official black or white variants of the
+GitHub and Facebook marks, switched by theme rather than recoloured. Apple is the exception
+and carries no treatment: it mandates one, but this starter cannot complete an Apple
+sign-in, and a compliant button would decorate a flow that dead-ends. The labels read
+alike as far as the guidelines allow; identical wording is unreachable, because Microsoft's
+approved set has no "Continue with" and Facebook's has no "Sign in with", so one phrasing
+is used everywhere it is permitted and Facebook takes the closest label it allows.
++
+The wording resolves in the model, as `AuthProvider.buttonLabel()`, not in the markup. An
+application overriding `templates/uniauth/login.html` is the supported re-skin path and the
+webapp example takes it, so compliance written into the template would be lost by exactly
+the applications most likely to restyle the page. One deliberate deviation: Google asks for
+Google Sans Medium and the starter keeps the system stack, because the chooser renders
+before anybody has authenticated and a webfont would make an external request on it.
+
 * *New artifact — `uniauth-spring-boot-starter-test`* (#37). A durable `ApprovalStore` or
   `InvitationStore` is the application's job by design, and its correctness rules lived only in
   prose — so every implementor rediscovered them alone, including the one that cannot be found

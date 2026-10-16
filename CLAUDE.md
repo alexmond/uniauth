@@ -296,6 +296,37 @@ The distinction that actually changes behaviour is **OIDC vs plain OAuth2**, car
 GitHub yields a bare `OAuth2User`. Brand is for icons and vendor-mandated button treatment only —
 reach for `oidc()` whenever you mean capability.
 
+**The button label lives in the model, never in the template (#8).** `AuthProviderBrand`
+carries each brand's mandated `callToAction()` and `AuthProvider.buttonLabel()` resolves it,
+falling back to the registration's client name. Templates render `buttonLabel()`;
+`displayName()` is the raw client name, which for Google is `Google` — the one rendering
+Google's guidelines explicitly forbid. It has to be the model because overriding
+`templates/uniauth/login.html` is the supported re-skin path and the webapp example takes
+it, so compliance in the markup would be lost by exactly the apps most likely to restyle.
+`GoogleProfileTest` guards that from the example's side.
+
+Three things not to "tidy" here:
+
+- **The labels read alike on purpose, and cannot be made identical.** The approved sets do
+  not intersect — Microsoft's has no "Continue with", Facebook's has no "Sign in with" — so
+  `Sign in with X` is used everywhere permitted and Facebook takes `Login with Facebook`,
+  the closer of its two. `AuthProviderBrandTest` pins "exactly one brand may deviate", so
+  adding a brand with its own phrasing fails that test rather than drifting silently.
+- **Google's and Microsoft's marks keep their own colours; the rest switch variants.**
+  Both forbid altering theirs. GitHub and Facebook publish official black *and* white
+  marks, so those swap on `prefers-color-scheme` with explicit `#000000`/`#FFFFFF` —
+  **not** `currentColor`, which would resolve to the near-black the text uses and so to a
+  shade neither brand published.
+- **Apple mandates a treatment and deliberately gets none.** Sign in with Apple cannot
+  complete here at all, so a compliant button would decorate a dead end and tell the
+  person the route works. Apple's rules were also the one set not read from the vendor's
+  own page. Give it a treatment only alongside working support — #42 is the investigation.
+- **One palette for all the buttons, and it is Google's mandated one.** Microsoft permits a
+  light or dark scheme, Facebook's approved designs include white-with-black-text, GitHub
+  constrains only its mark — so Google's values satisfy everyone and the column reads as
+  one set. The only deviation from Google's spec is the typeface: the chooser renders before
+  anybody has authenticated, so no webfont is fetched on it.
+
 Provider quirks ship as **opt-in adapters** in `Oauth2AdaptersConfiguration`, never as new types:
 
 - `uniauth.oauth2.github.fetch-email` → `GithubEmailOAuth2UserService`, adding the `/user/emails`
