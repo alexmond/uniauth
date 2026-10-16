@@ -126,7 +126,7 @@ using the service.
 | Microsoft | `Sign in with Microsoft` | the four-square logo, unaltered
 | GitHub | `Sign in with GitHub` | the Invertocat, in its official black or white
 | Facebook | `Login with Facebook` | the "f", in its official black or white
-| Apple | `Sign in with Apple` | the Apple logo (see below — sign-in itself is unsupported)
+| Apple | _none_ — see below | none
 | Okta, generic | whatever the registration's client name says | none
 |===
 
@@ -174,3 +174,9 @@ developer portal, with a limited lifetime. `ClientRegistration.Builder` takes a 
 Supporting Apple therefore means either a background task rewriting the registration or a
 fork of the client-registration machinery, and both are worse than saying no. This stays
 unsupported until Spring supports a non-static client secret.
+
+Apple publishes button rules like the other brands, and `AuthProviderBrand.APPLE` carries
+*no* treatment for them anyway. A compliant Apple button would decorate a flow that
+dead-ends, which is a worse outcome than an unstyled one — it tells the person the route
+works. A registration detected as Apple therefore renders under whatever name it was given,
+with no mark. The treatment arrives with the support, not before it.

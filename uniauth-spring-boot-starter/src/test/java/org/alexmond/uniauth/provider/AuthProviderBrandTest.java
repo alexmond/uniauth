@@ -60,7 +60,6 @@ class AuthProviderBrandTest {
 		assertThat(AuthProviderBrand.GOOGLE.callToAction()).isEqualTo("Sign in with Google");
 		assertThat(AuthProviderBrand.MICROSOFT.callToAction()).isEqualTo("Sign in with Microsoft");
 		assertThat(AuthProviderBrand.GITHUB.callToAction()).isEqualTo("Sign in with GitHub");
-		assertThat(AuthProviderBrand.APPLE.callToAction()).isEqualTo("Sign in with Apple");
 		assertThat(AuthProviderBrand.FACEBOOK.callToAction()).isEqualTo("Login with Facebook");
 	}
 
@@ -89,6 +88,15 @@ class AuthProviderBrandTest {
 		// all. Both fall back to whatever the registration called itself.
 		assertThat(AuthProviderBrand.OKTA.callToAction()).isEmpty();
 		assertThat(AuthProviderBrand.GENERIC.callToAction()).isEmpty();
+	}
+
+	@Test
+	void appleCarriesNoTreatmentBecauseTheSignInItWouldDecorateDoesNotWork() {
+		// Apple does mandate one. It is left out because this starter cannot complete an
+		// Apple sign-in at all — ClientRegistration takes a static client secret and
+		// Apple issues a generated ES256 JWT — so a compliant button would decorate a
+		// flow that dead-ends. The treatment lands with the support (#42).
+		assertThat(AuthProviderBrand.APPLE.callToAction()).isEmpty();
 	}
 
 	private static ClientRegistration registration(String registrationId, String authorizationUri) {

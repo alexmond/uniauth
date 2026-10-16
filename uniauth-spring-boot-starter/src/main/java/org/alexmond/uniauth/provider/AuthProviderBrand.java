@@ -48,8 +48,17 @@ public enum AuthProviderBrand {
 	 * Recognised for rendering only. Sign in with Apple is <em>not supported</em>: it
 	 * requires a generated ES256 client secret and {@code ClientRegistration} accepts
 	 * only a static one.
+	 *
+	 * <p>
+	 * Carries no call to action, unlike every other named brand here, and that is the
+	 * reason: a compliant Apple button is a promise this library cannot keep. Apple's
+	 * rules are also the one set not read from the vendor's own page — their guidelines
+	 * were not reachable when the others were checked — so the treatment would be the
+	 * least verified of the five as well as the only untestable one. It falls back to
+	 * whatever the registration called itself. The treatment lands with the support, if
+	 * Spring ever takes a non-static client secret.
 	 */
-	APPLE("Apple", "appleid.apple.com", "Sign in with Apple"),
+	APPLE("Apple", "appleid.apple.com", ""),
 
 	/**
 	 * Plain OAuth2.
@@ -113,7 +122,8 @@ public enum AuthProviderBrand {
 	 * suggestions. Google's guidelines forbid "Google" alone as button text; Facebook
 	 * names the labels it accepts. Microsoft's are guidance, and permit shortening to
 	 * "Sign in" where there is no room. GitHub mandates no wording at all, and takes this
-	 * one for consistency with its neighbours.
+	 * one for consistency with its neighbours. Apple mandates one and is deliberately
+	 * left out: see {@link #APPLE}.
 	 *
 	 * <p>
 	 * They read alike on purpose, as far as the guidelines allow — buttons stacked in one

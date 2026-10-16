@@ -313,10 +313,14 @@ Three things not to "tidy" here:
   the closer of its two. `AuthProviderBrandTest` pins "exactly one brand may deviate", so
   adding a brand with its own phrasing fails that test rather than drifting silently.
 - **Google's and Microsoft's marks keep their own colours; the rest switch variants.**
-  Both forbid altering theirs. GitHub, Facebook and Apple publish official black *and*
-  white marks, so those swap on `prefers-color-scheme` with explicit `#000000`/`#FFFFFF` —
+  Both forbid altering theirs. GitHub and Facebook publish official black *and* white
+  marks, so those swap on `prefers-color-scheme` with explicit `#000000`/`#FFFFFF` —
   **not** `currentColor`, which would resolve to the near-black the text uses and so to a
   shade neither brand published.
+- **Apple mandates a treatment and deliberately gets none.** Sign in with Apple cannot
+  complete here at all, so a compliant button would decorate a dead end and tell the
+  person the route works. Apple's rules were also the one set not read from the vendor's
+  own page. Give it a treatment only alongside working support — #42 is the investigation.
 - **One palette for all the buttons, and it is Google's mandated one.** Microsoft permits a
   light or dark scheme, Facebook's approved designs include white-with-black-text, GitHub
   constrains only its mark — so Google's values satisfy everyone and the column reads as
