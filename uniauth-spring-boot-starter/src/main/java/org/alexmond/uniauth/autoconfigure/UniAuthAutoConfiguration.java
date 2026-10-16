@@ -23,7 +23,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.slf4j.Logger;
@@ -76,17 +75,14 @@ public class UniAuthAutoConfiguration {
 	 * @param redirectMechanisms whichever redirect-based mechanisms are on the classpath
 	 * @param authenticationProviders every {@code AuthenticationProvider} bean, so the
 	 * password form is offered to an application that brought accounts of its own (#9)
-	 * @param userDetailsServices every {@code UserDetailsService} bean, which is the
-	 * other way an application brings them
 	 * @return the registry
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public AuthProviderRegistry uniAuthProviderRegistry(UniAuthProperties properties,
 			ObjectProvider<RedirectMechanism> redirectMechanisms,
-			ObjectProvider<AuthenticationProvider> authenticationProviders,
-			ObjectProvider<UserDetailsService> userDetailsServices) {
-		return new AuthProviderRegistry(properties, redirectMechanisms, authenticationProviders, userDetailsServices);
+			ObjectProvider<AuthenticationProvider> authenticationProviders) {
+		return new AuthProviderRegistry(properties, redirectMechanisms, authenticationProviders);
 	}
 
 	/**

@@ -129,28 +129,31 @@ both the chooser page and `/uniauth/providers`.
 **`hasFormProvider()` reads the context, not just the flags (#9).** It used to be
 `!formProviders().isEmpty()` — the two configuration flags — so it answered "can a username and
 password be entered here?" by looking only at whether UniAuth's own mechanisms were enabled.
-An application that brought an `AuthenticationProvider` or `UserDetailsService` of its own got
-the redirect buttons and no form, and since the same answer gates `http.formLogin`, nothing was
-listening on the login path either. It now also counts those beans, which is sound *because*
-UniAuth declares both types only under `uniauth.internal.enabled` / `uniauth.ldap.enabled`: when
-neither is on, anything present is the application's, so there is nothing to tell apart. Three
-things to keep:
+An application that brought an `AuthenticationProvider` of its own got the redirect buttons and
+no form, and since the same answer gates `http.formLogin`, nothing was listening on the login
+path either. It now also counts those beans, which is sound *because* UniAuth declares that type
+only under `uniauth.internal.enabled` / `uniauth.ldap.enabled`: when neither is on, anything
+present is the application's, so there is nothing to tell apart. Three things to keep:
 
-- **Boot's generated `user` account must never turn the form on.** It can genuinely sign in
-  through this chain, so detection deliberately asks "did the application bring accounts" and
-  not "could anything authenticate a password". It cannot reach a UniAuth app today for a reason
-  outside this repo's control: `UserDetailsServiceAutoConfiguration` is
-  `@ConditionalOnMissingClass` on `ClientRegistrationRepository` — the *class* — and
-  `spring-boot-starter-oauth2-client` is a compile-scope dependency here. Make that optional
-  like SAML's and Boot's default user appears for any consumer taking neither;
-  `UniAuthRedirectOnlyChooserTest` is the guard, and nothing asserted the form's absence
-  before it.
+- **A `UserDetailsService` is not read, and that is the security boundary, not an oversight.**
+  Boot's fallback account — `user`, password generated at startup and logged — arrives as
+  exactly that type and can sign in through this chain once a form-login filter exists. Reading
+  the type would hand an application that installed no mechanism at all a form that admits it:
+  a visibly broken configuration turned into a quietly reachable one. An `AuthenticationProvider`
+  bean is never Boot's and never UniAuth's here, which is what makes it safe to read. The first
+  draft did read both and leaned on Boot's condition being `@ConditionalOnMissingClass` on
+  `ClientRegistrationRepository` — a *class*, and oauth2-client is compile-scope here — which
+  made the guarantee somebody else's to keep and silently lost it for a consumer excluding that
+  dependency. `UniAuthRedirectOnlyChooserTest` pins the boundary with an application's own
+  user-details bean, so it does not depend on whether Boot's fallback is present at all.
 - **`isEmpty()` has to count the form too.** It prints "no authentication provider is enabled",
   and an application's own accounts have no named entry — without that term the page shows a
   working form under a notice saying there is nothing to use.
 - **`uniauth.form.enabled` is tri-state and `false` turns off the filter as well**, because the
-  form and `http.formLogin` have always been one answer. It exists for what detection cannot
-  see: an `AuthenticationManager` bean is neither type and does not announce itself. Mechanisms enumerate their entries by testing the
+  form and `http.formLogin` have always been one answer. It is also the one-line route for
+  accounts detection cannot reach — an `AuthenticationManager`, or a bare `UserDetailsService`
+  (`uniauth.internal.enabled: true` is the other, since the internal store's user-details bean
+  backs off on `@ConditionalOnMissingBean` and wraps the application's accounts). Mechanisms enumerate their entries by testing the
 repository for `Iterable` — which the in-memory implementations Boot produces are. A custom
 repository (database-backed, say) is not iterable, so its mechanism still works in the chain but
 cannot be listed; that limitation is documented on the class.

@@ -27,22 +27,30 @@ whole interface, since `pending()` already promised oldest-first. The contract k
 five cases and four deliberately broken stores; the mistake they exist for is wiring `list`
 to the query `pending()` used, which compiles, passes every older test, and shows an empty
 access list. The sample approvals page now has the two tables this makes possible.
+
 * *Fixed — the password form when an application brings its own accounts* (#9). An
-  application that registers an `AuthenticationProvider` or a `UserDetailsService` of its
-  own, rather than declaring accounts under `uniauth.internal.users`, got a login page with
-  the redirect buttons and no form to type into. `AuthProviderRegistry.hasFormProvider()`
-  was read from the two configuration flags alone, so it answered "can a username and
+  application that registers an `AuthenticationProvider` of its own, rather than declaring
+  accounts under `uniauth.internal.users`, got a login page with the redirect buttons and
+  no form to type into. `AuthProviderRegistry.hasFormProvider()` was read from the two
+  configuration flags alone, so it answered "can a username and
   password be entered here?" by looking only at whether UniAuth's *own* mechanisms were
   enabled — and because the same answer gates `http.formLogin`, there was nothing listening
   on the login path either. The form was not broken; it did not exist.
 +
-It now also counts what the application brought. That is sound because UniAuth declares
-those two bean types only for its own form mechanisms, so when neither is enabled anything
-present belongs to the application. The workaround — switching the internal store on with
-nothing in it — is no longer needed, and it read as a lie in the configuration anyway.
+It now also counts the application's own provider beans. That is sound because UniAuth
+declares that bean type only for its own form mechanisms, so when neither is enabled
+anything present belongs to the application. The workaround — switching the internal store
+on with nothing in it — is no longer needed, and it read as a lie in the configuration
+anyway.
 +
-New: `uniauth.form.enabled`, for what detection cannot see. An `AuthenticationManager` bean
-is neither of the two types looked at and does not announce itself. Left unset the form is
+A `UserDetailsService` alone is deliberately not read, as a security boundary: Spring Boot's
+fallback account (`user`, password generated at startup) arrives as that type and can sign
+in through this chain, so reading it would give an application with no mechanism at all a
+form that admits it. Such an application asks in one line instead —
+`uniauth.form.enabled: true`, or `uniauth.internal.enabled: true`, whose user-details bean
+backs off on `@ConditionalOnMissingBean` and wraps the application's accounts.
++
+New: `uniauth.form.enabled`, for accounts detection cannot reach. Left unset the form is
 worked out as above; `false` suppresses it *and* the filter behind it, which is for a chain
 meant to offer redirect providers only.
 

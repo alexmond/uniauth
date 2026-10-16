@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,24 +78,14 @@ class AuthProviderRegistryTest {
 		// of its own — anything present therefore belongs to the application, and is
 		// something a username and password can be posted to (#9).
 		AuthProviderRegistry registry = registryWithApplicationAccounts(new UniAuthProperties(),
-				List.of(applicationProvider()), List.of());
-
-		assertThat(registry.hasFormProvider()).isTrue();
-	}
-
-	@Test
-	void theFormIsOfferedForAUserDetailsServiceToo() {
-		// The other way an application brings accounts: Spring Security builds the
-		// provider around it, so there is still something to answer the form.
-		AuthProviderRegistry registry = registryWithApplicationAccounts(new UniAuthProperties(), List.of(),
-				List.of((username) -> null));
+				List.of(applicationProvider()));
 
 		assertThat(registry.hasFormProvider()).isTrue();
 	}
 
 	@Test
 	void anApplicationWithNoAccountsOfItsOwnGetsNoForm() {
-		AuthProviderRegistry registry = registryWithApplicationAccounts(new UniAuthProperties(), List.of(), List.of());
+		AuthProviderRegistry registry = registryWithApplicationAccounts(new UniAuthProperties(), List.of());
 
 		assertThat(registry.hasFormProvider()).isFalse();
 	}
@@ -107,7 +96,7 @@ class AuthProviderRegistryTest {
 		// accounts have no named entry — so without this the page would show a working
 		// form under a notice saying there was nothing to use.
 		AuthProviderRegistry registry = registryWithApplicationAccounts(new UniAuthProperties(),
-				List.of(applicationProvider()), List.of());
+				List.of(applicationProvider()));
 
 		assertThat(registry.providers()).isEmpty();
 		assertThat(registry.isEmpty()).isFalse();
@@ -124,8 +113,8 @@ class AuthProviderRegistryTest {
 		suppressed.getInternal().setEnabled(true);
 		suppressed.getForm().setEnabled(false);
 
-		assertThat(registryWithApplicationAccounts(forced, List.of(), List.of()).hasFormProvider()).isTrue();
-		assertThat(registryWithApplicationAccounts(suppressed, List.of(), List.of()).hasFormProvider()).isFalse();
+		assertThat(registryWithApplicationAccounts(forced, List.of()).hasFormProvider()).isTrue();
+		assertThat(registryWithApplicationAccounts(suppressed, List.of()).hasFormProvider()).isFalse();
 	}
 
 	private static AuthenticationProvider applicationProvider() {
@@ -150,20 +139,18 @@ class AuthProviderRegistryTest {
 	@SafeVarargs
 	private static AuthProviderRegistry registryWith(UniAuthProperties properties, List<AuthProvider>... perMechanism) {
 		List<RedirectMechanism> mechanisms = Stream.of(perMechanism).map(AuthProviderRegistryTest::mechanism).toList();
-		return new AuthProviderRegistry(properties, provider(mechanisms), provider(List.of()), provider(List.of()));
+		return new AuthProviderRegistry(properties, provider(mechanisms), provider(List.of()));
 	}
 
 	/**
 	 * A registry with no redirect mechanisms, and whatever the application brought.
 	 * @param properties the configuration
 	 * @param ownProviders the application's own {@code AuthenticationProvider} beans
-	 * @param ownUserDetails the application's own {@code UserDetailsService} beans
 	 * @return the registry
 	 */
 	private static AuthProviderRegistry registryWithApplicationAccounts(UniAuthProperties properties,
-			List<AuthenticationProvider> ownProviders, List<UserDetailsService> ownUserDetails) {
-		return new AuthProviderRegistry(properties, provider(List.of()), provider(ownProviders),
-				provider(ownUserDetails));
+			List<AuthenticationProvider> ownProviders) {
+		return new AuthProviderRegistry(properties, provider(List.of()), provider(ownProviders));
 	}
 
 	private static RedirectMechanism mechanism(List<AuthProvider> providers) {

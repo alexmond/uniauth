@@ -94,9 +94,9 @@ leaving it in the configuration an application deploys with.
 === Bringing your own accounts
 
 You do not have to declare accounts under `uniauth.internal.users` to get a password form.
-An application that registers an `AuthenticationProvider` or a `UserDetailsService` bean of
-its own gets one, and UniAuth puts that provider on the same chain — which is how a local
-break-glass account sits beside Google on one login page.
+An application that registers an `AuthenticationProvider` bean of its own gets one, and
+UniAuth puts that provider on the same chain — which is how a local break-glass account
+sits beside Google on one login page.
 
 This did not use to work. The form was offered on the strength of
 `uniauth.internal.enabled` and `uniauth.ldap.enabled` alone, so an application holding its
@@ -111,21 +111,31 @@ the only way through, which means keeping them in two places (#9).
 
 | `uniauth.form.enabled` | _unset_ | Offer the shared password form, or suppress it. Left
 unset it is worked out: on when a form mechanism is enabled, or when the application
-brought accounts of its own.
+registered an `AuthenticationProvider` of its own.
 |===
 
-Set it when detection cannot see what you have — an `AuthenticationManager` bean is neither
-of the two types looked at, and does not announce itself.
+Set it when your accounts are not reachable that way — an `AuthenticationManager`, or a bare
+`UserDetailsService`.
+
+[IMPORTANT]
+====
+A `UserDetailsService` alone is deliberately *not* read, and that is a security boundary
+rather than an omission. Spring Boot's own fallback account — `user`, with a password
+generated at startup and printed to the log — is contributed as exactly that type, and it
+can sign in through this chain once a form-login filter exists. Reading the type would mean
+an application that installed no mechanism at all getting a password form that admits it,
+turning a visibly broken configuration into a quietly reachable one.
+
+If your accounts are only a `UserDetailsService`, say so in one line — either
+`uniauth.form.enabled: true`, or `uniauth.internal.enabled: true`, which has the same
+effect by a different route: the internal store's own user-details bean backs off on
+`@ConditionalOnMissingBean`, so UniAuth's provider is built around your accounts rather
+than around an empty list.
+====
 
 WARNING: `uniauth.form.enabled: false` suppresses the form *and the filter behind it*,
 because the two have always been one answer. Internal and LDAP accounts then have no way
 in; it is for a chain meant to offer redirect providers only.
-
-NOTE: A `UserDetailsService` bean of your own also replaces the one the internal store
-would have built, since that one backs off on `@ConditionalOnMissingBean`. With
-`uniauth.internal.enabled: true` your accounts are read through UniAuth's own provider;
-with it off, Spring Security builds the provider around your bean. Either way they work —
-the difference is only whose provider asks.
 
 == LDAP
 

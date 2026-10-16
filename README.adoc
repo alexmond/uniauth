@@ -385,12 +385,12 @@ A few hooks are worth knowing before you reach for a whole filter chain, because
 means giving up all the wiring:
 
 `uniauth.public-paths`:: Opens up routes without touching the chain.
-An `AuthenticationProvider` or `UserDetailsService` bean:: Your own accounts. You do not have
-to repeat them under `uniauth.internal.users` — the password form is offered because something
-in the context can answer it, and your provider goes on the same chain, which is how a local
-break-glass account sits beside Google on one page. `uniauth.form.enabled` forces or suppresses
-the form where that cannot be detected (an `AuthenticationManager` bean does not announce
-itself).
+An `AuthenticationProvider` bean:: Your own accounts. You do not have to repeat them under
+`uniauth.internal.users` — the password form is offered because something in the context can
+answer it, and your provider goes on the same chain, which is how a local break-glass account
+sits beside Google on one page. A bare `UserDetailsService` is deliberately not read, because
+Boot's generated fallback account is one; `uniauth.form.enabled: true` is how an application
+whose accounts are only that asks for its form.
 `UniAuthAuthorizationCustomizer` bean:: Contributes authorization rules to this chain, applied
 after the permitted paths and before the catch-all. Reach for it when the application's rules
 are a different shape from "permitted or authenticated" — a role on an admin area, or a

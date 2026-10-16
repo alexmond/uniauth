@@ -3,7 +3,6 @@ package org.alexmond.uniauth.provider;
 import org.alexmond.uniauth.config.UniAuthProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,8 +31,6 @@ public class AuthProviderRegistry {
 
 	private final ObjectProvider<AuthenticationProvider> authenticationProviders;
 
-	private final ObjectProvider<UserDetailsService> userDetailsServices;
-
 	/**
 	 * Creates the registry.
 	 * @param properties which mechanisms are switched on
@@ -45,17 +42,12 @@ public class AuthProviderRegistry {
 	 * context. Consulted only to answer whether a password form is worth showing — when
 	 * neither of UniAuth's own form mechanisms is enabled, UniAuth contributes none of
 	 * these, so anything here belongs to the application
-	 * @param userDetailsServices every {@code UserDetailsService} bean, for the same
-	 * question: an application can bring one of those instead and let Spring Security
-	 * build the provider around it
 	 */
 	public AuthProviderRegistry(UniAuthProperties properties, ObjectProvider<RedirectMechanism> redirectMechanisms,
-			ObjectProvider<AuthenticationProvider> authenticationProviders,
-			ObjectProvider<UserDetailsService> userDetailsServices) {
+			ObjectProvider<AuthenticationProvider> authenticationProviders) {
 		this.properties = properties;
 		this.redirectMechanisms = redirectMechanisms;
 		this.authenticationProviders = authenticationProviders;
-		this.userDetailsServices = userDetailsServices;
 	}
 
 	/**
@@ -127,11 +119,12 @@ public class AuthProviderRegistry {
 	 * exist (#9).
 	 *
 	 * <p>
-	 * The remaining escape hatch is {@code uniauth.form.enabled}, for what cannot be
-	 * detected: an {@code AuthenticationManager} bean is neither of the two types looked
-	 * at here and does not announce itself.
+	 * The escape hatch is {@code uniauth.form.enabled}, for an application whose accounts
+	 * this cannot see — an {@code AuthenticationManager} or a bare
+	 * {@code UserDetailsService}, neither of which is counted below.
 	 * @return {@code true} when a form-based mechanism is enabled, or the application
-	 * brought accounts of its own, unless {@code uniauth.form.enabled} says otherwise
+	 * brought an authentication provider of its own, unless {@code uniauth.form.enabled}
+	 * says otherwise
 	 */
 	public boolean hasFormProvider() {
 		Boolean configured = this.properties.getForm().getEnabled();
@@ -144,18 +137,33 @@ public class AuthProviderRegistry {
 	}
 
 	/**
-	 * Whether anything in the context can answer a username and password.
+	 * Whether the application registered an authentication provider of its own.
 	 *
 	 * <p>
 	 * Only ever asked when neither of UniAuth's form mechanisms is on, and UniAuth
-	 * declares both of these bean types only for those mechanisms — so there is no need
-	 * to tell its own contributions apart from the application's. There are none.
-	 * @return {@code true} when the application registered a provider or a user-details
-	 * service
+	 * declares this bean type only for those mechanisms — so there is no need to tell its
+	 * own contributions apart from the application's. There are none.
+	 *
+	 * <p>
+	 * <strong>A {@code UserDetailsService} deliberately does not count, and this is a
+	 * security boundary rather than an omission.</strong> Spring Boot's own fallback
+	 * account — {@code user}, with a password generated at startup and printed to the log
+	 * — is contributed as exactly that type, and it can genuinely sign in through this
+	 * chain. Counting the type would mean an application that installed no mechanism at
+	 * all getting a password form that admits it, turning a visibly broken configuration
+	 * into a quietly reachable one. An {@code AuthenticationProvider} bean is never
+	 * Boot's and never UniAuth's here, which is what makes it safe to read.
+	 *
+	 * <p>
+	 * An application whose accounts really are only a {@code UserDetailsService} has two
+	 * honest routes, both one line: {@code uniauth.form.enabled: true}, or
+	 * {@code uniauth.internal.enabled: true} — the internal store's own user-details bean
+	 * backs off on {@code @ConditionalOnMissingBean}, so UniAuth's provider is then built
+	 * around the application's accounts rather than around an empty list.
+	 * @return {@code true} when the application registered a provider
 	 */
 	private boolean applicationBringsItsOwnAccounts() {
-		return this.authenticationProviders.stream().findAny().isPresent()
-				|| this.userDetailsServices.stream().findAny().isPresent();
+		return this.authenticationProviders.stream().findAny().isPresent();
 	}
 
 }
