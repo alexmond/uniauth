@@ -46,12 +46,18 @@
 		</p>
 
 		<div th:if="${!#lists.isEmpty(redirectProviders)}" class="stack" style="margin-top: 2rem">
-			<h2 class="section-title" th:if="${showForm}">Or continue with</h2>
+			<h2 class="section-title" th:if="${showForm}">Or</h2>
+			<!--
+			  port__name reads buttonLabel(), not displayName(). This template overrides the
+			  starter's own, which is the point of it — and a brand's required button wording
+			  would be lost by exactly that override if it lived in the markup, which is why
+			  the model resolves it. Google's guidelines forbid the bare brand name here.
+			-->
 			<ul class="ports" style="grid-template-columns: 1fr">
 				<li th:each="provider : ${redirectProviders}">
 					<a class="port" th:href="@{${provider.loginUrl()}}">
 						<span class="port__jack"></span>
-						<span class="port__name" th:text="${provider.displayName()}">Provider</span>
+						<span class="port__name" th:text="${provider.buttonLabel()}">Provider</span>
 						<span class="port__kind" th:text="${provider.type()}">TYPE</span>
 					</a>
 				</li>

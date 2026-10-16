@@ -56,6 +56,20 @@ class GoogleProfileTest {
 	}
 
 	@Test
+	void theChooserCarriesGooglesRequiredWordingEvenThoughThisAppReplacesTheTemplate() {
+		// This example overrides templates/uniauth/login.html, so it is the case that
+		// would quietly lose a brand's mandated label if compliance lived in the
+		// starter's
+		// markup. It resolves in the model instead (#8).
+		assertThat(this.registry.providers()).filteredOn((provider) -> "google".equals(provider.id()))
+			.singleElement()
+			.satisfies((provider) -> {
+				assertThat(provider.buttonLabel()).isEqualTo("Sign in with Google");
+				assertThat(provider.displayName()).isEqualTo("Google");
+			});
+	}
+
+	@Test
 	void googleIsRecognisedAsOpenIdConnectRatherThanPlainOauth2() {
 		// The distinction that changes what a client gets back: an OidcUser with claims,
 		// not a bare OAuth2User. It is derived from the openid scope, which

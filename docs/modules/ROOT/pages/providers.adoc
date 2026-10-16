@@ -111,6 +111,62 @@ reading an unparseable `iss` throws and the delegate reads it first.
 The adapter applies only to registrations detected as Microsoft, so switching it on cannot
 weaken a Google or Okta login sharing the same application.
 
+[#brand-buttons]
+== Brand buttons are a condition of use, not styling
+
+The chooser renders each redirect provider as a button carrying the wording and mark its
+brand requires. That is not decoration: for several of these, it is a condition attached to
+using the service.
+
+[cols="1,2,2"]
+|===
+| Brand | Button wording | Mark
+
+| Google | `Sign in with Google` | full-colour "G", never monochrome or recoloured
+| Microsoft | `Sign in with Microsoft` | the four-square logo, unaltered
+| GitHub | `Sign in with GitHub` | the Invertocat, in its official black or white
+| Facebook | `Login with Facebook` | the "f", in its official black or white
+| Apple | `Sign in with Apple` | the Apple logo (see below — sign-in itself is unsupported)
+| Okta, generic | whatever the registration's client name says | none
+|===
+
+The strict one is Google: its guidelines list *"using 'Google' by itself as button text"*
+among the things explicitly forbidden, and Boot's own `CommonOAuth2Provider.GOOGLE` sets
+the client name to exactly `Google`. The default template used to render that for every
+provider alike, so every consumer that enabled a Google registration inherited the same
+non-compliance (#8).
+
+They read alike as far as the guidelines allow, because a stacked column of buttons should
+not phrase one act three different ways. Identical wording is not reachable: Microsoft's
+approved set has no "Continue with", and Facebook's has no "Sign in with". So `Sign in with
+X` is used everywhere it is permitted — which is everywhere except Facebook — and Facebook
+takes `Login with Facebook`, the closer of the two labels it does allow.
+
+One palette serves every button: the fill, stroke and text colours Google mandates
+(`#FFFFFF` / `#747775` / `#1F1F1F`, and `#131314` / `#8E918F` / `#E3E3E3` in dark mode).
+Those satisfy the others rather than conflicting with them — Microsoft permits a light or
+dark scheme, Facebook's approved designs include white with black text, and GitHub
+constrains only its mark.
+
+[IMPORTANT]
+====
+*An application that overrides `templates/uniauth/login.html` must render
+`provider.buttonLabel()`, not `provider.displayName()`.*
+
+`displayName()` is the registration's own client name — for Google, the forbidden string.
+`buttonLabel()` is the brand's required wording, falling back to the display name when the
+brand mandates none. The label resolves in the model precisely so that replacing the
+template — the supported re-skin path, which the webapp example takes — does not quietly
+drop a brand requirement.
+
+The marks live in the template, so an override does have to supply its own. The sample in
+this repository is the worked example.
+====
+
+NOTE: One deliberate deviation. Google asks for Google Sans Medium at 14/20; the starter
+keeps the system font stack. This page renders before anybody has authenticated, and
+fetching a webfont would make an external request on it. The size and weight are honoured.
+
 == Apple: unsupported, on purpose
 
 Apple requires a *generated* client secret — an ES256 JWT, signed with a key from the

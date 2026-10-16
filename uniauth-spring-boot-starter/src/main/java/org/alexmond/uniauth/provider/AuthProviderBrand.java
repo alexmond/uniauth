@@ -22,44 +22,71 @@ import java.util.Locale;
  */
 public enum AuthProviderBrand {
 
-	/** OpenID Connect. Yields an {@code OidcUser} with claims. */
-	GOOGLE("Google", "accounts.google.com"),
+	/**
+	 * OpenID Connect. Yields an {@code OidcUser} with claims.
+	 *
+	 * <p>
+	 * The only brand here whose guidelines forbid a specific rendering outright: "using
+	 * 'Google' by itself as button text" is listed among the prohibitions, so the label
+	 * is not a preference.
+	 */
+	GOOGLE("Google", "accounts.google.com", "Sign in with Google"),
 
 	/**
 	 * OpenID Connect. Multi-tenant deployments need
 	 * {@code uniauth.oauth2.microsoft.multi-tenant}.
 	 */
-	MICROSOFT("Microsoft", "login.microsoftonline.com"),
+	MICROSOFT("Microsoft", "login.microsoftonline.com", "Sign in with Microsoft"),
 
 	/**
 	 * Plain OAuth2 — no id_token, no claims. Volunteers no email address either; see
 	 * {@code uniauth.oauth2.github.fetch-email}.
 	 */
-	GITHUB("GitHub", "github.com"),
+	GITHUB("GitHub", "github.com", "Sign in with GitHub"),
 
 	/**
 	 * Recognised for rendering only. Sign in with Apple is <em>not supported</em>: it
 	 * requires a generated ES256 client secret and {@code ClientRegistration} accepts
 	 * only a static one.
 	 */
-	APPLE("Apple", "appleid.apple.com"),
+	APPLE("Apple", "appleid.apple.com", "Sign in with Apple"),
 
-	/** Plain OAuth2. */
-	FACEBOOK("Facebook", "facebook.com"),
+	/**
+	 * Plain OAuth2.
+	 *
+	 * <p>
+	 * The one brand that cannot read like its neighbours. Its guidelines name two
+	 * accepted labels — "Continue with Facebook" and "Login with Facebook" — and "Sign in
+	 * with Facebook" is not among them, so the uniform wording every other brand here
+	 * uses is unavailable. "Login with" is the closer of the two to it, which is why it
+	 * is the one taken: one word differs instead of a different verb entirely.
+	 */
+	FACEBOOK("Facebook", "facebook.com", "Login with Facebook"),
 
-	/** OpenID Connect, and the usual stand-in for any discovery-based IdP. */
-	OKTA("Okta", "okta.com"),
+	/**
+	 * OpenID Connect, and the usual stand-in for any discovery-based IdP.
+	 *
+	 * <p>
+	 * Deliberately carries no call to action. Okta is the vendor behind somebody else's
+	 * identity provider, so "Sign in with Okta" would name the wrong organisation to the
+	 * person reading the button — their employer's name is the useful one, and it arrives
+	 * as the registration's client name.
+	 */
+	OKTA("Okta", "okta.com", ""),
 
 	/** Anything unrecognised: a self-hosted Keycloak, an in-house IdP, a SAML party. */
-	GENERIC("", null);
+	GENERIC("", null, "");
 
 	private final String displayName;
 
 	private final String host;
 
-	AuthProviderBrand(String displayName, String host) {
+	private final String callToAction;
+
+	AuthProviderBrand(String displayName, String host, String callToAction) {
 		this.displayName = displayName;
 		this.host = host;
+		this.callToAction = callToAction;
 	}
 
 	/**
@@ -68,6 +95,38 @@ public enum AuthProviderBrand {
 	 */
 	public String displayName() {
 		return this.displayName;
+	}
+
+	/**
+	 * The wording this brand requires on its own sign-in button.
+	 *
+	 * <p>
+	 * Here rather than in a template because the template is replaceable: an application
+	 * overriding {@code templates/uniauth/login.html} is the supported re-skin path, and
+	 * the sample in this repository takes it. Compliance that lived in the markup would
+	 * be lost by exactly the applications most likely to restyle the page, so it lives in
+	 * the model and the markup renders whatever it is handed —
+	 * {@link AuthProvider#buttonLabel()}.
+	 *
+	 * <p>
+	 * Several of these are conditions attached to using the service rather than
+	 * suggestions. Google's guidelines forbid "Google" alone as button text; Facebook
+	 * names the labels it accepts. Microsoft's are guidance, and permit shortening to
+	 * "Sign in" where there is no room. GitHub mandates no wording at all, and takes this
+	 * one for consistency with its neighbours.
+	 *
+	 * <p>
+	 * They read alike on purpose, as far as the guidelines allow — buttons stacked in one
+	 * column should not each phrase the same act differently. Identical wording is not
+	 * reachable: the approved sets do not intersect, because Microsoft's does not include
+	 * "Continue with" and Facebook's does not include "Sign in with". So "Sign in with X"
+	 * is used wherever it is permitted, which is everywhere except Facebook, and Facebook
+	 * takes the closest label it does permit.
+	 * @return the required label, or an empty string when the brand mandates none, in
+	 * which case the registration's own display name is the better answer
+	 */
+	public String callToAction() {
+		return this.callToAction;
 	}
 
 	/**

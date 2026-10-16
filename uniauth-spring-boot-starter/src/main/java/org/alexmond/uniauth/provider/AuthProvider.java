@@ -33,4 +33,28 @@ public record AuthProvider(String id, AuthProviderType type, AuthProviderBrand b
 		return this.type.isFormBased();
 	}
 
+	/**
+	 * What to write on this provider's button.
+	 *
+	 * <p>
+	 * The brand's required wording when it has one, and the registration's own display
+	 * name otherwise. Read this rather than {@link #displayName()} when rendering a
+	 * button: several brands attach conditions to their wording, and Google's forbid the
+	 * bare brand name outright, which is what the default template rendered for every
+	 * provider alike (#8).
+	 *
+	 * <p>
+	 * It resolves here, in the model, because the template is the replaceable part — an
+	 * application overriding {@code templates/uniauth/login.html} is the supported
+	 * re-skin path, and the sample in this repository takes it. Compliance written into
+	 * the markup would be lost by exactly the applications most likely to restyle the
+	 * page.
+	 * @return the label, never {@code null}
+	 * @see AuthProviderBrand#callToAction()
+	 */
+	public String buttonLabel() {
+		String mandated = (this.brand != null) ? this.brand.callToAction() : "";
+		return !mandated.isEmpty() ? mandated : this.displayName;
+	}
+
 }
