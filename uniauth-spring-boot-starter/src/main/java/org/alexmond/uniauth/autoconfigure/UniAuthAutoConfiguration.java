@@ -73,13 +73,16 @@ public class UniAuthAutoConfiguration {
 	 * chooser page and the providers endpoint.
 	 * @param properties which mechanisms are switched on
 	 * @param redirectMechanisms whichever redirect-based mechanisms are on the classpath
+	 * @param authenticationProviders every {@code AuthenticationProvider} bean, so the
+	 * password form is offered to an application that brought accounts of its own (#9)
 	 * @return the registry
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public AuthProviderRegistry uniAuthProviderRegistry(UniAuthProperties properties,
-			ObjectProvider<RedirectMechanism> redirectMechanisms) {
-		return new AuthProviderRegistry(properties, redirectMechanisms);
+			ObjectProvider<RedirectMechanism> redirectMechanisms,
+			ObjectProvider<AuthenticationProvider> authenticationProviders) {
+		return new AuthProviderRegistry(properties, redirectMechanisms, authenticationProviders);
 	}
 
 	/**
