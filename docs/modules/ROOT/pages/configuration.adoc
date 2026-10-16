@@ -90,6 +90,43 @@ leaving it in the configuration an application deploys with.
 | `uniauth.internal.users[].roles` | `[USER]` | Without the `ROLE_` prefix.
 |===
 
+[#bringing-your-own-accounts]
+=== Bringing your own accounts
+
+You do not have to declare accounts under `uniauth.internal.users` to get a password form.
+An application that registers an `AuthenticationProvider` or a `UserDetailsService` bean of
+its own gets one, and UniAuth puts that provider on the same chain — which is how a local
+break-glass account sits beside Google on one login page.
+
+This did not use to work. The form was offered on the strength of
+`uniauth.internal.enabled` and `uniauth.ldap.enabled` alone, so an application holding its
+credentials elsewhere got a page with the redirect buttons and nothing to type into — and
+because the same answer installs the form-login filter, there was nothing listening on the
+login path either. Declaring the accounts a second time under `uniauth.internal.users` was
+the only way through, which means keeping them in two places (#9).
+
+[cols="2,1,3"]
+|===
+| Property | Default | What it does
+
+| `uniauth.form.enabled` | _unset_ | Offer the shared password form, or suppress it. Left
+unset it is worked out: on when a form mechanism is enabled, or when the application
+brought accounts of its own.
+|===
+
+Set it when detection cannot see what you have — an `AuthenticationManager` bean is neither
+of the two types looked at, and does not announce itself.
+
+WARNING: `uniauth.form.enabled: false` suppresses the form *and the filter behind it*,
+because the two have always been one answer. Internal and LDAP accounts then have no way
+in; it is for a chain meant to offer redirect providers only.
+
+NOTE: A `UserDetailsService` bean of your own also replaces the one the internal store
+would have built, since that one backs off on `@ConditionalOnMissingBean`. With
+`uniauth.internal.enabled: true` your accounts are read through UniAuth's own provider;
+with it off, Spring Security builds the provider around your bean. Either way they work —
+the difference is only whose provider asks.
+
 == LDAP
 
 NOTE: Needs `spring-boot-starter-ldap` and `spring-security-ldap` on the classpath — they are

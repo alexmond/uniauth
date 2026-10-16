@@ -56,6 +56,8 @@ public class UniAuthProperties {
 
 	private Approval approval = new Approval();
 
+	private Form form = new Form();
+
 	private HttpBasic httpBasic = new HttpBasic();
 
 	private Internal internal = new Internal();
@@ -199,6 +201,38 @@ public class UniAuthProperties {
 			}
 
 		}
+
+	}
+
+	/**
+	 * Whether the shared username/password form is offered at all.
+	 *
+	 * <p>
+	 * Left unset this works itself out, which is the behaviour to want: the form appears
+	 * when {@code uniauth.internal} or {@code uniauth.ldap} is on, and also when the
+	 * application has registered accounts of its own — an {@code AuthenticationProvider}
+	 * or a {@code UserDetailsService} bean. It used to be read from the two flags alone,
+	 * so an application holding its credentials somewhere else got a page with the
+	 * redirect buttons and no form to type into (#9).
+	 */
+	@Data
+	public static class Form {
+
+		/**
+		 * Offer the form, suppress it, or leave it unset to work it out from what is in
+		 * the context.
+		 *
+		 * <p>
+		 * Set it when detection cannot see what you have: an
+		 * {@code AuthenticationManager} bean of your own is not an
+		 * {@code AuthenticationProvider} and does not announce itself.
+		 *
+		 * <p>
+		 * {@code false} suppresses the form <em>and</em> the filter behind it, because
+		 * the two have always been one answer — so internal and LDAP accounts then have
+		 * no way in, and this is for a chain meant to offer redirect providers only.
+		 */
+		private Boolean enabled;
 
 	}
 

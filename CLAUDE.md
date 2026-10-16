@@ -124,7 +124,33 @@ enumeration; `AuthProviderRegistryTest` covers only aggregation and ordering, an
 mechanism type at all, which is the property to preserve.
 
 **`AuthProviderRegistry`** is the single answer to "what can a user sign in with right now", read by
-both the chooser page and `/uniauth/providers`. Mechanisms enumerate their entries by testing the
+both the chooser page and `/uniauth/providers`.
+
+**`hasFormProvider()` reads the context, not just the flags (#9).** It used to be
+`!formProviders().isEmpty()` — the two configuration flags — so it answered "can a username and
+password be entered here?" by looking only at whether UniAuth's own mechanisms were enabled.
+An application that brought an `AuthenticationProvider` or `UserDetailsService` of its own got
+the redirect buttons and no form, and since the same answer gates `http.formLogin`, nothing was
+listening on the login path either. It now also counts those beans, which is sound *because*
+UniAuth declares both types only under `uniauth.internal.enabled` / `uniauth.ldap.enabled`: when
+neither is on, anything present is the application's, so there is nothing to tell apart. Three
+things to keep:
+
+- **Boot's generated `user` account must never turn the form on.** It can genuinely sign in
+  through this chain, so detection deliberately asks "did the application bring accounts" and
+  not "could anything authenticate a password". It cannot reach a UniAuth app today for a reason
+  outside this repo's control: `UserDetailsServiceAutoConfiguration` is
+  `@ConditionalOnMissingClass` on `ClientRegistrationRepository` — the *class* — and
+  `spring-boot-starter-oauth2-client` is a compile-scope dependency here. Make that optional
+  like SAML's and Boot's default user appears for any consumer taking neither;
+  `UniAuthRedirectOnlyChooserTest` is the guard, and nothing asserted the form's absence
+  before it.
+- **`isEmpty()` has to count the form too.** It prints "no authentication provider is enabled",
+  and an application's own accounts have no named entry — without that term the page shows a
+  working form under a notice saying there is nothing to use.
+- **`uniauth.form.enabled` is tri-state and `false` turns off the filter as well**, because the
+  form and `http.formLogin` have always been one answer. It exists for what detection cannot
+  see: an `AuthenticationManager` bean is neither type and does not announce itself. Mechanisms enumerate their entries by testing the
 repository for `Iterable` — which the in-memory implementations Boot produces are. A custom
 repository (database-backed, say) is not iterable, so its mechanism still works in the chain but
 cannot be listed; that limitation is documented on the class.
