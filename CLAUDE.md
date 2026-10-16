@@ -13,6 +13,7 @@ submodules only join the reactor under `-Pdefault`.
 
 ```
 uniauth-spring-boot-starter/   the library — an auth CLIENT, nothing else
+uniauth-spring-boot-starter-test/  store contract suites — PUBLISHED, see below
 uniauth-authserver/            the OAuth2/OIDC provider, its own service
 uniauth-admin/                 standalone console, an app not a library (skipPublishing)
 uniauth-examples/              aggregator, skipPublishing=true
@@ -254,6 +255,34 @@ the provider will issue, approved or not, and under `invite-only` the very peopl
 `.access(approvalManager)` is the other safe ending. The docs demonstrated the unsafe one.
 There is no startup warning for this and cannot easily be: Spring Security exposes no
 read-back of the rules a customizer registered.
+
+### The contract kit is a module, not a test-jar
+
+`uniauth-spring-boot-starter-test` publishes `ApprovalStoreContract` and
+`InvitationStoreContract` — suites an application's own store extends to prove it honours
+the rules (#37). It is **published to Central**, so it is API: renaming a protected method
+there breaks an implementor's build.
+
+- **A module rather than a `tests` classifier on the starter**, which is what the issue
+  asked for. A test-jar publishes *every* test class, so `TestApplication` and 200-odd
+  internal tests would become de facto API — rename one and a consumer breaks — and their
+  component scan could reach an application class meant for this repo alone.
+- **The clock is a `MutableClock` the contract moves, not a second `Clock.fixed` store.**
+  Carrying contents into a second store needs a seam no SPI method offers (the in-memory
+  one's `put` is package-private, and widening it for test convenience is the wrong trade).
+  Moving the clock keeps the store under test the same object — and catches an
+  implementation that reads `clock.instant()` once in its constructor.
+- **`ContractCatchesViolationsTest` is the load-bearing file.** It runs the suites against
+  deliberately broken stores via `EngineTestKit` and asserts they *fail*. Without it the
+  kit is unfalsifiable: passing against the two shipped implementations proves the rules
+  are satisfiable and nothing about whether they are enforced. It has already earned its
+  keep twice — it caught that the fixture's own `get`-then-`put` was non-atomic (so every
+  variant failed the concurrency case, proving nothing about its own flaw), and it showed
+  that **three of the five revocation cases still pass against a store that ignores
+  `revoke`**, because they assert what revocation leaves alone. When adding a rule, add
+  the broken store that violates it.
+- The kit depends on the starter, so the starter can **never** depend on the kit — the
+  in-memory implementations are run against the contracts from the kit's own `src/test`.
 
 ### Brand is not a mechanism
 

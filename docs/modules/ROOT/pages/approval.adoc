@@ -108,14 +108,46 @@ public interface ApprovalStore {
     ApprovalRecord recordPending(ApprovalKey key, PrincipalIdentity identity, AuthProviderType mechanism);
     List<ApprovalRecord> pending();
     Optional<ApprovalRecord> find(ApprovalKey key);
-    void decide(ApprovalKey key, ApprovalStatus outcome, String approver);
+    void decide(ApprovalKey key, ApprovalStatus outcome, String approver, List<String> roles);
     void remove(ApprovalKey key);
 }
 ----
 
+`decide` takes the roles the approver granted because a federated principal has none of its
+own: an approval granting nothing admits somebody who is then refused by every `hasRole`
+rule in the application. And a key the store has never recorded is *left alone* — creating a
+record there would invent a decision about somebody with no identity and no mechanism behind
+it. Admitting somebody before their first login is therefore `recordPending` followed by
+`decide`; see xref:invitations.adoc#the-first-administrator[Who creates the first
+invitation].
+
 WARNING: `InMemoryApprovalStore` is the default and is *not production-fit*. It empties on
 restart, taking every approval with it, and it is per-instance — two replicas do not agree.
 Supply your own implementation for anything real.
+
+=== Prove your implementation
+
+Because a real deployment supplies its own store, the rules it has to honour ship as an
+executable suite rather than as prose (#37):
+
+[source,java]
+----
+class JdbcApprovalStoreTest extends ApprovalStoreContract {
+
+    @Override
+    protected ApprovalStore createStore(Clock clock) {
+        return new JdbcApprovalStore(dataSource, clock);
+    }
+
+}
+----
+
+It is in `uniauth-spring-boot-starter-test`, at test scope. The rule most worth having
+checked is the one nothing else will tell you about: every authenticated request passes the
+gate and records a sighting, so a store that overwrites on each one puts an approved
+principal back in the queue on their second page view and loses the approver's roles with
+it. The suite runs sixteen concurrent sightings against a settled decision to catch exactly
+that. See xref:invitations.adoc#the-contract-kit[the contract kit] for the full story.
 
 == Two things that bite if changed carelessly
 

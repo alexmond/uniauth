@@ -46,3 +46,6 @@ xref:getting-started.adoc#saml-repository[Getting started].
 * xref:configuration.adoc[Configuration] — every `uniauth.*` property.
 * xref:architecture.adoc[Architecture] — why one chain, and where the extension points are.
 * API reference: {api-starter}/{page-component-version}/index.html[uniauth-spring-boot-starter].
+* API reference: {api-starter-test}/{page-component-version}/index.html[uniauth-spring-boot-starter-test]
+  — the store contract suites, for an application supplying a durable `ApprovalStore` or
+  `InvitationStore`.
