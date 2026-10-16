@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!--
+  A waiting page belonging to the application rather than to the starter, for the test
+  that uniauth.approval.pending-view is actually read. It names the model attribute the
+  starter's own page uses, so the test also proves the model still arrives when the view
+  is somebody else's.
+-->
+<body>
+<p>Our own waiting room for <span th:text="${signedInAs}">someone</span>.</p>
+</body>
+</html>

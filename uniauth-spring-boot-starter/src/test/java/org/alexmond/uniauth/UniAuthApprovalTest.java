@@ -107,8 +107,10 @@ class UniAuthApprovalTest {
 		HttpSession session = signIn("bob", "bobspassword");
 
 		// Without this the redirect would loop: the gate would keep out the very page it
-		// sends people to.
-		this.mockMvc.perform(get("/pending").session((MockHttpSession) session)).andExpect(status().isNotFound());
+		// sends people to. The assertion used to be 404 — reachable, and served by
+		// nothing — which was this test pinning the symptom of #11 alongside the rule it
+		// exists for. Now it is served, so reachable means what it says.
+		this.mockMvc.perform(get("/pending").session((MockHttpSession) session)).andExpect(status().isOk());
 	}
 
 	@Test

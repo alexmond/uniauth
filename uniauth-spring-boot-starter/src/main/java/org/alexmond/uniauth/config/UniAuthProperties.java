@@ -124,6 +124,27 @@ public class UniAuthProperties {
 		private String pendingPage = "/pending";
 
 		/**
+		 * The view rendered at {@link #pendingPage}, resolved like any other view name.
+		 *
+		 * <p>
+		 * The starter's own page is the default. Point this at a template of your own to
+		 * keep the page in the layout the rest of the application uses — the alternative,
+		 * placing {@code templates/uniauth/pending.html} ahead of the starter jar, also
+		 * works but forces the file into the starter's template path to replace a page
+		 * you may already have elsewhere.
+		 *
+		 * <p>
+		 * The model is the same either way: {@code signedInAs}, the name of whoever is
+		 * waiting, or {@code null} when nobody is signed in — the page is permitted to
+		 * everybody, so it can be opened by somebody who is not.
+		 *
+		 * <p>
+		 * An application that maps {@link #pendingPage} with a controller of its own
+		 * needs none of this: its mapping wins, and this is never consulted.
+		 */
+		private String pendingView = "uniauth/pending";
+
+		/**
 		 * Roles granted when an approver approves without naming any.
 		 *
 		 * <p>

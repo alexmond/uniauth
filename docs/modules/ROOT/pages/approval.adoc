@@ -95,6 +95,50 @@ The authentication is rebuilt to carry them, keeping its concrete type: that typ
 `UsernamePasswordAuthenticationToken` would quietly break the approval key on the next
 request. A type UniAuth does not recognise is left exactly as it was.
 
+[#the-waiting-page]
+== The waiting page
+
+The gate redirects a held principal to `uniauth.approval.pending-page`, and the starter
+serves that page — one redirect, a page that explains itself, and a way out. It did not
+always: the path was redirected to and nothing was mapped there, so a held principal got a
+404 and the whitelabel error page, which reads as a fault rather than as the system working
+as configured (#11).
+
+Three things about it are deliberate.
+
+**It is a view controller, not a `@Controller`.** The page was missing for long enough that
+the documented answer was to supply it, so applications did — mapping `/pending`
+themselves. A `@RequestMapping` on the same path would be an ambiguous mapping and fail
+their context at startup, so a page shipped to help them would break everybody who had
+already worked around its absence. Behind a `SimpleUrlHandlerMapping` ordered after
+`RequestMappingHandlerMapping`, an application's own mapping simply wins and the starter's
+page is never consulted. Nothing to exclude, nothing to configure.
+
+**The way out is a POST.** With CSRF on, Spring's logout matcher is POST-only, so a
+sign-out *link* never reaches `LogoutFilter` — it falls through to the gate and bounces
+straight back to the waiting page. The page carries a form. The back button is worse than
+nothing: it returns to the provider, which signs the same held account in again.
+
+**It names the account.** `signedInAs` is the one fact that makes the page actionable:
+somebody signed in with the wrong Google account cannot tell from "you are awaiting
+approval" that they should sign out and return as somebody else. It is `null` when nobody
+is signed in, because the page is permitted to everybody and so can be opened by somebody
+who is not.
+
+To replace it, either map the path yourself, or name a template:
+
+[source,yaml]
+----
+uniauth:
+  approval:
+    pending-page: /waiting        # where the gate sends them
+    pending-view: layout/waiting  # the view rendered there, with the same model
+----
+
+Dropping your own `templates/uniauth/pending.html` ahead of the starter jar also works —
+the same re-skin path xref:providers.adoc[the chooser] takes — but it forces the file into
+the starter's template path to replace a page you may already have elsewhere.
+
 == The store
 
 `ApprovalStore` is an SPI, and the gate is the only stateful thing in the library. That is

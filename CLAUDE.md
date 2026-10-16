@@ -188,6 +188,28 @@ matchers, without which the redirect loops; and `PendingApprovalAccessDeniedHand
 redirects requests flagged by the manager, so a genuine 403 still looks like one — a *denied*
 principal gets 403, not the waiting page.
 
+**The waiting page is served by a view controller, and that is a compatibility decision
+(#11).** The gate redirected to `pending-page` while the starter mapped nothing there, so a
+held principal got a 404 — measured, not inferred, and *not* the `ERR_TOO_MANY_REDIRECTS` the
+issue reported: `/error` and the pending page are both permitted, so nothing loops
+server-side. That loop was client-side, an SPA shell routing an unrecognised path back to
+`/`. Three things to keep:
+
+- **Not a `@Controller`.** Applications supplied their own `/pending` mapping while the page
+  was missing — this repo's own webapp example among them — and a `@RequestMapping` on that
+  path would be an ambiguous mapping, failing their context at startup. A
+  `SimpleUrlHandlerMapping` at order 2 sits behind `RequestMappingHandlerMapping` (0) and
+  `addViewControllers` (1), so an application's own mapping wins with nothing to exclude.
+  `UniAuthPendingPageOverriddenTest` asserts both halves — that the context starts *and*
+  which handler won, since either alone passes for the wrong reason.
+- **The way out is a POST form.** With CSRF on, Spring's logout matcher is POST-only, so a
+  sign-out link never reaches `LogoutFilter`: it falls through to the gate and bounces back
+  to the waiting page. `th:action` is also what inserts the token.
+- **`uniauth.approval.pending-view` names the template**, because the pending page was always
+  configuration and the view on it should not be the one thing an application cannot name.
+  `setViewName` is called at the registration site, not in a constructor — PMD's
+  `ConstructorCallsOverridableMethod` is right about that one.
+
 `MechanismResolver` moved from the sample into the starter here, since approval needs to know
 which provider answered. That is the rule: promote when something depends on it, not before.
 
