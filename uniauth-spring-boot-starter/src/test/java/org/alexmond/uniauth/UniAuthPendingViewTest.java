@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = { "uniauth.enabled=true", "uniauth.internal.enabled=true",
 		"uniauth.internal.users[0].username=held", "uniauth.internal.users[0].password={noop}pw",
 		"uniauth.approval.enabled=true", "uniauth.approval.require-for=INTERNAL",
-		"uniauth.approval.pending-view=waiting-room-of-our-own" })
+		"uniauth.approval.pending-view=test-pending" })
 class UniAuthPendingViewTest {
 
 	@Autowired
@@ -50,7 +50,7 @@ class UniAuthPendingViewTest {
 			.getResponse()
 			.getContentAsString();
 
-		assertThat(page).contains("Our own waiting room for");
+		assertThat(page).contains("The application's own waiting room for");
 		// The model has to survive the swap, or a replacement view can say less than the
 		// one it replaced and nobody finds out until somebody is actually held.
 		assertThat(page).contains("held");
