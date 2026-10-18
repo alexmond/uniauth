@@ -1,32 +1,11 @@
 = Changelog
 
-== Unreleased
+== 4.1.1.2
 
-* *Fixed — the waiting page is now served* (#11). The gate redirected a held principal to
-  `uniauth.approval.pending-page` and the starter mapped nothing there, so they got one
-  redirect, a 404 and the whitelabel error page — which reads as a fault rather than as the
-  system working as configured. Nothing failed at startup and nothing logged, and the only
-  flow that reaches it is a real sign-in by somebody actually pending, which no first manual
-  run as an approved administrator performs.
-+
-The page explains what is happening, names the account that is waiting — the one fact that
-makes it actionable, since somebody signed in with the wrong account cannot otherwise tell
-— and carries a sign-out *form*. A form because with CSRF on Spring's logout matcher is
-POST-only, so a sign-out link never reaches `LogoutFilter`: it falls through to the gate and
-bounces back to the waiting page. The back button is worse than nothing, returning to the
-provider which signs the same held account in again.
-+
-It is registered as a view controller rather than a `@Controller`, which is a compatibility
-decision: the page was missing for long enough that applications supplied their own mapping
-on that path, and a `@RequestMapping` there would be an ambiguous mapping failing their
-context at startup. Behind a handler mapping ordered after `RequestMappingHandlerMapping` an
-application's own mapping simply wins, with nothing to exclude or configure — which is why
-`uniauth-examples/webapp` still serves its own richer page unchanged.
-+
-New: `uniauth.approval.pending-view`, defaulting to `uniauth/pending`. The pending *page*
-was always configuration, so the view rendered on it is too — point it at a template of your
-own rather than putting a file in the starter's template path. The model (`signedInAs`) is
-the same either way.
+* *Spring Boot 4.1.1* (was 4.1.0). The first three segments follow the Boot release and the
+  fourth is this library's own patch counter, which is why it reads 2 rather than 4. No change
+  to the starter's own behaviour. This bump was first tagged as 4.1.1.1, which never reached
+  Maven Central — see below — so 4.1.0.3 is the version to upgrade from.
 
 * *Breaking — `ApprovalStore` gains `list(ApprovalStatus...)`* (#10). The store could
   answer who wants in but never who *is* in: `pending()` by definition excludes everybody
@@ -53,6 +32,32 @@ whole interface, since `pending()` already promised oldest-first. The contract k
 five cases and four deliberately broken stores; the mistake they exist for is wiring `list`
 to the query `pending()` used, which compiles, passes every older test, and shows an empty
 access list. The sample approvals page now has the two tables this makes possible.
+
+* *Fixed — the waiting page is now served* (#11). The gate redirected a held principal to
+  `uniauth.approval.pending-page` and the starter mapped nothing there, so they got one
+  redirect, a 404 and the whitelabel error page — which reads as a fault rather than as the
+  system working as configured. Nothing failed at startup and nothing logged, and the only
+  flow that reaches it is a real sign-in by somebody actually pending, which no first manual
+  run as an approved administrator performs.
++
+The page explains what is happening, names the account that is waiting — the one fact that
+makes it actionable, since somebody signed in with the wrong account cannot otherwise tell
+— and carries a sign-out *form*. A form because with CSRF on Spring's logout matcher is
+POST-only, so a sign-out link never reaches `LogoutFilter`: it falls through to the gate and
+bounces back to the waiting page. The back button is worse than nothing, returning to the
+provider which signs the same held account in again.
++
+It is registered as a view controller rather than a `@Controller`, which is a compatibility
+decision: the page was missing for long enough that applications supplied their own mapping
+on that path, and a `@RequestMapping` there would be an ambiguous mapping failing their
+context at startup. Behind a handler mapping ordered after `RequestMappingHandlerMapping` an
+application's own mapping simply wins, with nothing to exclude or configure — which is why
+`uniauth-examples/webapp` still serves its own richer page unchanged.
++
+New: `uniauth.approval.pending-view`, defaulting to `uniauth/pending`. The pending *page*
+was always configuration, so the view rendered on it is too — point it at a template of your
+own rather than putting a file in the starter's template path. The model (`signedInAs`) is
+the same either way.
 
 * *Fixed — the password form when an application brings its own accounts* (#9). An
   application that registers an `AuthenticationProvider` of its own, rather than declaring
@@ -132,6 +137,20 @@ entirely, because they assert what revocation leaves alone. Passing is evidence,
   part that is easy to get wrong: Spring's default handler masks the token it renders, so a
   front end echoing a raw cookie value back is refused with the same 403. Closes #32, which
   asked for the same hook from the sign-out side.
+* *New — `UniAuthBasicEntryPoint` is published* (#14). 4.1.0.3 stopped the Basic challenge
+  from reaching a browser's background requests (#13), but the three-way decision behind that
+  fix — challenge a program, redirect a navigating browser, answer a browser's XHR with a bare
+  `401` — was reachable only from the starter's own chain. An application that added a second
+  `SecurityFilterChain` for its API reached for a bare `BasicAuthenticationEntryPoint`, and the
+  native credential dialog came back on every expired-session XHR, on exactly the paths an
+  API-first front end calls. Both chains were installed, both were correct in isolation, and
+  the tests on both sides passed.
++
+Declaring the bean is how a second chain reuses that decision instead of reproducing it. Note
+that the type is an `AuthenticationEntryPoint`, which the starter's own chain scans for to let
+an application replace the chooser redirect — so this bean is deliberately filtered out of that
+search. Publishing it would otherwise replace the redirect for every browser navigation.
+
 * *New — `InvitationStore.findByUsedBy`* (#36). `Invitation.usedBy` already made the link
   between a login and the record it claimed durable, but the only way to ask was to list every
   invitation and filter. A `default` method, so no existing implementation changes; the latest
@@ -183,6 +202,10 @@ admission. Redemption runs whether or not the mechanism is covered by
 the principal on the request that granted them.
 
 == 4.1.1.1
+
+NOTE: Tagged, but never published. The tag and the GitHub release exist; the final publish
+step at Maven Central was never taken, so no artifact for this version resolves. Nothing is
+lost by skipping it — its one change is carried by 4.1.1.2 above.
 
 * *Spring Boot 4.1.1* (was 4.1.0). The version follows the Boot patch, so the fourth segment
   restarts at 1. No change to the starter's own behaviour.
