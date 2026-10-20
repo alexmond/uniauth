@@ -22,7 +22,19 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
-        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
+        <!--
+          0.12.0 is a floor, not just the latest. Up to and including 0.11.1 the plugin
+          stages by installing into target/central-staging as though it were a local
+          repository, so Maven's installer writes _remote.repositories and
+          maven-metadata-local.xml there and the bundle carries them to the Portal. That
+          leaves an artifact-level directory whose only content is maven-metadata-local.xml,
+          which the Portal validator now rejects with "Bundle has content that does NOT have
+          a .pom file" — naming the artifact rather than the stray file, so the message points
+          away from the cause. It validated such bundles until at least 2026-10-07, so this
+          fails on a release that nobody changed. Verify a bump by listing the bundle, not by
+          a green build: the staging logs look identical either way.
+        -->
+        <central-publishing-maven-plugin.version>0.12.0</central-publishing-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
