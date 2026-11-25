@@ -19,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -50,7 +51,7 @@ import java.util.List;
  * page only needs to render a link per registration.
  */
 @AutoConfiguration
-@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@ConditionalOnWebApplication(type = Type.SERVLET)
 @ConditionalOnClass(SecurityFilterChain.class)
 // Off unless asked for. This library decides who may reach what, so installing a
 // catch-all chain on the strength of being on the classpath is too strong a default:
