@@ -31,6 +31,7 @@ public final class MutableClock extends Clock {
 	private final AtomicReference<Instant> instant = new AtomicReference<>();
 
 	/**
+	 * Creates a clock fixed at an instant, in UTC.
 	 * @param instant what {@link #instant()} answers until it is moved
 	 */
 	public MutableClock(Instant instant) {

@@ -97,6 +97,8 @@ public class AccountAdminController {
 	}
 
 	/**
+	 * Request body for creating an account.
+	 *
 	 * @param username the account name
 	 * @param password the initial password, in clear
 	 * @param roles authorities to grant; defaults to USER when absent
@@ -114,6 +116,8 @@ public class AccountAdminController {
 	}
 
 	/**
+	 * Request body for updating an account.
+	 *
 	 * @param password a new password, or {@code null} to keep the current one
 	 * @param roles authorities to set, or {@code null} to leave them alone
 	 */

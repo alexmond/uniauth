@@ -73,6 +73,7 @@ public class ApprovalAuthoritiesFilter extends OncePerRequestFilter {
 	}
 
 	/**
+	 * Adds the approved roles to an authentication.
 	 * @param current the authentication on the context
 	 * @return a copy carrying the approved roles, or {@code null} to leave it alone
 	 */

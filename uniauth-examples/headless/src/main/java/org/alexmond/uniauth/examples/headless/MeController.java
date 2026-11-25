@@ -38,6 +38,8 @@ public class MeController {
 	}
 
 	/**
+	 * Who is signed in, and how.
+	 *
 	 * @param name the authenticated principal
 	 * @param mechanism which of the four answered
 	 * @param provider the registration id, or the mechanism name for form-based sign-ins

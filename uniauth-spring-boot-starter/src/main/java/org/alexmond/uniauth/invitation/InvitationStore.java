@@ -151,6 +151,7 @@ public interface InvitationStore {
 	class InvitationNotRedeemableException extends RuntimeException {
 
 		/**
+		 * Creates the exception.
 		 * @param message why it could not be claimed, for the log and not for the caller
 		 */
 		public InvitationNotRedeemableException(String message) {
