@@ -58,7 +58,7 @@ starter, the auth server and the admin console. `verify-optional-deps.sh` genera
 consumer and boots it — the only check that can catch an optional dependency slipping back to
 compile scope, which has happened once already.
 
-Java 21, Spring Boot 4.1.3, Spring Security 7.0.x. CI (`.github/workflows/maven.yml`) runs
+Java 21, Spring Boot 4.2.0, Spring Security 7.2.x. CI (`.github/workflows/maven.yml`) runs
 `./mvnw -B verify -Pdefault` on JDK 21 — the same gates as `dev-verify.sh`.
 
 ### Quality gates (all fail the build; the first three at `validate`)

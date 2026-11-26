@@ -29,7 +29,8 @@ The starter version tracks the Spring Boot version it is built against:
 |===
 | Starter | Spring Boot | Branch
 
-| 4.1.3.x | 4.1.x | `main`
+| 4.2.0.x | 4.2.x | `main`
+| 4.1.3.x | 4.1.x | `4.1`
 |===
 
 == Why one filter chain
@@ -442,7 +443,7 @@ scripts/dev-test.sh UniAuthLdapLoginTest  # one test class
 ./mvnw spring-javaformat:apply            # auto-format before committing
 ----
 
-Java 21, Spring Boot 4.1.x. Every `verify` runs four gates, all of which fail the build:
+Java 21, Spring Boot 4.2.x. Every `verify` runs four gates, all of which fail the build:
 spring-javaformat (tabs, Spring conventions), Checkstyle, PMD, and JaCoCo at ≥80% line coverage.
 
 == Licence
